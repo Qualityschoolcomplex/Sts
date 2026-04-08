@@ -1,0 +1,1425 @@
+import { useState, useEffect, useCallback } from "react";
+import { api, type User, type Student, type ScoreSheet, type Report, type SubjectScore } from "./api";
+
+function cn(...classes: (string | false | undefined | null)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function Spinner() {
+  return (
+    <div className="flex items-center justify-center h-full min-h-[200px]">
+      <div className="w-10 h-10 border-4 border-blue-900/20 border-t-blue-900 rounded-full spin" />
+    </div>
+  );
+}
+
+function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error"; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div
+      className={cn(
+        "fixed top-5 right-5 z-[9999] px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all",
+        type === "success" ? "bg-green-600" : "bg-red-600"
+      )}
+    >
+      {msg}
+    </div>
+  );
+}
+
+function useToast() {
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const show = useCallback((msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+  }, []);
+  const hide = useCallback(() => setToast(null), []);
+  return { toast, show, hide };
+}
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Input({ label, ...props }: { label?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="flex flex-col gap-1">
+      {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
+      <input
+        {...props}
+        className={cn(
+          "border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+          props.className
+        )}
+      />
+    </div>
+  );
+}
+
+function Select({ label, options, ...props }: { label?: string; options: { value: string; label: string }[] } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="flex flex-col gap-1">
+      {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
+      <select
+        {...props}
+        className={cn(
+          "border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white",
+          props.className
+        )}
+      >
+        <option value="">Select...</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Btn({ children, variant = "primary", className, ...props }: { variant?: "primary" | "danger" | "secondary" | "ghost" } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const variants = {
+    primary: "bg-blue-900 text-white hover:bg-blue-800",
+    danger: "bg-red-600 text-white hover:bg-red-700",
+    secondary: "bg-gray-100 text-gray-700 hover:bg-gray-200",
+    ghost: "bg-transparent text-gray-700 hover:bg-gray-100",
+  };
+  return (
+    <button
+      {...props}
+      className={cn(
+        "px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50",
+        variants[variant],
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, color = "blue" }: { children: React.ReactNode; color?: string }) {
+  const colors: Record<string, string> = {
+    blue: "bg-blue-100 text-blue-800",
+    green: "bg-green-100 text-green-800",
+    yellow: "bg-yellow-100 text-yellow-800",
+    red: "bg-red-100 text-red-800",
+    gray: "bg-gray-100 text-gray-700",
+  };
+  return (
+    <span className={cn("inline-block px-2.5 py-0.5 rounded-full text-xs font-medium", colors[color] || colors.blue)}>
+      {children}
+    </span>
+  );
+}
+
+function getGrade(total: number): string {
+  if (total >= 75) return "A";
+  if (total >= 60) return "B";
+  if (total >= 50) return "C";
+  if (total >= 45) return "D";
+  if (total >= 40) return "E";
+  return "F";
+}
+
+function getRemark(grade: string): string {
+  const map: Record<string, string> = { A: "Excellent", B: "Very Good", C: "Good", D: "Pass", E: "Fair", F: "Fail" };
+  return map[grade] || "";
+}
+
+// =================== LOGIN PAGE ===================
+function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const user = await api.auth.login(username, password);
+      onLogin(user);
+    } catch (err: any) {
+      setError(err.message || "Wrong username or password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-white font-bold text-2xl">Q</span>
+          </div>
+          <h1 className="text-2xl font-bold text-blue-900">Quality School Complex</h1>
+          <p className="text-gray-500 text-sm mt-1">Student Information System</p>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Input
+            label="Username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoFocus
+            placeholder="Enter username"
+          />
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Enter password"
+          />
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+              {error}
+            </div>
+          )}
+          <Btn type="submit" disabled={loading} className="py-3 text-base">
+            {loading ? "Signing in..." : "Sign In"}
+          </Btn>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// =================== ADMIN DASHBOARD ===================
+function AdminDashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [tab, setTab] = useState<"users" | "scoreSheets" | "reports">("users");
+  const { toast, show, hide } = useToast();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {toast && <Toast msg={toast.msg} type={toast.type} onClose={hide} />}
+      <header className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg">Q</div>
+          <div>
+            <div className="font-bold text-base">Quality School Complex SIS</div>
+            <div className="text-blue-200 text-xs">Admin Dashboard</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm">{user.name}</span>
+          <Badge color="blue">Admin</Badge>
+          <Btn variant="secondary" onClick={onLogout} className="text-xs">Logout</Btn>
+        </div>
+      </header>
+      <nav className="bg-white border-b border-gray-200 px-6">
+        <div className="flex gap-1">
+          {(["users", "scoreSheets", "reports"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                tab === t
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              )}
+            >
+              {t === "users" ? "User Management" : t === "scoreSheets" ? "Score Sheets" : "Generate Report"}
+            </button>
+          ))}
+        </div>
+      </nav>
+      <main className="p-6">
+        {tab === "users" && <AdminUsers show={show} />}
+        {tab === "scoreSheets" && <AdminScoreSheets show={show} />}
+        {tab === "reports" && <AdminReports show={show} />}
+      </main>
+    </div>
+  );
+}
+
+function AdminUsers({ show }: { show: (msg: string, type: "success" | "error") => void }) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<"create" | "edit" | null>(null);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [form, setForm] = useState({ username: "", password: "", role: "staff", name: "" });
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api.auth.getUsers();
+      setUsers(data);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.auth.createUser(form as any);
+      show("User created successfully", "success");
+      setModal(null);
+      setForm({ username: "", password: "", role: "staff", name: "" });
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
+    const update: any = { role: form.role, name: form.name };
+    if (form.password) update.password = form.password;
+    try {
+      await api.auth.updateUser(editUser.username, update);
+      show("User updated successfully", "success");
+      setModal(null);
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleDelete = async (username: string) => {
+    if (!confirm(`Delete user "${username}"?`)) return;
+    try {
+      await api.auth.deleteUser(username);
+      show("User deleted", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-900">User Management</h2>
+        <Btn onClick={() => { setModal("create"); setForm({ username: "", password: "", role: "staff", name: "" }); }}>
+          + Add User
+        </Btn>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Username</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Role</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {users.map((u) => (
+                <tr key={u.username} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{u.name}</td>
+                  <td className="px-4 py-3 text-gray-600">{u.username}</td>
+                  <td className="px-4 py-3">
+                    <Badge color={u.role === "admin" ? "blue" : "green"}>{u.role}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => {
+                        setEditUser(u);
+                        setForm({ username: u.username, password: "", role: u.role, name: u.name });
+                        setModal("edit");
+                      }}>Edit</Btn>
+                      {u.username !== "admin" && (
+                        <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(u.username)}>Delete</Btn>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal === "create" && (
+        <Modal title="Create User" onClose={() => setModal(null)}>
+          <form onSubmit={handleCreate} className="flex flex-col gap-4">
+            <Input label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input label="Username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
+            <Input label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            <Select label="Role" options={[{ value: "admin", label: "Admin" }, { value: "staff", label: "Staff" }]} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            <div className="flex gap-3 justify-end pt-2">
+              <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+              <Btn type="submit">Create User</Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {modal === "edit" && editUser && (
+        <Modal title={`Edit User: ${editUser.username}`} onClose={() => setModal(null)}>
+          <form onSubmit={handleEdit} className="flex flex-col gap-4">
+            <Input label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input label="New Password (leave blank to keep)" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <Select label="Role" options={[{ value: "admin", label: "Admin" }, { value: "staff", label: "Staff" }]} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            <div className="flex gap-3 justify-end pt-2">
+              <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+              <Btn type="submit">Save Changes</Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function AdminScoreSheets({ show }: { show: (msg: string, type: "success" | "error") => void }) {
+  const [sheets, setSheets] = useState<ScoreSheet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api.scoreSheets.list();
+      setSheets(data);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this score sheet?")) return;
+    try {
+      await api.scoreSheets.delete(id);
+      show("Score sheet deleted", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">All Score Sheets</h2>
+        <p className="text-gray-500 text-sm mt-1">View all score sheets from all staff members</p>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Subject</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Term</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Session</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Students</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Created By</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sheets.length === 0 && (
+                <tr><td colSpan={7} className="text-center text-gray-400 py-10">No score sheets found</td></tr>
+              )}
+              {sheets.map((s) => (
+                <tr key={s._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{s.subject}</td>
+                  <td className="px-4 py-3">{s.className}</td>
+                  <td className="px-4 py-3">{s.term}</td>
+                  <td className="px-4 py-3">{s.session}</td>
+                  <td className="px-4 py-3">{s.students.length}</td>
+                  <td className="px-4 py-3 text-gray-600">{s.createdBy}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(s._id)}>Delete</Btn>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminReports({ show }: { show: (msg: string, type: "success" | "error") => void }) {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState<Report | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api.reports.list();
+      setReports(data);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this report?")) return;
+    try {
+      await api.reports.delete(id);
+      show("Report deleted", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Generate Report</h2>
+        <p className="text-gray-500 text-sm mt-1">View and manage all student reports</p>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Term</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Session</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Position</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Created By</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {reports.length === 0 && (
+                <tr><td colSpan={7} className="text-center text-gray-400 py-10">No reports found</td></tr>
+              )}
+              {reports.map((r) => (
+                <tr key={r._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{r.studentName}</td>
+                  <td className="px-4 py-3">{r.className}</td>
+                  <td className="px-4 py-3">{r.term}</td>
+                  <td className="px-4 py-3">{r.session}</td>
+                  <td className="px-4 py-3">{r.position || "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">{r.createdBy}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => setViewing(r)}>View</Btn>
+                      <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(r._id)}>Delete</Btn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {viewing && <ReportViewModal report={viewing} onClose={() => setViewing(null)} />}
+    </div>
+  );
+}
+
+// =================== STAFF DASHBOARD ===================
+function StaffDashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [tab, setTab] = useState<"students" | "scoreSheets" | "reports">("students");
+  const { toast, show, hide } = useToast();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {toast && <Toast msg={toast.msg} type={toast.type} onClose={hide} />}
+      <header className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg">Q</div>
+          <div>
+            <div className="font-bold text-base">Quality School Complex SIS</div>
+            <div className="text-blue-200 text-xs">Staff Dashboard</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm">{user.name}</span>
+          <Badge color="green">Staff</Badge>
+          <Btn variant="secondary" onClick={onLogout} className="text-xs">Logout</Btn>
+        </div>
+      </header>
+      <nav className="bg-white border-b border-gray-200 px-6">
+        <div className="flex gap-1">
+          {(["students", "scoreSheets", "reports"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                tab === t
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              )}
+            >
+              {t === "students" ? "Student Roster" : t === "scoreSheets" ? "Score Sheets" : "Create Report"}
+            </button>
+          ))}
+        </div>
+      </nav>
+      <main className="p-6">
+        {tab === "students" && <StaffStudents show={show} />}
+        {tab === "scoreSheets" && <StaffScoreSheets show={show} />}
+        {tab === "reports" && <StaffReports show={show} user={user} />}
+      </main>
+    </div>
+  );
+}
+
+function StaffStudents({ show }: { show: (msg: string, type: "success" | "error") => void }) {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<"add" | "edit" | null>(null);
+  const [editItem, setEditItem] = useState<Student | null>(null);
+  const [form, setForm] = useState({ name: "", className: "" });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.students.list();
+      setStudents(data);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.students.create(form);
+      show("Student added", "success");
+      setModal(null);
+      setForm({ name: "", className: "" });
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem) return;
+    try {
+      await api.students.update(editItem._id, form);
+      show("Student updated", "success");
+      setModal(null);
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this student?")) return;
+    try {
+      await api.students.delete(id);
+      show("Student removed", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Student Roster</h2>
+          <p className="text-gray-500 text-sm mt-1">Manage your student list. These names appear in Create Report.</p>
+        </div>
+        <Btn onClick={() => { setModal("add"); setForm({ name: "", className: "" }); }}>+ Add Student</Btn>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {students.length === 0 && (
+                <tr><td colSpan={3} className="text-center text-gray-400 py-10">No students yet. Click "+ Add Student" to begin.</td></tr>
+              )}
+              {students.map((s) => (
+                <tr key={s._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{s.name}</td>
+                  <td className="px-4 py-3 text-gray-600">{s.className || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => {
+                        setEditItem(s);
+                        setForm({ name: s.name, className: s.className });
+                        setModal("edit");
+                      }}>Edit</Btn>
+                      <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(s._id)}>Remove</Btn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal === "add" && (
+        <Modal title="Add Student" onClose={() => setModal(null)}>
+          <form onSubmit={handleAdd} className="flex flex-col gap-4">
+            <Input label="Student Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Full name" />
+            <Input label="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} placeholder="e.g. JSS 1A" />
+            <div className="flex gap-3 justify-end pt-2">
+              <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+              <Btn type="submit">Add Student</Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {modal === "edit" && editItem && (
+        <Modal title="Edit Student" onClose={() => setModal(null)}>
+          <form onSubmit={handleEdit} className="flex flex-col gap-4">
+            <Input label="Student Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input label="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
+            <div className="flex gap-3 justify-end pt-2">
+              <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+              <Btn type="submit">Save Changes</Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+const SUBJECTS = [
+  "Mathematics", "English Language", "Basic Science", "Social Studies",
+  "Civic Education", "Agricultural Science", "Computer Science",
+  "Home Economics", "Business Studies", "Fine Arts", "Music",
+  "Physical Education", "French", "Yoruba", "Igbo", "Hausa",
+  "Religious Studies (CRS)", "Religious Studies (IRS)",
+];
+
+const TERMS = ["First Term", "Second Term", "Third Term"];
+
+function StaffScoreSheets({ show }: { show: (msg: string, type: "success" | "error") => void }) {
+  const [sheets, setSheets] = useState<ScoreSheet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<"create" | "view" | null>(null);
+  const [viewItem, setViewItem] = useState<ScoreSheet | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [form, setForm] = useState({
+    subject: "", term: "", session: "", className: "",
+    students: [] as { name: string; scores: { ca1: number; ca2: number; ca3: number; exam: number } }[],
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [data, studs] = await Promise.all([api.scoreSheets.list(), api.students.list()]);
+      setSheets(data);
+      setStudents(studs);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => {
+    setForm({ subject: "", term: "", session: "", className: "", students: [] });
+    setModal("create");
+  };
+
+  const addStudentRow = (name?: string) => {
+    setForm((prev) => ({
+      ...prev,
+      students: [...prev.students, { name: name || "", scores: { ca1: 0, ca2: 0, ca3: 0, exam: 0 } }],
+    }));
+  };
+
+  const updateStudentRow = (i: number, field: string, value: string | number) => {
+    setForm((prev) => {
+      const updated = [...prev.students];
+      if (field === "name") {
+        updated[i] = { ...updated[i], name: String(value) };
+      } else {
+        updated[i] = { ...updated[i], scores: { ...updated[i].scores, [field]: Number(value) } };
+      }
+      return { ...prev, students: updated };
+    });
+  };
+
+  const removeStudentRow = (i: number) => {
+    setForm((prev) => ({ ...prev, students: prev.students.filter((_, idx) => idx !== i) }));
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.students.length === 0) {
+      show("Add at least one student", "error");
+      return;
+    }
+    const processedStudents = form.students.map((s) => {
+      const total = s.scores.ca1 + s.scores.ca2 + s.scores.ca3 + s.scores.exam;
+      const grade = getGrade(total);
+      return { name: s.name, scores: { ...s.scores, total, grade, remark: getRemark(grade) } };
+    });
+    try {
+      await api.scoreSheets.create({ ...form, students: processedStudents });
+      show("Score sheet saved", "success");
+      setModal(null);
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this score sheet?")) return;
+    try {
+      await api.scoreSheets.delete(id);
+      show("Score sheet deleted", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const printSheet = (sheet: ScoreSheet) => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const rows = sheet.students.map((s) =>
+      `<tr><td>${s.name}</td><td>${s.scores.ca1 ?? ""}</td><td>${s.scores.ca2 ?? ""}</td><td>${s.scores.ca3 ?? ""}</td><td>${s.scores.exam ?? ""}</td><td>${s.scores.total ?? ""}</td><td>${s.scores.grade ?? ""}</td><td>${s.scores.remark ?? ""}</td></tr>`
+    ).join("");
+    w.document.write(`<!DOCTYPE html><html><head><title>Score Sheet</title><style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:10px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:3px 5px;text-align:center}th{background:#dce8f5}td:first-child{text-align:left}h2,h3{margin:0 0 4px}</style></head><body><h2>Quality School Complex</h2><h3>${sheet.subject} — ${sheet.className} — ${sheet.term} ${sheet.session}</h3><table><thead><tr><th>Student Name</th><th>CA1</th><th>CA2</th><th>CA3</th><th>Exam</th><th>Total</th><th>Grade</th><th>Remark</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Score Sheets</h2>
+          <p className="text-gray-500 text-sm mt-1">Create and manage student score sheets by subject</p>
+        </div>
+        <Btn onClick={openCreate}>+ Create Score Sheet</Btn>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Subject</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Term</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Session</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Students</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sheets.length === 0 && (
+                <tr><td colSpan={6} className="text-center text-gray-400 py-10">No score sheets yet.</td></tr>
+              )}
+              {sheets.map((s) => (
+                <tr key={s._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{s.subject}</td>
+                  <td className="px-4 py-3">{s.className}</td>
+                  <td className="px-4 py-3">{s.term}</td>
+                  <td className="px-4 py-3">{s.session}</td>
+                  <td className="px-4 py-3">{s.students.length}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => { setViewItem(s); setModal("view"); }}>View</Btn>
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => printSheet(s)}>Print</Btn>
+                      <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(s._id)}>Delete</Btn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal === "view" && viewItem && (
+        <Modal title={`Score Sheet: ${viewItem.subject}`} onClose={() => setModal(null)}>
+          <div className="text-sm text-gray-600 mb-4">{viewItem.className} &bull; {viewItem.term} &bull; {viewItem.session}</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-2 py-2 text-left">Name</th>
+                  <th className="border border-gray-300 px-2 py-2">CA1</th>
+                  <th className="border border-gray-300 px-2 py-2">CA2</th>
+                  <th className="border border-gray-300 px-2 py-2">CA3</th>
+                  <th className="border border-gray-300 px-2 py-2">Exam</th>
+                  <th className="border border-gray-300 px-2 py-2">Total</th>
+                  <th className="border border-gray-300 px-2 py-2">Grade</th>
+                  <th className="border border-gray-300 px-2 py-2">Remark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewItem.students.map((s, i) => (
+                  <tr key={i} className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-2 py-1">{s.name}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.ca1}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.ca2}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.ca3}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.exam}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center font-medium">{s.scores.total}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.grade}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{s.scores.remark}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Btn variant="secondary" onClick={() => setModal(null)}>Close</Btn>
+          </div>
+        </Modal>
+      )}
+      {modal === "create" && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-6 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Create Score Sheet</h2>
+              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleCreate} className="p-6 flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Select label="Subject" options={SUBJECTS.map((s) => ({ value: s, label: s }))} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required />
+                <Select label="Term" options={TERMS.map((t) => ({ value: t, label: t }))} value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required />
+                <Input label="Session" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })} placeholder="e.g. 2024/2025" required />
+                <Input label="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} placeholder="e.g. JSS 1A" required />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">Students & Scores</h3>
+                  <div className="flex gap-2">
+                    {students.length > 0 && (
+                      <div className="relative">
+                        <select
+                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
+                          onChange={(e) => { if (e.target.value) { addStudentRow(e.target.value); e.target.value = ""; } }}
+                          defaultValue=""
+                        >
+                          <option value="">Pick from roster...</option>
+                          {students.map((s) => <option key={s._id} value={s.name}>{s.name} ({s.className})</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <Btn type="button" variant="secondary" className="text-xs" onClick={() => addStudentRow()}>+ Add Row</Btn>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-3 py-2 text-left">Student Name</th>
+                        <th className="border border-gray-300 px-3 py-2 w-20">CA1 (/10)</th>
+                        <th className="border border-gray-300 px-3 py-2 w-20">CA2 (/10)</th>
+                        <th className="border border-gray-300 px-3 py-2 w-20">CA3 (/10)</th>
+                        <th className="border border-gray-300 px-3 py-2 w-24">Exam (/70)</th>
+                        <th className="border border-gray-300 px-3 py-2 w-20">Total</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.students.length === 0 && (
+                        <tr><td colSpan={7} className="text-center text-gray-400 py-6 border border-gray-200">No students added yet</td></tr>
+                      )}
+                      {form.students.map((s, i) => {
+                        const total = s.scores.ca1 + s.scores.ca2 + s.scores.ca3 + s.scores.exam;
+                        return (
+                          <tr key={i} className="even:bg-gray-50">
+                            <td className="border border-gray-200 px-2 py-1">
+                              <input
+                                className="w-full border-0 bg-transparent focus:outline-none text-sm"
+                                value={s.name}
+                                onChange={(e) => updateStudentRow(i, "name", e.target.value)}
+                                placeholder="Student name"
+                                required
+                              />
+                            </td>
+                            {(["ca1", "ca2", "ca3", "exam"] as const).map((f) => (
+                              <td key={f} className="border border-gray-200 px-2 py-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={f === "exam" ? 70 : 10}
+                                  className="w-full border-0 bg-transparent focus:outline-none text-sm text-center"
+                                  value={s.scores[f]}
+                                  onChange={(e) => updateStudentRow(i, f, e.target.value)}
+                                />
+                              </td>
+                            ))}
+                            <td className="border border-gray-200 px-2 py-1 text-center font-medium">{total}</td>
+                            <td className="border border-gray-200 px-2 py-1 text-center">
+                              <button type="button" onClick={() => removeStudentRow(i)} className="text-red-500 hover:text-red-700 text-lg leading-none">&times;</button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+                <Btn type="submit">Save Score Sheet</Btn>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StaffReports({ show, user }: { show: (msg: string, type: "success" | "error") => void; user: User }) {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<"create" | "view" | null>(null);
+  const [viewItem, setViewItem] = useState<Report | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [scoreSheets, setScoreSheets] = useState<ScoreSheet[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
+  const [form, setForm] = useState({
+    studentName: "",
+    className: "",
+    term: "",
+    session: "",
+    position: "",
+    attendance: { present: 0, total: 0 },
+    teacherRemark: "",
+    principalRemark: "",
+    nextTermBegins: "",
+    subjects: [] as SubjectScore[],
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rpts, studs, sheets] = await Promise.all([
+        api.reports.list(),
+        api.students.list(),
+        api.scoreSheets.list(),
+      ]);
+      setReports(rpts);
+      setStudents(studs);
+      setScoreSheets(sheets);
+    } catch { }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleStudentSelect = (name: string) => {
+    setForm((prev) => ({ ...prev, studentName: name }));
+    if (selectedSheet) {
+      loadFromSheet(selectedSheet, name);
+    }
+  };
+
+  const loadFromSheet = (sheetId: string, studentName?: string) => {
+    const sheet = scoreSheets.find((s) => s._id === sheetId);
+    if (!sheet) return;
+    const stuName = studentName || form.studentName;
+    setForm((prev) => ({
+      ...prev,
+      term: sheet.term,
+      session: sheet.session,
+      className: sheet.className,
+    }));
+    if (stuName) {
+      const entry = sheet.students.find((s) => s.name === stuName);
+      if (entry) {
+        const total = (entry.scores.ca1 || 0) + (entry.scores.ca2 || 0) + (entry.scores.ca3 || 0) + (entry.scores.exam || 0);
+        const finalTotal = entry.scores.total ?? total;
+        const grade = entry.scores.grade || getGrade(finalTotal);
+        setForm((prev) => ({
+          ...prev,
+          subjects: [
+            ...prev.subjects.filter((s) => s.subject !== sheet.subject),
+            {
+              subject: sheet.subject,
+              ca1: entry.scores.ca1 || 0,
+              ca2: entry.scores.ca2 || 0,
+              ca3: entry.scores.ca3 || 0,
+              exam: entry.scores.exam || 0,
+              total: finalTotal,
+              grade,
+              remark: entry.scores.remark || getRemark(grade),
+            },
+          ],
+        }));
+      }
+    }
+  };
+
+  const handleSheetSelect = (sheetId: string) => {
+    setSelectedSheet(sheetId);
+    if (sheetId) {
+      loadFromSheet(sheetId);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.studentName) {
+      show("Student name required", "error");
+      return;
+    }
+    try {
+      await api.reports.create(form);
+      show("Report saved", "success");
+      setModal(null);
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this report?")) return;
+    try {
+      await api.reports.delete(id);
+      show("Report deleted", "success");
+      load();
+    } catch (err: any) {
+      show(err.message, "error");
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Create Report</h2>
+          <p className="text-gray-500 text-sm mt-1">Generate student report cards</p>
+        </div>
+        <Btn onClick={() => {
+          setForm({ studentName: "", className: "", term: "", session: "", position: "", attendance: { present: 0, total: 0 }, teacherRemark: "", principalRemark: "", nextTermBegins: "", subjects: [] });
+          setSelectedSheet("");
+          setModal("create");
+        }}>+ Create Report</Btn>
+      </div>
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Student Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Term</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Session</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Position</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {reports.length === 0 && (
+                <tr><td colSpan={6} className="text-center text-gray-400 py-10">No reports yet.</td></tr>
+              )}
+              {reports.map((r) => (
+                <tr key={r._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{r.studentName}</td>
+                  <td className="px-4 py-3">{r.className}</td>
+                  <td className="px-4 py-3">{r.term}</td>
+                  <td className="px-4 py-3">{r.session}</td>
+                  <td className="px-4 py-3">{r.position || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Btn variant="secondary" className="text-xs py-1 px-3" onClick={() => { setViewItem(r); setModal("view"); }}>View</Btn>
+                      <Btn variant="danger" className="text-xs py-1 px-3" onClick={() => handleDelete(r._id)}>Delete</Btn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal === "view" && viewItem && <ReportViewModal report={viewItem} onClose={() => setModal(null)} />}
+      {modal === "create" && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-6 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Create Report Card</h2>
+              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleCreate} className="p-6 flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+                  <label className="text-sm font-medium text-gray-700">STUDENT NAME</label>
+                  <select
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={form.studentName}
+                    onChange={(e) => handleStudentSelect(e.target.value)}
+                    required
+                  >
+                    <option value="">Select student...</option>
+                    {students.map((s) => (
+                      <option key={s._id} value={s.name}>{s.name} ({s.className})</option>
+                    ))}
+                    <option value="__manual__" disabled>── or type manually ──</option>
+                  </select>
+                  {(!students.length || form.studentName === "") && (
+                    <input
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Or type student name manually"
+                      value={form.studentName}
+                      onChange={(e) => setForm({ ...form, studentName: e.target.value })}
+                    />
+                  )}
+                </div>
+                <Input label="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required />
+                <Select label="Term" options={TERMS.map((t) => ({ value: t, label: t }))} value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required />
+                <Input label="Session" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })} placeholder="e.g. 2024/2025" required />
+                <Input label="Position" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="e.g. 2nd" />
+                <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+                  <label className="text-sm font-medium text-gray-700">Load from Score Sheet</label>
+                  <select
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedSheet}
+                    onChange={(e) => handleSheetSelect(e.target.value)}
+                  >
+                    <option value="">Select score sheet...</option>
+                    {scoreSheets.map((s) => (
+                      <option key={s._id} value={s._id}>{s.subject} — {s.className} ({s.term} {s.session})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3">Subject Scores</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-3 py-2 text-left">Subject</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">CA1</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">CA2</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">CA3</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">Exam</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">Total</th>
+                        <th className="border border-gray-300 px-3 py-2 w-16">Grade</th>
+                        <th className="border border-gray-300 px-3 py-2 w-24">Remark</th>
+                        <th className="border border-gray-300 px-3 py-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.subjects.length === 0 && (
+                        <tr><td colSpan={9} className="text-center text-gray-400 py-6 border border-gray-200">Load from a score sheet or add subjects manually below</td></tr>
+                      )}
+                      {form.subjects.map((s, i) => (
+                        <tr key={i} className="even:bg-gray-50">
+                          <td className="border border-gray-200 px-2 py-1">
+                            <select
+                              className="w-full border-0 bg-transparent text-sm focus:outline-none"
+                              value={s.subject}
+                              onChange={(e) => {
+                                const updated = [...form.subjects];
+                                updated[i] = { ...updated[i], subject: e.target.value };
+                                setForm({ ...form, subjects: updated });
+                              }}
+                            >
+                              {SUBJECTS.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+                            </select>
+                          </td>
+                          {(["ca1", "ca2", "ca3", "exam"] as const).map((f) => (
+                            <td key={f} className="border border-gray-200 px-1 py-1">
+                              <input
+                                type="number" min={0} max={f === "exam" ? 70 : 10}
+                                className="w-full border-0 bg-transparent text-sm text-center focus:outline-none"
+                                value={s[f]}
+                                onChange={(e) => {
+                                  const updated = [...form.subjects];
+                                  const val = Number(e.target.value);
+                                  const newRow = { ...updated[i], [f]: val };
+                                  const total = newRow.ca1 + newRow.ca2 + newRow.ca3 + newRow.exam;
+                                  const grade = getGrade(total);
+                                  updated[i] = { ...newRow, total, grade, remark: getRemark(grade) };
+                                  setForm({ ...form, subjects: updated });
+                                }}
+                              />
+                            </td>
+                          ))}
+                          <td className="border border-gray-200 px-2 py-1 text-center font-medium">{s.total}</td>
+                          <td className="border border-gray-200 px-2 py-1 text-center">{s.grade}</td>
+                          <td className="border border-gray-200 px-2 py-1 text-center">{s.remark}</td>
+                          <td className="border border-gray-200 px-2 py-1 text-center">
+                            <button type="button" onClick={() => setForm({ ...form, subjects: form.subjects.filter((_, idx) => idx !== i) })} className="text-red-500 hover:text-red-700">&times;</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Btn
+                  type="button"
+                  variant="secondary"
+                  className="text-xs mt-2"
+                  onClick={() => setForm({ ...form, subjects: [...form.subjects, { subject: SUBJECTS[0], ca1: 0, ca2: 0, ca3: 0, exam: 0, total: 0, grade: "F", remark: "Fail" }] })}
+                >
+                  + Add Subject Row
+                </Btn>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Days Present" type="number" value={form.attendance.present} onChange={(e) => setForm({ ...form, attendance: { ...form.attendance, present: Number(e.target.value) } })} />
+                <Input label="Total Days" type="number" value={form.attendance.total} onChange={(e) => setForm({ ...form, attendance: { ...form.attendance, total: Number(e.target.value) } })} />
+                <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+                  <label className="text-sm font-medium text-gray-700">Teacher's Remark</label>
+                  <textarea className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows={2} value={form.teacherRemark} onChange={(e) => setForm({ ...form, teacherRemark: e.target.value })} />
+                </div>
+                <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+                  <label className="text-sm font-medium text-gray-700">Principal's Remark</label>
+                  <textarea className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows={2} value={form.principalRemark} onChange={(e) => setForm({ ...form, principalRemark: e.target.value })} />
+                </div>
+                <Input label="Next Term Begins" value={form.nextTermBegins} onChange={(e) => setForm({ ...form, nextTermBegins: e.target.value })} placeholder="e.g. September 8, 2025" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Btn variant="secondary" type="button" onClick={() => setModal(null)}>Cancel</Btn>
+                <Btn type="submit">Save Report</Btn>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =================== REPORT VIEW MODAL ===================
+function ReportViewModal({ report, onClose }: { report: Report; onClose: () => void }) {
+  const printReport = () => {
+    const rows = report.subjects.map((s) =>
+      `<tr><td>${s.subject}</td><td>${s.ca1}</td><td>${s.ca2}</td><td>${s.ca3}</td><td>${s.exam}</td><td>${s.total}</td><td>${s.grade}</td><td>${s.remark}</td></tr>`
+    ).join("");
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Report Card - ${report.studentName}</title><style>
+@page{size:A4;margin:10mm 12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#000;background:white}
+.header{text-align:center;border-bottom:2px solid #003087;padding-bottom:8px;margin-bottom:8px}
+.school-name{font-size:16px;font-weight:bold;color:#003087}
+.top-info{display:flex;justify-content:space-between;margin-bottom:10px}
+.field{display:flex;margin-bottom:4px}.field-label{font-weight:bold;margin-right:4px;white-space:nowrap}.field-value{border-bottom:1px solid #000;flex:1;min-width:100px}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:10px}th,td{border:1px solid #555;padding:4px 5px;text-align:center}th{background:#e0e8f0;font-weight:bold}td:first-child{text-align:left}
+.bottom-section{font-size:9.5px;line-height:2.2;margin-top:8px}
+</style></head><body>
+<div class="header"><div class="school-name">QUALITY SCHOOL COMPLEX</div><div>Student Report Card</div></div>
+<div class="top-info">
+<div><div class="field"><span class="field-label">Name:</span><span class="field-value">${report.studentName}</span></div><div class="field"><span class="field-label">Class:</span><span class="field-value">${report.className}</span></div></div>
+<div><div class="field"><span class="field-label">Term:</span><span class="field-value">${report.term}</span></div><div class="field"><span class="field-label">Session:</span><span class="field-value">${report.session}</span></div></div>
+<div><div class="field"><span class="field-label">Position:</span><span class="field-value">${report.position || "—"}</span></div><div class="field"><span class="field-label">Attendance:</span><span class="field-value">${report.attendance?.present || 0}/${report.attendance?.total || 0}</span></div></div>
+</div>
+<table><thead><tr><th>Subject</th><th>CA1</th><th>CA2</th><th>CA3</th><th>Exam</th><th>Total</th><th>Grade</th><th>Remark</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="bottom-section">
+<div><b>Teacher's Remark:</b> ${report.teacherRemark || "—"}</div>
+<div><b>Principal's Remark:</b> ${report.principalRemark || "—"}</div>
+<div><b>Next Term Begins:</b> ${report.nextTermBegins || "—"}</div>
+</div>
+</body></html>`);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
+  };
+
+  return (
+    <Modal title={`Report Card: ${report.studentName}`} onClose={onClose}>
+      <div className="flex gap-6 text-sm mb-4 flex-wrap">
+        <div><span className="font-semibold">Class:</span> {report.className}</div>
+        <div><span className="font-semibold">Term:</span> {report.term}</div>
+        <div><span className="font-semibold">Session:</span> {report.session}</div>
+        <div><span className="font-semibold">Position:</span> {report.position || "—"}</div>
+        <div><span className="font-semibold">Attendance:</span> {report.attendance?.present || 0}/{report.attendance?.total || 0}</div>
+      </div>
+      <div className="overflow-x-auto mb-4">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-2 py-2 text-left">Subject</th>
+              <th className="border border-gray-300 px-2 py-2">CA1</th>
+              <th className="border border-gray-300 px-2 py-2">CA2</th>
+              <th className="border border-gray-300 px-2 py-2">CA3</th>
+              <th className="border border-gray-300 px-2 py-2">Exam</th>
+              <th className="border border-gray-300 px-2 py-2">Total</th>
+              <th className="border border-gray-300 px-2 py-2">Grade</th>
+              <th className="border border-gray-300 px-2 py-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.subjects.map((s, i) => (
+              <tr key={i} className="even:bg-gray-50">
+                <td className="border border-gray-300 px-2 py-1">{s.subject}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.ca1}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.ca2}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.ca3}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.exam}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-medium">{s.total}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.grade}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center">{s.remark}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {(report.teacherRemark || report.principalRemark) && (
+        <div className="text-sm space-y-1 mb-4">
+          {report.teacherRemark && <div><span className="font-semibold">Teacher's Remark:</span> {report.teacherRemark}</div>}
+          {report.principalRemark && <div><span className="font-semibold">Principal's Remark:</span> {report.principalRemark}</div>}
+          {report.nextTermBegins && <div><span className="font-semibold">Next Term Begins:</span> {report.nextTermBegins}</div>}
+        </div>
+      )}
+      <div className="flex justify-end gap-3">
+        <Btn variant="secondary" onClick={onClose}>Close</Btn>
+        <Btn onClick={printReport}>Print Report</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// =================== MAIN APP ===================
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.auth.me()
+      .then((u) => setUser(u))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleLogout = async () => {
+    await api.auth.logout().catch(() => {});
+    setUser(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full spin mx-auto mb-4" />
+          <div className="font-bold text-xl">Quality School Complex</div>
+          <div className="text-blue-200 text-sm mt-1">Student Information System</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+  if (user.role === "admin") return <AdminDashboard user={user} onLogout={handleLogout} />;
+  return <StaffDashboard user={user} onLogout={handleLogout} />;
+}
