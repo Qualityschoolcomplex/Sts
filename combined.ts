@@ -349,11 +349,6 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
             <p className="text-sm font-semibold uppercase tracking-[0.35em] text-blue-200">Quality School Complex</p>
             <h1 className="mt-5 text-4xl font-black leading-tight">Student Information System</h1>
             <p className="mt-4 text-blue-100">Manage staff users, score sheets, student names, uploaded report templates, drafts, previews, and submitted reports from one place.</p>
-            <div className="mt-8 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-blue-50">
-              <p className="font-bold">Default logins</p>
-              <p className="mt-2">Admin: admin / admin123</p>
-              <p>Staff: staff / staff123</p>
-            </div>
           </section>
           <form onSubmit={submit} className="p-10 text-gray-900" data-selector="login-form">
             <h2 className="text-2xl font-black text-blue-950">Sign in</h2>
@@ -766,20 +761,80 @@ function ReportPreview({ report, onClose }: { report: Report; onClose: () => voi
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" data-selector="report-preview-modal">
       <div className="mx-auto max-w-4xl rounded-2xl bg-white p-5 shadow-2xl">
         <div className="mb-4 flex justify-end gap-2 print:hidden"><Button onClick={() => window.print()}>Print / Save PDF</Button><Button onClick={onClose} variant="ghost">Close</Button></div>
-        <div className="report-a4 mx-auto bg-white p-8 text-black shadow-xl print:shadow-none" data-selector="report-a4-preview">
-          <div className="border-b-2 border-blue-900 pb-3 text-center">
-            <h2 className="text-xl font-black text-blue-950">QUALITY SCHOOL COMPLEX</h2>
-            <p className="font-bold">ENGLISH AND ARABIC</p>
-            <p className="text-sm text-gray-600">LOCATION: KAKPAGYILI SAVANNA AREA – SAWALNI</p>
+        <div className="report-a4 mx-auto bg-white p-7 text-black shadow-xl print:shadow-none" data-selector="report-a4-preview">
+          <div className="border-b-2 border-blue-900 pb-2 text-center">
+            <h2 className="text-[18px] font-black tracking-wide text-blue-950">QUALITY SCHOOL COMPLEX</h2>
+            <p className="text-[13px] font-bold text-blue-950">ENGLISH AND ARABIC</p>
+            <p className="text-[10px] font-semibold text-gray-600">LOCATION: KAKPAGYILI SAVANNA AREA – SAWALNI</p>
           </div>
-          <div className="my-5 grid grid-cols-2 gap-2 text-sm">
-            <p><strong>Name:</strong> {report.studentName}</p><p><strong>Class:</strong> {report.className}</p><p><strong>Term:</strong> {report.term}</p><p><strong>Year:</strong> {report.year}</p><p><strong>Position:</strong> {report.position}</p><p><strong>Attendance:</strong> {report.attendance}</p>
+
+          <div className="my-3 flex items-start justify-between text-[10px] leading-5">
+            <div>
+              <p><strong>Serial No.:</strong> ................................</p>
+              <p><strong>Admission No.:</strong> ..........................</p>
+            </div>
+            <div className="text-center">
+              <div className="mx-auto flex h-16 w-24 items-center justify-center rounded border border-gray-300 text-[9px] font-bold text-gray-400">LOGO</div>
+            </div>
+            <div className="text-right">
+              <p><strong>Term:</strong> {report.term || "........................"}</p>
+              <p><strong>Year:</strong> {report.year || "........................"}</p>
+            </div>
           </div>
-          <table className="w-full border-collapse text-xs" data-selector="report-preview-table-no-grade">
-            <thead><tr className="bg-blue-100"><th className="border border-gray-500 px-2 py-1 text-left">Subject</th><th className="border border-gray-500 px-2 py-1">Class Score</th><th className="border border-gray-500 px-2 py-1">Exam Score</th><th className="border border-gray-500 px-2 py-1">Total</th><th className="border border-gray-500 px-2 py-1">Position</th><th className="border border-gray-500 px-2 py-1">Remarks</th></tr></thead>
-            <tbody>{report.subjects.map((row) => <tr key={row.id}><td className="border border-gray-500 px-2 py-1">{row.studentName}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.classScore}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.examScore}</td><td className="border border-gray-500 px-2 py-1 text-center">{totalScore(row)}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.position}</td><td className="border border-gray-500 px-2 py-1">{row.remarks}</td></tr>)}</tbody>
+
+          <div className="my-2 border-y border-gray-400 py-2 text-[10px] leading-5">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+              <p><strong>Name of Student:</strong> <span className="inline-block min-w-40 border-b border-black px-1">{report.studentName}</span></p>
+              <p><strong>Class:</strong> <span className="inline-block min-w-28 border-b border-black px-1">{report.className}</span></p>
+              <p><strong>Attendance:</strong> <span className="inline-block min-w-24 border-b border-black px-1">{report.attendance}</span></p>
+              <p><strong>Position:</strong> <span className="inline-block min-w-24 border-b border-black px-1">{report.position}</span></p>
+            </div>
+          </div>
+
+          <div className="my-2 border border-gray-400 bg-gray-100 px-2 py-1 text-[9px] font-bold">
+            KEY: Class Score = 30%, Examination Score = 70%, Total Score = 100%
+          </div>
+
+          <table className="w-full border-collapse text-[10px]" data-selector="report-preview-table-no-grade">
+            <thead>
+              <tr className="bg-blue-100">
+                <th className="border border-gray-600 px-2 py-1 text-left">Subject</th>
+                <th className="border border-gray-600 px-2 py-1">Class Score</th>
+                <th className="border border-gray-600 px-2 py-1">Exam Score</th>
+                <th className="border border-gray-600 px-2 py-1">Total</th>
+                <th className="border border-gray-600 px-2 py-1">Position</th>
+                <th className="border border-gray-600 px-2 py-1">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.subjects.map((row) => (
+                <tr key={row.id}>
+                  <td className="border border-gray-600 px-2 py-1 text-left">{row.studentName}</td>
+                  <td className="border border-gray-600 px-2 py-1 text-center">{row.classScore}</td>
+                  <td className="border border-gray-600 px-2 py-1 text-center">{row.examScore}</td>
+                  <td className="border border-gray-600 px-2 py-1 text-center">{totalScore(row)}</td>
+                  <td className="border border-gray-600 px-2 py-1 text-center">{row.position}</td>
+                  <td className="border border-gray-600 px-2 py-1">{row.remarks}</td>
+                </tr>
+              ))}
+              {!report.subjects.length && (
+                <tr>
+                  <td className="border border-gray-600 px-2 py-6 text-center text-gray-500" colSpan={6}>No score sheet results selected.</td>
+                </tr>
+              )}
+            </tbody>
           </table>
-          <div className="mt-5 text-sm"><p><strong>Conduct:</strong> {report.conduct}</p><p><strong>Interest:</strong> {report.interest}</p><p><strong>Teacher's Remark:</strong> {report.teacherRemark}</p></div>
+
+          <div className="mt-3 space-y-2 text-[10px] leading-5">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+              <p><strong>Conduct:</strong> <span className="inline-block min-w-32 border-b border-black px-1">{report.conduct}</span></p>
+              <p><strong>Interest:</strong> <span className="inline-block min-w-32 border-b border-black px-1">{report.interest}</span></p>
+              <p><strong>Promoted to:</strong> <span className="inline-block min-w-32 border-b border-black px-1"></span></p>
+              <p><strong>Next Term Begins:</strong> <span className="inline-block min-w-32 border-b border-black px-1"></span></p>
+            </div>
+            <p><strong>Teacher's Remark:</strong> <span className="inline-block min-w-[70%] border-b border-black px-1">{report.teacherRemark}</span></p>
+            <p><strong>Headmaster's Signature:</strong> <span className="inline-block min-w-[65%] border-b border-black px-1"></span></p>
+          </div>
         </div>
       </div>
     </div>
