@@ -1,5 +1,174 @@
 // ============================================================
-// FILE: main.tsx
+// FILE: app.ts
+// ============================================================
+
+import express, { type Express } from "express";
+import cors from "cors";
+import pinoHttp from "pino-http";
+import router from "./routes";
+import { logger } from "./lib/logger";
+
+const app: Express = express();
+
+app.use(
+  pinoHttp({
+    logger,
+    serializers: {
+      req(req) {
+        return {
+          id: req.id,
+          method: req.method,
+          url: req.url?.split("?")[0],
+        };
+      },
+      res(res) {
+        return {
+          statusCode: res.statusCode,
+        };
+      },
+    },
+  }),
+);
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/api", router);
+
+export default app;
+
+
+// ============================================================
+// FILE: index.ts
+// ============================================================
+
+import app from "./app";
+import { logger } from "./lib/logger";
+
+const rawPort = process.env["PORT"];
+
+if (!rawPort) {
+  throw new Error(
+    "PORT environment variable is required but was not provided.",
+  );
+}
+
+const port = Number(rawPort);
+
+if (Number.isNaN(port) || port <= 0) {
+  throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+app.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  }
+
+  logger.info({ port }, "Server listening");
+});
+
+
+// ============================================================
+// FILE: index.ts
+// ============================================================
+
+import { Router, type IRouter } from "express";
+import downloadsRouter from "./downloads";
+import healthRouter from "./health";
+
+const router: IRouter = Router();
+
+router.use(downloadsRouter);
+router.use(healthRouter);
+
+export default router;
+
+
+// ============================================================
+// FILE: health.ts
+// ============================================================
+
+import { Router, type IRouter } from "express";
+import { HealthCheckResponse } from "@workspace/api-zod";
+
+const router: IRouter = Router();
+
+router.get("/healthz", (_req, res) => {
+  const data = HealthCheckResponse.parse({ status: "ok" });
+  res.json(data);
+});
+
+export default router;
+
+
+// ============================================================
+// FILE: downloads.ts
+// ============================================================
+
+import path from "node:path";
+import { Router, type IRouter } from "express";
+
+const router: IRouter = Router();
+
+const allowedFiles = new Set([
+  "App.tsx",
+  "index.css",
+  "combined1.ts",
+  "index1.html",
+  "school-sis-index.html",
+  "downloads-page.html",
+  "replit.md",
+  "combined-school-sis-typescript.tsx",
+]);
+
+router.get("/downloads/:filename", (req, res) => {
+  const filename = req.params.filename;
+
+  if (!allowedFiles.has(filename)) {
+    res.status(404).json({ message: "File not found" });
+    return;
+  }
+
+  const filePath = path.resolve(
+    process.cwd(),
+    "../../artifacts/school-sis/public/downloads",
+    filename,
+  );
+
+  res.download(filePath, filename);
+});
+
+export default router;
+
+// ============================================================
+// FILE: logger.ts
+// ============================================================
+
+import pino from "pino";
+
+const isProduction = process.env.NODE_ENV === "production";
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']",
+  ],
+  ...(isProduction
+    ? {}
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: { colorize: true },
+        },
+      }),
+});
+
+
+// ============================================================
+// FILE: main.ts
 // ============================================================
 
 import { createRoot } from "react-dom/client";
@@ -10,7 +179,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 
 
 // ============================================================
-// FILE: App.tsx
+// FILE: App.ts
 // ============================================================
 
 import { useEffect, useMemo, useState } from "react";
@@ -121,48 +290,6 @@ function scoreGrade(total: number) {
   if (total >= 50) return "D";
   if (total >= 40) return "E";
   return "F";
-}
-
-function ordinal(position: number) {
-  const remainder = position % 100;
-  if (remainder >= 11 && remainder <= 13) return `${position}th`;
-  switch (position % 10) {
-    case 1:
-      return `${position}st`;
-    case 2:
-      return `${position}nd`;
-    case 3:
-      return `${position}rd`;
-    default:
-      return `${position}th`;
-  }
-}
-
-function scoreRemark(total: number) {
-  if (total >= 80) return "EXCELLENT";
-  if (total >= 70) return "VERY GOOD";
-  if (total >= 60) return "GOOD";
-  if (total >= 50) return "AVERAGE";
-  return "NI, NEEDS improvement";
-}
-
-function rowsWithCalculatedResults(rows: ScoreRow[]) {
-  const ranked = rows
-    .filter((row) => row.studentName.trim())
-    .map((row, index) => ({ row, index, total: totalScore(row) }))
-    .sort((a, b) => b.total - a.total || a.index - b.index);
-  const positions = new Map<string, string>();
-  ranked.forEach((entry, index) => {
-    positions.set(entry.row.id, ordinal(index + 1));
-  });
-  return rows.map((row) => {
-    const total = totalScore(row);
-    return {
-      ...row,
-      position: row.studentName.trim() ? positions.get(row.id) || "" : "",
-      remarks: row.studentName.trim() ? scoreRemark(total) : "",
-    };
-  });
 }
 
 function Button({ children, onClick, type = "button", variant = "primary", disabled = false }: {
@@ -281,8 +408,6 @@ function StudentNamesSection({ refreshKey }: { refreshKey: number }) {
   const [students, setStudents] = useState<Student[]>(() => load(keys.students, []));
   const [name, setName] = useState("");
   const [className, setClassName] = useState("");
-  const [studentSearch, setStudentSearch] = useState("");
-  const filteredStudents = useMemo(() => students.filter((student) => student.name.toLowerCase().includes(studentSearch.trim().toLowerCase())), [students, studentSearch]);
 
   useEffect(() => {
     setStudents(load(keys.students, []));
@@ -317,13 +442,8 @@ function StudentNamesSection({ refreshKey }: { refreshKey: number }) {
         <input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Class" data-selector="student-class-input" />
         <Button type="submit">Save Student</Button>
       </form>
-      <div className="mt-4 max-w-md">
-        <Field label="Search Student Name">
-          <input className={inputClass} type="search" value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Search student name" data-selector="student-name-search" />
-        </Field>
-      </div>
       <div className="mt-5 grid gap-2 md:grid-cols-2">
-        {filteredStudents.map((student) => (
+        {students.map((student) => (
           <div key={student.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
             <div>
               <p className="font-bold text-gray-900">{student.name}</p>
@@ -333,7 +453,6 @@ function StudentNamesSection({ refreshKey }: { refreshKey: number }) {
           </div>
         ))}
         {!students.length && <p className="text-sm text-gray-500">No student names saved yet.</p>}
-        {!!students.length && !filteredStudents.length && <p className="text-sm text-gray-500">No student matches your search.</p>}
       </div>
     </section>
   );
@@ -358,10 +477,6 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
   const [year, setYear] = useState(editing?.year || new Date().getFullYear().toString());
   const [rows, setRows] = useState<ScoreRow[]>(editing?.rows || studentOptions.slice(0, 8).map((student) => ({ id: id("row"), studentName: student.name, classScore: 0, examScore: 0, position: "", remarks: "" })));
   const [preview, setPreview] = useState(false);
-  const [studentSearch, setStudentSearch] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
-  const calculatedRows = useMemo(() => rowsWithCalculatedResults(rows), [rows]);
-  const filteredStudentOptions = useMemo(() => studentOptions.filter((student) => student.name.toLowerCase().includes(studentSearch.trim().toLowerCase())), [studentOptions, studentSearch]);
 
   function updateRow(rowId: string, updates: Partial<ScoreRow>) {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...updates } : row)));
@@ -379,7 +494,7 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
       className,
       term,
       year,
-      rows: rowsWithCalculatedResults(rows).filter((row) => row.studentName.trim()),
+      rows: rows.filter((row) => row.studentName.trim()),
       status,
       createdBy: user.displayName,
       createdAt: editing?.createdAt || new Date().toISOString(),
@@ -387,7 +502,6 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
     const sheets = load<ScoreSheet[]>(keys.scoreSheets, []);
     const next = sheets.some((item) => item.id === sheet.id) ? sheets.map((item) => (item.id === sheet.id ? sheet : item)) : [sheet, ...sheets];
     save(keys.scoreSheets, next);
-    setSavedMessage(status === "draft" ? "Draft saved successfully." : "Score sheet submitted successfully.");
     onSaved();
   }
 
@@ -404,18 +518,12 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
           <Button onClick={() => persist("submitted")}>Submit</Button>
         </div>
       </div>
-      {savedMessage && <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">{savedMessage}</p>}
       <div className="grid gap-3 md:grid-cols-5">
         <Field label="Sheet Title"><input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
         <Field label="Subject"><select className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)}>{subjects.map((item) => <option key={item}>{item}</option>)}</select></Field>
         <Field label="Class"><input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} /></Field>
         <Field label="Term"><input className={inputClass} value={term} onChange={(event) => setTerm(event.target.value)} /></Field>
         <Field label="Year"><input className={inputClass} value={year} onChange={(event) => setYear(event.target.value)} /></Field>
-      </div>
-      <div className="mt-5 max-w-md">
-        <Field label="Search Student Name">
-          <input className={inputClass} type="search" value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Search student name" data-selector="score-sheet-student-search" />
-        </Field>
       </div>
       <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200">
         <table className="w-full min-w-[900px] border-collapse text-sm" data-selector="score-sheet-table">
@@ -433,7 +541,7 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
             </tr>
           </thead>
           <tbody>
-            {calculatedRows.map((row, index) => {
+            {rows.map((row, index) => {
               const total = totalScore(row);
               return (
                 <tr key={row.id}>
@@ -441,15 +549,15 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
                   <td className="border border-gray-200 px-2 py-2">
                     <select className={inputClass} value={row.studentName} onChange={(event) => updateRow(row.id, { studentName: event.target.value })} data-selector="score-sheet-student-name-select">
                       <option value="">Select student</option>
-                      {filteredStudentOptions.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
+                      {studentOptions.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
                     </select>
                   </td>
                   <td className="border border-gray-200 px-2 py-2"><input className={inputClass} type="number" value={row.classScore} onChange={(event) => updateRow(row.id, { classScore: Number(event.target.value) })} /></td>
                   <td className="border border-gray-200 px-2 py-2"><input className={inputClass} type="number" value={row.examScore} onChange={(event) => updateRow(row.id, { examScore: Number(event.target.value) })} /></td>
                   <td className="border border-gray-200 px-2 py-2 text-center font-bold">{total}</td>
-                  <td className="border border-gray-200 px-2 py-2 text-center font-bold">{row.position}</td>
+                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} value={row.position} onChange={(event) => updateRow(row.id, { position: event.target.value })} /></td>
                   <td className="border border-gray-200 px-2 py-2 text-center font-bold">{scoreGrade(total)}</td>
-                  <td className="border border-gray-200 px-2 py-2 font-semibold">{row.remarks}</td>
+                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} value={row.remarks} onChange={(event) => updateRow(row.id, { remarks: event.target.value })} /></td>
                   <td className="border border-gray-200 px-2 py-2 text-center"><button className="font-bold text-red-600" onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}>Remove</button></td>
                 </tr>
               );
@@ -458,7 +566,7 @@ function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () =>
         </table>
       </div>
       <div className="mt-4"><Button onClick={addRow} variant="ghost">Add Row</Button></div>
-      {preview && <ScoreSheetPreview sheet={{ id: "preview", title, subject, className, term, year, rows: calculatedRows, status: "draft", createdBy: user.displayName, createdAt: new Date().toISOString() }} onClose={() => setPreview(false)} />}
+      {preview && <ScoreSheetPreview sheet={{ id: "preview", title, subject, className, term, year, rows, status: "draft", createdBy: user.displayName, createdAt: new Date().toISOString() }} onClose={() => setPreview(false)} />}
     </section>
   );
 }
@@ -502,12 +610,9 @@ function ScoreSheetPreview({ sheet, onClose }: { sheet: ScoreSheet; onClose: () 
   );
 }
 
-function ScoreSheetsList({ refreshKey }: { refreshKey: number }) {
+function ScoreSheetsList() {
   const [sheets, setSheets] = useState<ScoreSheet[]>(() => load(keys.scoreSheets, []));
   function refresh() { setSheets(load(keys.scoreSheets, [])); }
-  useEffect(() => {
-    refresh();
-  }, [refreshKey]);
   function remove(sheetId: string) {
     const next = sheets.filter((sheet) => sheet.id !== sheetId);
     setSheets(next);
@@ -551,19 +656,16 @@ function ReportForm({ user, isAdmin, onSaved }: { user: User; isAdmin: boolean; 
   const [interest, setInterest] = useState("");
   const [teacherRemark, setTeacherRemark] = useState("");
   const [preview, setPreview] = useState<Report | null>(null);
-  const [studentSearch, setStudentSearch] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
-  const filteredNames = useMemo(() => names.filter((student) => student.name.toLowerCase().includes(studentSearch.trim().toLowerCase())), [names, studentSearch]);
 
   const selectedSubjects = useMemo(() => {
     if (!studentName) return [];
-    return sheets.flatMap((sheet) => rowsWithCalculatedResults(sheet.rows).filter((row) => row.studentName === studentName).map((row) => ({ ...row, id: `${sheet.id}-${row.id}`, studentName: sheet.subject })));
+    return sheets.flatMap((sheet) => sheet.rows.filter((row) => row.studentName === studentName).map((row) => ({ ...row, id: `${sheet.id}-${row.id}`, studentName: sheet.subject })));
   }, [studentName, sheets]);
 
   useEffect(() => {
     const found = names.find((name) => name.name === studentName);
     setClassName(found?.className || className);
-    const rowWithPosition = sheets.flatMap((sheet) => rowsWithCalculatedResults(sheet.rows)).find((row) => row.studentName === studentName && row.position);
+    const rowWithPosition = sheets.flatMap((sheet) => sheet.rows).find((row) => row.studentName === studentName && row.position);
     if (rowWithPosition) setPosition(rowWithPosition.position);
   }, [studentName]);
 
@@ -599,7 +701,6 @@ function ReportForm({ user, isAdmin, onSaved }: { user: User; isAdmin: boolean; 
     if (!studentName.trim() && !isAdmin) return;
     const report = makeReport(status);
     save(keys.reports, [report, ...load<Report[]>(keys.reports, [])]);
-    setSavedMessage(status === "draft" ? "Draft saved successfully." : "Report submitted successfully.");
     onSaved();
   }
 
@@ -616,16 +717,11 @@ function ReportForm({ user, isAdmin, onSaved }: { user: User; isAdmin: boolean; 
           <Button onClick={() => persist("submitted")}>Submit</Button>
         </div>
       </div>
-      {savedMessage && <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">{savedMessage}</p>}
-      {template?.uploaded && !isAdmin && <div className="mb-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><p className="font-bold">Uploaded report available</p><p>{template.note}</p><Button onClick={() => { const first = filteredNames[0]; if (first) { setStudentName(first.name); setClassName(first.className); } }} variant="ghost" disabled={!filteredNames.length}>Open and Import Student Details</Button></div>}
       <div className="grid gap-3 md:grid-cols-4">
-        <Field label="Search Student Name">
-          <input className={inputClass} type="search" value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Search student name" data-selector="report-student-search" />
-        </Field>
         <Field label="Student Name" selector="report-student-name">
           <select className={inputClass} value={studentName} onChange={(event) => setStudentName(event.target.value)} data-selector="report-student-name-select">
             <option value="">Select student from score sheets</option>
-            {filteredNames.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
+            {names.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
           </select>
         </Field>
         <Field label="Class"><input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} /></Field>
@@ -748,9 +844,6 @@ function ReportPreview({ report, onClose }: { report: Report; onClose: () => voi
 function ReportsList({ isAdmin }: { isAdmin: boolean }) {
   const [reports, setReports] = useState<Report[]>(() => load(keys.reports, []));
   const [preview, setPreview] = useState<Report | null>(null);
-  const [studentSearch, setStudentSearch] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
-  const filteredNames = useMemo(() => names.filter((student) => student.name.toLowerCase().includes(studentSearch.trim().toLowerCase())), [names, studentSearch]);
   function remove(reportId: string) {
     const next = reports.filter((report) => report.id !== reportId);
     setReports(next);
@@ -779,7 +872,7 @@ function TemplateUpload() {
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="admin-report-upload-section">
       <h2 className="text-lg font-black text-gray-900">Upload Report Before Staff Access</h2>
-      <p className="mt-1 text-sm text-gray-500">Staff cannot create reports until this report template is uploaded by admin. Once uploaded, it appears in the staff Create Report section for opening and importing student details.</p>
+      <p className="mt-1 text-sm text-gray-500">Staff cannot create reports until this report template is uploaded by admin.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
         <input className={inputClass} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Template note or name" data-selector="admin-report-template-input" />
         <Button onClick={upload}>Upload Report Template</Button>
@@ -823,16 +916,6 @@ function UserManagement() {
     setForm({ displayName: user.displayName, username: user.username, password: user.password, role: user.role });
   }
 
-  function remove(userId: string) {
-    const adminCount = users.filter((user) => user.role === "admin").length;
-    const userToDelete = users.find((user) => user.id === userId);
-    if (userToDelete?.role === "admin" && adminCount <= 1) return;
-    const next = users.filter((user) => user.id !== userId);
-    persist(next);
-    const current = load<User | null>(keys.currentUser, null);
-    if (current?.id === userId) localStorage.removeItem(keys.currentUser);
-  }
-
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="admin-user-management">
       <h2 className="text-lg font-black text-gray-900">Manage Users</h2>
@@ -844,7 +927,7 @@ function UserManagement() {
         <Button type="submit">{editingId ? "Save Changes" : "Add User"}</Button>
       </form>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-        {users.map((user) => <div key={user.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-4"><div><p className="font-black text-gray-900">{user.displayName}</p><p className="text-sm text-gray-500">{user.username} • {user.role}</p></div><div className="flex gap-2"><Button onClick={() => edit(user)} variant="ghost">Edit</Button><Button onClick={() => remove(user.id)} variant="danger" disabled={user.role === "admin" && users.filter((item) => item.role === "admin").length <= 1}>Delete</Button></div></div>)}
+        {users.map((user) => <div key={user.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-4"><div><p className="font-black text-gray-900">{user.displayName}</p><p className="text-sm text-gray-500">{user.username} • {user.role}</p></div><Button onClick={() => edit(user)} variant="ghost">Edit</Button></div>)}
       </div>
     </section>
   );
@@ -862,11 +945,12 @@ function StaffDashboard({ user, onLogout }: { user: User; onLogout: () => void }
   return (
     <div className="min-h-screen bg-slate-100">
       <Header user={user} onLogout={onLogout} />
-      <Tabs tabs={[{ id: "students", label: "Student Names" }, { id: "scores", label: "Score Sheets" }, { id: "reports", label: "Create Report" }]} active={tab} setActive={setTab} />
+      <Tabs tabs={[{ id: "students", label: "Student Names" }, { id: "scores", label: "Score Sheets" }, { id: "reports", label: "Create Report" }, { id: "saved", label: "Saved Reports" }]} active={tab} setActive={setTab} />
       <main className="mx-auto max-w-7xl space-y-5 px-5 py-6">
         {tab === "students" && <StudentNamesSection refreshKey={refreshKey} />}
-        {tab === "scores" && <><ScoreSheetForm user={user} onSaved={() => setRefreshKey((value) => value + 1)} /><ScoreSheetsList refreshKey={refreshKey} /></>}
-        {tab === "reports" && <ReportForm user={user} isAdmin={false} onSaved={() => setTab("reports")} />}
+        {tab === "scores" && <><ScoreSheetForm user={user} onSaved={() => setRefreshKey((value) => value + 1)} /><ScoreSheetsList /></>}
+        {tab === "reports" && <ReportForm user={user} isAdmin={false} onSaved={() => setTab("saved")} />}
+        {tab === "saved" && <ReportsList isAdmin={false} />}
       </main>
       {previewSheet && <ScoreSheetPreview sheet={previewSheet} onClose={() => setPreviewSheet(null)} />}
     </div>
@@ -902,103 +986,6 @@ export default function App() {
   if (user.role === "admin") return <AdminDashboard user={user} onLogout={logout} />;
   return <StaffDashboard user={user} onLogout={logout} />;
 }
-
-
-// ============================================================
-// FILE: index.css
-// ============================================================
-
-@import "tailwindcss";
-
-:root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #111827;
-  background: #f1f5f9;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  min-height: 100%;
-  margin: 0;
-}
-
-body {
-  min-width: 320px;
-  background: #f1f5f9;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-.score-a4,
-.report-a4 {
-  width: 210mm;
-  max-width: 100%;
-  min-height: 297mm;
-}
-
-@media print {
-  body {
-    background: white;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  .score-a4,
-  .score-a4 *,
-  .report-a4,
-  .report-a4 * {
-    visibility: visible;
-  }
-
-  .score-a4,
-  .report-a4 {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    min-height: 297mm;
-    margin: 0;
-    box-shadow: none;
-  }
-
-  .print\:hidden {
-    display: none !important;
-  }
-}
-
-
-// ============================================================
-// FILE: index.html
-// ============================================================
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Quality School Complex SIS</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
 
 
 // ============================================================
@@ -1080,142 +1067,4 @@ export default defineConfig({
     allowedHosts: true,
   },
 });
-
-
-// ============================================================
-// FILE: package.json
-// ============================================================
-
-{
-  "name": "@workspace/school-sis",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
-    "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "devDependencies": {
-    "@hookform/resolvers": "^3.10.0",
-    "@radix-ui/react-accordion": "^1.2.4",
-    "@radix-ui/react-alert-dialog": "^1.1.7",
-    "@radix-ui/react-aspect-ratio": "^1.1.3",
-    "@radix-ui/react-avatar": "^1.1.4",
-    "@radix-ui/react-checkbox": "^1.1.5",
-    "@radix-ui/react-collapsible": "^1.1.4",
-    "@radix-ui/react-context-menu": "^2.2.7",
-    "@radix-ui/react-dialog": "^1.1.7",
-    "@radix-ui/react-dropdown-menu": "^2.1.7",
-    "@radix-ui/react-hover-card": "^1.1.7",
-    "@radix-ui/react-label": "^2.1.3",
-    "@radix-ui/react-menubar": "^1.1.7",
-    "@radix-ui/react-navigation-menu": "^1.2.6",
-    "@radix-ui/react-popover": "^1.1.7",
-    "@radix-ui/react-progress": "^1.1.3",
-    "@radix-ui/react-radio-group": "^1.2.4",
-    "@radix-ui/react-scroll-area": "^1.2.4",
-    "@radix-ui/react-select": "^2.1.7",
-    "@radix-ui/react-separator": "^1.1.3",
-    "@radix-ui/react-slider": "^1.2.4",
-    "@radix-ui/react-slot": "^1.2.0",
-    "@radix-ui/react-switch": "^1.1.4",
-    "@radix-ui/react-tabs": "^1.1.4",
-    "@radix-ui/react-toast": "^1.2.7",
-    "@radix-ui/react-toggle": "^1.1.3",
-    "@radix-ui/react-toggle-group": "^1.1.3",
-    "@radix-ui/react-tooltip": "^1.2.0",
-    "@replit/vite-plugin-cartographer": "catalog:",
-    "@replit/vite-plugin-dev-banner": "catalog:",
-    "@replit/vite-plugin-runtime-error-modal": "catalog:",
-    "@tailwindcss/typography": "^0.5.15",
-    "@tailwindcss/vite": "catalog:",
-    "@tanstack/react-query": "catalog:",
-    "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "catalog:",
-    "@workspace/api-client-react": "workspace:*",
-    "class-variance-authority": "catalog:",
-    "clsx": "catalog:",
-    "cmdk": "^1.1.1",
-    "date-fns": "^3.6.0",
-    "embla-carousel-react": "^8.6.0",
-    "framer-motion": "catalog:",
-    "input-otp": "^1.4.2",
-    "lucide-react": "catalog:",
-    "next-themes": "^0.4.6",
-    "react": "catalog:",
-    "react-day-picker": "^9.11.1",
-    "react-dom": "catalog:",
-    "react-hook-form": "^7.55.0",
-    "react-icons": "^5.4.0",
-    "react-resizable-panels": "^2.1.7",
-    "recharts": "^2.15.2",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "catalog:",
-    "tailwindcss": "catalog:",
-    "tw-animate-css": "^1.4.0",
-    "vaul": "^1.1.2",
-    "vite": "catalog:",
-    "wouter": "^3.3.5",
-    "zod": "catalog:"
-  }
-}
-
-
-// ============================================================
-// FILE: tsconfig.json
-// ============================================================
-
-{
-  "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
-  "compilerOptions": {
-    "noEmit": true,
-    "jsx": "preserve",
-    "lib": ["esnext", "dom", "dom.iterable"],
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "moduleResolution": "bundler",
-    "types": ["node", "vite/client"],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "references": [
-    {
-      "path": "../../lib/api-client-react"
-    }
-  ]
-}
-
-
-// ============================================================
-// FILE: components.json
-// ============================================================
-
-{
-    "$schema": "https://ui.shadcn.com/schema.json",
-    "style": "new-york",
-    "rsc": false,
-    "tsx": true,
-    "tailwind": {
-      "config": "",
-      "css": "src/index.css",
-      "baseColor": "neutral",
-      "cssVariables": true,
-      "prefix": ""
-    },
-    "aliases": {
-      "components": "@/components",
-      "utils": "@/lib/utils",
-      "ui": "@/components/ui",
-      "lib": "@/lib",
-      "hooks": "@/hooks"
-    }
-}
-
 
