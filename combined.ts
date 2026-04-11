@@ -35,8 +35,6 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/api", router);
 
-// ─── Injected scripts ────────────────────────────────────────────────────────
-
 const syncScript = `
 <script>
 (function(){
@@ -85,11 +83,6 @@ const patchScript = `
 <script>
 (function(){
 
-/* ══════════════════════════════════════════════════════════════════════════
-   QSC PATCH SCRIPT
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* ─── TOAST ─────────────────────────────────────────────────────────────── */
 function showToast(msg, type) {
   var t = document.getElementById('__qsc_toast__');
   if (!t) {
@@ -109,7 +102,6 @@ function showToast(msg, type) {
 }
 window.__qscToast = showToast;
 
-/* ─── HELPERS ────────────────────────────────────────────────────────────── */
 function getCurrentUser() {
   try { return JSON.parse(localStorage.getItem('qsc_current_user')||'null'); } catch(e){ return null; }
 }
@@ -137,7 +129,6 @@ function gradeRemarks(g) {
   return {A1:'Excellent',B2:'Very Good',B3:'Good',C4:'Credit',C5:'Credit',C6:'Credit',D7:'Pass',E8:'Pass',F9:'Fail'}[g]||'';
 }
 
-/* ─── TRACK READY + INTERCEPT qsc_users SAVES FOR TOAST ─────────────────── */
 var _appReady = false;
 window.addEventListener('load', function(){ setTimeout(function(){ _appReady=true; }, 900); });
 var _prevUsers = localStorage.getItem('qsc_users');
@@ -154,22 +145,20 @@ localStorage.setItem = function(key, value) {
   }
 };
 
-/* ─── REMOVE REPLIT BUTTON ───────────────────────────────────────────────── */
 function removeReplitPill() {
   var pill = document.querySelector('replit-badge,replit-pill,[data-repl-id]');
   if (pill) pill.remove();
-  /* Also hide by style if the element is a shadow-root-based web component */
   var style = document.getElementById('__qsc_pill_hide__');
   if (!style) {
     style = document.createElement('style');
     style.id = '__qsc_pill_hide__';
-    style.textContent = 'replit-badge,replit-pill,[data-repl-id]{display:none!important;visibility:hidden!important;}';
+    style.textContent = 'replit-badge,replit-pill,[data-repl-id],.replit-badge,.replit-pill{display:none!important;visibility:hidden!important;width:0!important;height:0!important;overflow:hidden!important;position:absolute!important;pointer-events:none!important;}';
     document.head.appendChild(style);
   }
 }
 removeReplitPill();
+setInterval(removeReplitPill, 500);
 
-/* ─── MUTATION OBSERVER ──────────────────────────────────────────────────── */
 var _obs = new MutationObserver(function(){
   removeReplitPill();
   patchManageUsers();
@@ -178,34 +167,29 @@ var _obs = new MutationObserver(function(){
   patchAdminReports();
   patchStaffDashboard();
   patchStaffDetailsForm();
+  patchAdminLogoUpload();
+  patchStaffReportAccess();
 });
 document.addEventListener('DOMContentLoaded', function(){
   _obs.observe(document.body, { childList:true, subtree:true });
 });
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: STAFF DASHBOARD — Student Names Section
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ STAFF DASHBOARD — Student Names Section ═══ */
 function patchStaffDashboard() {
-  /* Find the staff dashboard. Look for a heading that indicates the staff area
-     but NOT the score sheet modal or create report modal. */
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
   var h2s = document.querySelectorAll('h2,h3');
   var scoreHeading = null;
   for (var i=0; i<h2s.length; i++) {
-    if (h2s[i].textContent.trim() === 'Score Sheets' || h2s[i].textContent.trim() === 'My Score Sheets') {
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Score Sheets' || txt === 'My Score Sheets' || txt === 'Create Score Sheet') {
       scoreHeading = h2s[i];
       break;
     }
   }
-  /* Inject student names section into the staff dashboard sidebar or section */
-  /* We look for a section that has a "Create Score Sheet" or "Score Sheets" heading
-     and inject our student names manager near it */
   if (!scoreHeading) return;
   var container = scoreHeading.parentElement;
   if (!container) return;
-  /* Check if already patched */
-  if (container.dataset.qscSnPatched) return;
-  /* Walk up if needed */
   for (var up=0; up<3; up++) {
     if (container.parentElement && container.parentElement !== document.body) {
       container = container.parentElement;
@@ -229,8 +213,8 @@ function renderStudentNamesPanel(panel) {
     '<h3 style="font-size:16px;font-weight:700;color:#111;margin:0;">Student Names</h3>',
     '<button id="__qsc_sn_add_btn__" style="background:#003087;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">+ Add Name</button>',
     '</div>',
-    '<div id="__qsc_sn_add_row__" style="display:none;margin-bottom:12px;display:none;flex-wrap:wrap;gap:8px;align-items:center;">',
-    '<input id="__qsc_sn_input__" type="text" placeholder="Enter student name…" style="flex:1;min-width:180px;padding:9px 13px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:system-ui,sans-serif;outline:none;" />',
+    '<div id="__qsc_sn_add_row__" style="display:none;margin-bottom:12px;flex-wrap:wrap;gap:8px;align-items:center;">',
+    '<input id="__qsc_sn_input__" type="text" placeholder="Enter student name\\u2026" style="flex:1;min-width:180px;padding:9px 13px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:system-ui,sans-serif;outline:none;" />',
     '<button id="__qsc_sn_save__" style="background:#16a34a;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Save</button>',
     '<button id="__qsc_sn_cancel__" style="background:#f3f4f6;color:#374151;border:1.5px solid #d1d5db;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Cancel</button>',
     '</div>',
@@ -246,7 +230,6 @@ function renderStudentNamesPanel(panel) {
         + '</ul>',
   ].join('');
 
-  /* Bind events */
   var addBtn = document.getElementById('__qsc_sn_add_btn__');
   var addRow = document.getElementById('__qsc_sn_add_row__');
   var inp    = document.getElementById('__qsc_sn_input__');
@@ -283,7 +266,6 @@ function renderStudentNamesPanel(panel) {
       if (e.key==='Enter') saveBtn.click();
     });
   }
-  /* Delete handlers */
   var list = document.getElementById('__qsc_sn_list__');
   if (list) {
     list.onclick = function(e){
@@ -299,18 +281,14 @@ function renderStudentNamesPanel(panel) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: STAFF DETAILS FORM — show toast on save
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ STAFF DETAILS FORM — toast on save ═══ */
 function patchStaffDetailsForm() {
-  /* Look for any form with a "Save" or "Update" button that might be staff details */
   var btns = document.querySelectorAll('button');
   btns.forEach(function(btn){
     if (btn.dataset.qscStaffSavePatched) return;
     var txt = btn.textContent.trim().toLowerCase();
     if ((txt==='save changes' || txt==='update profile' || txt==='save profile' || txt==='update details' || txt==='save') && btn.closest('form,section,div')) {
       var container = btn.closest('form,section,div');
-      /* Check it looks like a staff details form by checking for nearby label */
       if (!container) return;
       var labels = container.querySelectorAll('label');
       var isStaffForm = false;
@@ -326,9 +304,7 @@ function patchStaffDetailsForm() {
   });
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: MANAGE USERS — Add User button + Search
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ MANAGE USERS — Add User button + Search ═══ */
 function patchManageUsers() {
   var h2s = document.querySelectorAll('h2');
   var heading = null;
@@ -340,7 +316,6 @@ function patchManageUsers() {
   if (!container || container.dataset.qscMuPatched) return;
   container.dataset.qscMuPatched = 'true';
 
-  /* Add User button */
   var addBtn = document.createElement('button');
   addBtn.textContent = '+ Add User';
   addBtn.style.cssText = 'background:#003087;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;font-family:system-ui,sans-serif;display:block;';
@@ -349,10 +324,9 @@ function patchManageUsers() {
   addBtn.onclick = function(){ showAddUserModal(); };
   container.insertBefore(addBtn, heading.nextSibling);
 
-  /* Search bar */
   var searchWrap = document.createElement('div');
   searchWrap.style.cssText = 'margin-bottom:14px;';
-  searchWrap.innerHTML = '<input id="__qsc_user_search__" type="text" placeholder="Search users by name or username…" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:system-ui,sans-serif;outline:none;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#d1d5db\'"/>';
+  searchWrap.innerHTML = '<input id="__qsc_user_search__" type="text" placeholder="Search users by name or username\\u2026" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:system-ui,sans-serif;outline:none;" />';
   container.insertBefore(searchWrap, addBtn.nextSibling);
 
   setInterval(function(){
@@ -367,7 +341,6 @@ function patchManageUsers() {
   }, 400);
 }
 
-/* ─── ADD USER MODAL ─────────────────────────────────────────────────────── */
 function showAddUserModal() {
   var old = document.getElementById('__qsc_au_modal__');
   if (old) old.remove();
@@ -418,9 +391,7 @@ function showAddUserModal() {
   };
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: SCORE SHEET MODAL — A4 size + Save Draft / Submit + Student dropdown
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ SCORE SHEET MODAL — A4 size + Save Draft / Submit + Student dropdown ═══ */
 function patchScoreSheetModal() {
   var h2s = document.querySelectorAll('h2');
   var heading = null;
@@ -428,24 +399,22 @@ function patchScoreSheetModal() {
     if (h2s[i].textContent.trim()==='Create Score Sheet') { heading=h2s[i]; break; }
   }
   if (!heading) return;
-  var modal = heading.closest('.bg-white.rounded-2xl') || heading.closest('[class*="bg-white"]');
+  var modal = heading.closest('.bg-white.rounded-2xl') || heading.closest('[class*="bg-white"]') || heading.closest('[class*="shadow"]');
   if (!modal || modal.dataset.qscSsPatched) return;
   modal.dataset.qscSsPatched = 'true';
 
-  /* A4 portrait sizing */
   modal.style.width = '210mm';
   modal.style.maxWidth = '210mm';
   modal.style.minHeight = '297mm';
   modal.style.boxSizing = 'border-box';
 
-  /* Inject student name dropdowns into each student name input cell */
   injectStudentNameDropdowns(modal);
 
-  /* Find Print button to add Draft + Submit beside it */
   var btns = modal.querySelectorAll('button');
   var printBtn = null;
   for (var i=0; i<btns.length; i++){
-    if (btns[i].textContent.trim().toLowerCase().includes('print')) { printBtn=btns[i]; break; }
+    var btnTxt = btns[i].textContent.trim().toLowerCase();
+    if (btnTxt.includes('print') || btnTxt.includes('export')) { printBtn=btns[i]; break; }
   }
   if (!printBtn) return;
   var row = printBtn.parentElement;
@@ -473,22 +442,19 @@ function injectStudentNameDropdowns(modal) {
   var trs = modal.querySelectorAll('tbody tr');
   trs.forEach(function(tr){
     if (tr.dataset.qscSnDropdown) return;
-    var firstInput = tr.querySelector('td:first-child input, td:nth-child(1) input');
-    /* Some tables have no/sn/name as first input */
     var inputs = tr.querySelectorAll('input');
-    /* Find the name input — usually the one with a larger minWidth or placeholder containing "name" */
     var nameInput = null;
     inputs.forEach(function(inp){
       if (inp.placeholder && inp.placeholder.toLowerCase().includes('name')) nameInput = inp;
     });
-    if (!nameInput && inputs.length > 0) {
-      /* second input might be the name (after serial no) */
-      nameInput = inputs[1] || inputs[0];
+    if (!nameInput && inputs.length > 1) {
+      nameInput = inputs[1];
+    } else if (!nameInput && inputs.length > 0) {
+      nameInput = inputs[0];
     }
     if (!nameInput) return;
     tr.dataset.qscSnDropdown = 'true';
 
-    /* Create datalist */
     var dlId = '__qsc_sn_dl_' + Math.random().toString(36).slice(2) + '__';
     var dl = document.createElement('datalist');
     dl.id = dlId;
@@ -523,7 +489,7 @@ function captureAndSaveSheet(modal, status) {
   modal.querySelectorAll('tbody tr').forEach(function(tr){
     var inp = tr.querySelectorAll('input');
     if (inp.length>=3) {
-      rows.push({ no:rows.length+1, studentName:inp[0].value, classScore:inp[1].value, exam100:inp[2].value });
+      rows.push({ no:rows.length+1, studentName:inp[0].value||inp[1]&&inp[1].value||'', classScore:inp[inp.length-2]?inp[inp.length-2].value:'', exam100:inp[inp.length-1]?inp[inp.length-1].value:'' });
     }
   });
   var user = getCurrentUser();
@@ -541,57 +507,47 @@ function captureAndSaveSheet(modal, status) {
     showToast('Score sheet saved as draft!', 'success');
   } else {
     showToast('Score sheet submitted to admin!', 'success');
-    /* Close modal */
     var closeBtn = null;
     var allBtns = modal.querySelectorAll('button');
     for (var i=0; i<allBtns.length; i++){
-      if (allBtns[i].querySelector('svg') || allBtns[i].textContent.trim()==='✕' || allBtns[i].getAttribute('aria-label')==='Close') { closeBtn=allBtns[i]; break; }
+      if (allBtns[i].querySelector('svg') || allBtns[i].textContent.trim()==='\\u2715' || allBtns[i].getAttribute('aria-label')==='Close') { closeBtn=allBtns[i]; break; }
     }
     if (closeBtn) setTimeout(function(){ closeBtn.click(); }, 250);
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: CREATE REPORT — remove 'Grade' column, add student name dropdown,
-          auto-fill from score sheets
-   ══════════════════════════════════════════════════════════════════════════ */
-var _crPatched = false;
+/* ═══ CREATE REPORT — remove Grade column, student name dropdown, auto-fill from score sheets ═══ */
 function patchCreateReport() {
-  /* Find the Create Report modal */
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
   var h2s = document.querySelectorAll('h2');
   var heading = null;
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Create Report' || txt==='Generate Report') { heading=h2s[i]; break; }
+    if (txt==='Create Report' || txt==='Generate Report' || txt==='Create Report Card') { heading=h2s[i]; break; }
   }
   if (!heading) return;
-  var modal = heading.closest('[style*="position: fixed"],[style*="position:fixed"]') || heading.parentElement;
+  var modal = heading.closest('[style*="position: fixed"]') || heading.closest('[style*="position:fixed"]') || heading.closest('.fixed') || heading.closest('[class*="fixed"]') || heading.parentElement;
   if (!modal || modal.dataset.qscCrPatched) return;
   modal.dataset.qscCrPatched = 'true';
 
-  /* Remove 'Grade' column from the report table */
   removeGradeColumn(modal);
-
-  /* Inject student name autocomplete for the STUDENT NAME field */
   injectStudentNameFieldDropdown(modal);
-
-  /* Auto-fill from score sheets when student name changes */
   wireScoreSheetAutoFill(modal);
 }
 
-function removeGradeColumn(modal) {
-  /* Find all th elements and hide any that say "Grade" */
-  var ths = modal.querySelectorAll('th');
+function removeGradeColumn(container) {
+  var ths = container.querySelectorAll('th');
   var gradeColIdx = -1;
   ths.forEach(function(th, idx){
-    if (th.textContent.trim().toLowerCase()==='grade') {
+    var txt = th.textContent.trim().toLowerCase();
+    if (txt==='grade') {
       th.style.display='none';
       gradeColIdx = idx;
     }
   });
   if (gradeColIdx < 0) return;
-  /* Also hide corresponding td cells */
-  var trs = modal.querySelectorAll('tbody tr');
+  var trs = container.querySelectorAll('tbody tr, tr');
   trs.forEach(function(tr){
     var tds = tr.querySelectorAll('td');
     if (tds[gradeColIdx]) tds[gradeColIdx].style.display='none';
@@ -599,22 +555,40 @@ function removeGradeColumn(modal) {
 }
 
 function injectStudentNameFieldDropdown(modal) {
-  /* Find a label or input for "Student Name" in the form area */
   var labels = modal.querySelectorAll('label');
   labels.forEach(function(lbl){
-    if (lbl.textContent.trim().toUpperCase()!=='STUDENT NAME' && lbl.textContent.trim().toLowerCase()!=='student name') return;
+    var lblTxt = lbl.textContent.trim().toLowerCase();
+    if (lblTxt !== 'student name' && lblTxt !== 'student\\'s name' && lblTxt !== 'name of student') return;
     var inp = lbl.nextElementSibling;
+    if (!inp || inp.tagName!=='INPUT') {
+      var parent = lbl.parentElement;
+      if (parent) inp = parent.querySelector('input');
+    }
     if (!inp || inp.tagName!=='INPUT') return;
     if (inp.dataset.qscSnDl) return;
     inp.dataset.qscSnDl = 'true';
 
-    var names = getStudentNames();
+    var savedNames = getStudentNames();
+    var sheetNames = [];
+    var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
+    sheets.forEach(function(sheet){
+      (sheet.rows||[]).forEach(function(row){
+        if (row.studentName && sheetNames.indexOf(row.studentName) === -1) {
+          sheetNames.push(row.studentName);
+        }
+      });
+    });
+    var allNames = savedNames.slice();
+    sheetNames.forEach(function(n){
+      if (allNames.indexOf(n) === -1) allNames.push(n);
+    });
+
     var dlId = '__qsc_cr_sn_dl__';
     var existing = document.getElementById(dlId);
     if (existing) existing.remove();
     var dl = document.createElement('datalist');
     dl.id = dlId;
-    names.forEach(function(n){
+    allNames.forEach(function(n){
       var opt = document.createElement('option'); opt.value=n; dl.appendChild(opt);
     });
     inp.setAttribute('list', dlId);
@@ -624,12 +598,15 @@ function injectStudentNameFieldDropdown(modal) {
 }
 
 function wireScoreSheetAutoFill(modal) {
-  /* When the STUDENT NAME input in the create report form changes,
-     look up submitted score sheets and auto-fill subjects/scores */
   var labels = modal.querySelectorAll('label');
   labels.forEach(function(lbl){
-    if (lbl.textContent.trim().toUpperCase()!=='STUDENT NAME' && lbl.textContent.trim().toLowerCase()!=='student name') return;
+    var lblTxt = lbl.textContent.trim().toLowerCase();
+    if (lblTxt !== 'student name' && lblTxt !== 'student\\'s name' && lblTxt !== 'name of student') return;
     var inp = lbl.nextElementSibling;
+    if (!inp || inp.tagName!=='INPUT') {
+      var parent = lbl.parentElement;
+      if (parent) inp = parent.querySelector('input');
+    }
     if (!inp || inp.tagName!=='INPUT' || inp.dataset.qscAfWired) return;
     inp.dataset.qscAfWired = 'true';
     inp.addEventListener('change', function(){
@@ -637,11 +614,19 @@ function wireScoreSheetAutoFill(modal) {
       if (!studentName) return;
       autoFillFromScoreSheets(modal, studentName);
     });
+    inp.addEventListener('input', function(){
+      var studentName = inp.value.trim();
+      if (!studentName) return;
+      var names = getStudentNames();
+      if (names.indexOf(studentName) !== -1) {
+        autoFillFromScoreSheets(modal, studentName);
+      }
+    });
   });
 }
 
 function autoFillFromScoreSheets(modal, studentName) {
-  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted'; });
+  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
   var matched = [];
   sheets.forEach(function(sheet){
     (sheet.rows||[]).forEach(function(row){
@@ -651,33 +636,42 @@ function autoFillFromScoreSheets(modal, studentName) {
     });
   });
   if (!matched.length) return;
-  /* Fill the subject rows in the report table */
   var trs = modal.querySelectorAll('tbody tr');
   matched.forEach(function(m, idx){
     var tr = trs[idx];
     if (!tr) return;
-    /* Try to set subject input/select */
     var inputs = tr.querySelectorAll('input');
-    if (inputs[0]) inputs[0].value = m.subject||'';
-    if (inputs[1]) inputs[1].value = m.classScore||'';
-    if (inputs[2]) inputs[2].value = m.exam100||'';
+    var selects = tr.querySelectorAll('select');
+    if (selects.length > 0) {
+      for (var s=0; s<selects.length; s++) {
+        var sel = selects[s];
+        for (var o=0; o<sel.options.length; o++) {
+          if (sel.options[o].text === m.subject || sel.options[o].value === m.subject) {
+            sel.selectedIndex = o;
+            sel.dispatchEvent(new Event('change', {bubbles:true}));
+            break;
+          }
+        }
+      }
+    }
+    if (inputs[0] && !selects.length) { inputs[0].value = m.subject||''; inputs[0].dispatchEvent(new Event('input', {bubbles:true})); }
+    if (inputs.length >= 2) { inputs[inputs.length-2].value = m.classScore||''; inputs[inputs.length-2].dispatchEvent(new Event('input', {bubbles:true})); }
+    if (inputs.length >= 1) { inputs[inputs.length-1].value = m.exam100||''; inputs[inputs.length-1].dispatchEvent(new Event('input', {bubbles:true})); }
   });
   showToast('Score data auto-filled from submitted score sheets!', 'success');
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: ADMIN GENERATE REPORT — replace 'Grade' with 'Position' in table
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ ADMIN GENERATE REPORT — replace Grade with Position ═══ */
 function patchAdminReports() {
-  /* Find admin generate report section */
-  var h2s = document.querySelectorAll('h2');
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
+  var h2s = document.querySelectorAll('h2,h3');
   h2s.forEach(function(h2){
     var txt = h2.textContent.trim();
-    if (txt!=='Student Reports' && txt!=='Generate Reports' && txt!=='Reports') return;
-    var container = h2.closest('[class*="p-"],[class*="bg-white"]') || h2.parentElement;
+    if (txt!=='Student Reports' && txt!=='Generate Reports' && txt!=='Reports' && txt!=='Report Cards') return;
+    var container = h2.closest('[class*="p-"]') || h2.closest('[class*="bg-white"]') || h2.parentElement;
     if (!container) return;
 
-    /* Replace Grade headers with Position */
     var ths = container.querySelectorAll('th');
     ths.forEach(function(th){
       if (th.textContent.trim().toLowerCase()==='grade' && !th.dataset.qscGrReplaced) {
@@ -686,7 +680,6 @@ function patchAdminReports() {
       }
     });
 
-    /* Rename "View / Print" buttons to "View & Print" */
     var btns = container.querySelectorAll('button');
     btns.forEach(function(btn){
       if (btn.textContent.trim()==='View / Print' && !btn.dataset.qscPrintRenamed) {
@@ -696,22 +689,19 @@ function patchAdminReports() {
     });
   });
 
-  /* Inject submitted score sheets panel for admin */
   patchSubmittedScoreSheets();
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATCH: SUBMITTED SCORE SHEETS (Admin view)
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ═══ SUBMITTED SCORE SHEETS (Admin view) ═══ */
 function patchSubmittedScoreSheets() {
   var user = getCurrentUser();
   if (!user || user.role!=='admin') return;
 
-  /* Find the Student Reports section */
-  var h2s = document.querySelectorAll('h2');
+  var h2s = document.querySelectorAll('h2,h3');
   var reportsH2 = null;
   for (var i=0; i<h2s.length; i++){
-    if (h2s[i].textContent.trim()==='Student Reports' || h2s[i].textContent.trim()==='Reports') {
+    var txt = h2s[i].textContent.trim();
+    if (txt==='Student Reports' || txt==='Reports' || txt==='Generate Reports' || txt==='Report Cards') {
       reportsH2=h2s[i]; break;
     }
   }
@@ -734,7 +724,7 @@ function patchSubmittedScoreSheets() {
 }
 
 function renderSubmittedSheets(panel) {
-  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted'; });
+  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
   panel.innerHTML = '';
 
   var hdr = document.createElement('div');
@@ -745,7 +735,7 @@ function renderSubmittedSheets(panel) {
   if (!sheets.length) {
     var empty = document.createElement('div');
     empty.style.cssText = 'text-align:center;padding:48px 0;color:#9ca3af;';
-    empty.innerHTML = '<div style="font-size:36px;margin-bottom:10px;">📊</div><p style="font-weight:600;font-family:system-ui,sans-serif;">No submitted score sheets yet</p>';
+    empty.innerHTML = '<div style="font-size:36px;margin-bottom:10px;">&#x1F4CA;</div><p style="font-weight:600;font-family:system-ui,sans-serif;">No submitted score sheets yet</p>';
     panel.appendChild(empty);
     return;
   }
@@ -760,13 +750,14 @@ function renderSubmittedSheets(panel) {
       '<div>',
       '<h3 style="font-size:15px;font-weight:700;color:#111;margin:0 0 4px;font-family:system-ui,sans-serif;">'+escHtml(sheet.title||'Untitled')+'</h3>',
       '<div style="font-size:13px;color:#6b7280;display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;font-family:system-ui,sans-serif;">',
-      '<span>Subject: <strong style="color:#374151;">'+escHtml(sheet.subject||'—')+'</strong></span>',
-      '<span>Class: <strong style="color:#374151;">'+escHtml(sheet.class||'—')+'</strong></span>',
-      '<span>Term: <strong style="color:#374151;">'+escHtml(sheet.term||'—')+'</strong></span>',
-      '<span>By: <strong style="color:#374151;">'+escHtml(sheet.staffName||sheet.staffUsername||'—')+'</strong></span>',
+      '<span>Subject: <strong style="color:#374151;">'+escHtml(sheet.subject||'\\u2014')+'</strong></span>',
+      '<span>Class: <strong style="color:#374151;">'+escHtml(sheet.class||'\\u2014')+'</strong></span>',
+      '<span>Term: <strong style="color:#374151;">'+escHtml(sheet.term||'\\u2014')+'</strong></span>',
+      '<span>By: <strong style="color:#374151;">'+escHtml(sheet.staffName||sheet.staffUsername||'\\u2014')+'</strong></span>',
       '<span>Submitted: <strong style="color:#374151;">'+dateStr+'</strong></span>',
       '</div></div>',
       '<div style="display:flex;gap:8px;margin-left:12px;flex-shrink:0;">',
+      (sheet.status==='submitted' ? '<button data-ss-approve="'+sheet.id+'" style="background:#16a34a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Approve</button>' : '<span style="background:#dcfce7;color:#15803d;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:system-ui,sans-serif;">Approved</span>'),
       '<button data-ss-print="'+sheet.id+'" style="background:#003087;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Print</button>',
       '<button data-ss-delete="'+sheet.id+'" style="background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Delete</button>',
       '</div></div>',
@@ -777,10 +768,14 @@ function renderSubmittedSheets(panel) {
   });
 
   panel.onclick = function(e){
-    var printId  = e.target.dataset&&e.target.dataset.ssPrint;
-    var deleteId = e.target.dataset&&e.target.dataset.ssDelete;
-    if (printId)  printScoreSheet(printId);
-    if (deleteId) deleteScoreSheet(deleteId, panel);
+    var target = e.target.closest ? e.target.closest('[data-ss-print],[data-ss-delete],[data-ss-approve]') : e.target;
+    if (!target) return;
+    var printId   = target.getAttribute('data-ss-print');
+    var deleteId  = target.getAttribute('data-ss-delete');
+    var approveId = target.getAttribute('data-ss-approve');
+    if (printId)   printScoreSheet(printId);
+    if (deleteId)  deleteScoreSheet(deleteId, panel);
+    if (approveId) approveScoreSheet(approveId, panel);
   };
 }
 
@@ -815,10 +810,10 @@ function printScoreSheet(id) {
     '<table><thead><tr><th>#</th><th>Student Name</th><th>Class Score (30%)</th><th>Exam Score (100%)</th>',
     '<th>Exam Score (70%)</th><th>Total</th><th>Grade</th><th>Remarks</th>',
     '</tr></thead><tbody>'+rows+'</tbody></table>',
-    '<scr'+'ipt>window.onload=function(){window.print();};<'+'/script>',
     '</body></html>'
   ].join(''));
   w.document.close();
+  setTimeout(function(){ w.focus(); w.print(); }, 500);
 }
 
 function deleteScoreSheet(id, panel) {
@@ -827,6 +822,158 @@ function deleteScoreSheet(id, panel) {
   saveScoreSheets(sheets);
   renderSubmittedSheets(panel);
   showToast('Score sheet deleted.', 'warning');
+}
+
+function approveScoreSheet(id, panel) {
+  var sheets = getScoreSheets();
+  for (var i=0; i<sheets.length; i++) {
+    if (sheets[i].id === id) {
+      sheets[i].status = 'approved';
+      sheets[i].approvedAt = new Date().toISOString();
+      break;
+    }
+  }
+  saveScoreSheets(sheets);
+  renderSubmittedSheets(panel);
+  showToast('Score sheet approved! Staff can now create reports.', 'success');
+}
+
+/* ═══ ADMIN LOGO UPLOAD — between email and address sections ═══ */
+function patchAdminLogoUpload() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
+
+  var h2s = document.querySelectorAll('h2,h3');
+  var settingsHeading = null;
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Report Template' || txt === 'School Settings' || txt === 'Report Settings' || txt === 'Template Settings' || txt === 'Customize Report') {
+      settingsHeading = h2s[i]; break;
+    }
+  }
+  if (!settingsHeading) return;
+
+  var settingsContainer = settingsHeading.closest('[class*="bg-white"]') || settingsHeading.closest('[class*="p-"]') || settingsHeading.parentElement;
+  if (!settingsContainer || settingsContainer.dataset.qscLogoPatched) return;
+
+  var labels = settingsContainer.querySelectorAll('label');
+  var emailLabel = null;
+  var addressLabel = null;
+  for (var i=0; i<labels.length; i++) {
+    var lt = labels[i].textContent.trim().toLowerCase();
+    if (lt.includes('email') || lt.includes('e-mail')) emailLabel = labels[i];
+    if (lt.includes('address') || lt.includes('location')) addressLabel = labels[i];
+  }
+
+  var insertAfter = null;
+  if (emailLabel) {
+    insertAfter = emailLabel.parentElement || emailLabel;
+  }
+  if (!insertAfter) return;
+  settingsContainer.dataset.qscLogoPatched = 'true';
+
+  var logoPanel = document.createElement('div');
+  logoPanel.id = '__qsc_logo_panel__';
+  logoPanel.style.cssText = 'margin:16px 0;padding:16px;border:1.5px dashed #d1d5db;border-radius:12px;background:#f9fafb;';
+
+  function renderLogoPanel() {
+    var currentLogo = localStorage.getItem('qsc_school_logo') || '';
+    logoPanel.innerHTML = [
+      '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">School Logo</label>',
+      currentLogo
+        ? '<div style="margin-bottom:10px;text-align:center;"><img src="'+currentLogo+'" style="max-height:80px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;" /><br/><button id="__qsc_logo_remove__" style="margin-top:6px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Remove Logo</button></div>'
+        : '<p style="font-size:12px;color:#9ca3af;margin:0 0 8px;">No logo uploaded. Upload a school logo to appear on reports.</p>',
+      '<input id="__qsc_logo_file__" type="file" accept="image/*" style="font-size:13px;font-family:system-ui,sans-serif;" />'
+    ].join('');
+
+    var fileInput = document.getElementById('__qsc_logo_file__');
+    if (fileInput) {
+      fileInput.onchange = function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('Logo file must be under 2MB.', 'error');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          localStorage.setItem('qsc_school_logo', ev.target.result);
+          showToast('School logo uploaded!', 'success');
+          renderLogoPanel();
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+    var removeBtn = document.getElementById('__qsc_logo_remove__');
+    if (removeBtn) {
+      removeBtn.onclick = function() {
+        localStorage.removeItem('qsc_school_logo');
+        showToast('Logo removed.', 'warning');
+        renderLogoPanel();
+      };
+    }
+  }
+
+  renderLogoPanel();
+
+  if (insertAfter.nextSibling) {
+    insertAfter.parentNode.insertBefore(logoPanel, insertAfter.nextSibling);
+  } else {
+    insertAfter.parentNode.appendChild(logoPanel);
+  }
+}
+
+/* ═══ STAFF REPORT ACCESS — only after admin has approved their score sheets ═══ */
+function patchStaffReportAccess() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
+
+  var approvedSheets = getScoreSheets().filter(function(s){
+    return s.staffUsername === user.username && s.status === 'approved';
+  });
+  var hasSubmitted = approvedSheets.length > 0;
+
+  var h2s = document.querySelectorAll('h2,h3');
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Create Report' || txt === 'Generate Report' || txt === 'Create Report Card' || txt === 'Report Cards' || txt === 'Reports') {
+      var section = h2s[i].closest('[class*="bg-white"]') || h2s[i].closest('[class*="p-"]') || h2s[i].parentElement;
+      if (!section || section.dataset.qscAccessPatched) continue;
+
+      if (!hasSubmitted) {
+        section.dataset.qscAccessPatched = 'true';
+        var btns = section.querySelectorAll('button');
+        btns.forEach(function(btn){
+          var btnTxt = btn.textContent.trim().toLowerCase();
+          if (btnTxt.includes('create') || btnTxt.includes('generate') || btnTxt.includes('new report')) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.title = 'You must submit score sheets first before creating reports';
+            btn.onclick = function(e){
+              e.preventDefault();
+              e.stopPropagation();
+              showToast('Please submit your score sheets to admin first before creating reports.', 'warning');
+              return false;
+            };
+          }
+        });
+
+        if (!section.querySelector('#__qsc_access_msg__')) {
+          var msg = document.createElement('div');
+          msg.id = '__qsc_access_msg__';
+          msg.style.cssText = 'background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px;color:#92400e;font-family:system-ui,sans-serif;';
+          msg.innerHTML = '<strong>Access Restricted:</strong> Your score sheets must be approved by admin before you can create reports. Please submit your score sheets and wait for admin approval.';
+          var heading = h2s[i];
+          if (heading.nextSibling) {
+            heading.parentNode.insertBefore(msg, heading.nextSibling);
+          } else {
+            heading.parentNode.appendChild(msg);
+          }
+        }
+      }
+    }
+  }
 }
 
 })();
@@ -838,16 +985,13 @@ function getInjectedHtml(): string {
   if (cachedHtml) return cachedHtml;
   const htmlPath = path.join(__dirname, "..", "public", "index.html");
   let raw = fs.readFileSync(htmlPath, "utf-8");
-  // Remove Replit pill script tag
   raw = raw.replace(/<script[^>]*replit-cdn\.com[^>]*><\/script>/gi, "");
   raw = raw.replace(/<script[^>]*replit-pill[^>]*><\/script>/gi, "");
-  // Inject sync + patch scripts at top of <head>
+  raw = raw.replace(/<script[^>]*data-repl-id[^>]*><\/script>/gi, "");
   raw = raw.replace("<head>", "<head>" + syncScript + patchScript);
   cachedHtml = raw;
   return cachedHtml;
 }
-
-// ─── Download endpoints ───────────────────────────────────────────────────────
 
 const DOWNLOAD_FILES: Record<string, { disk: string; name: string; label: string }> = {
   "app.ts": {
@@ -884,7 +1028,6 @@ const DOWNLOAD_FILES: Record<string, { disk: string; name: string; label: string
 
 const TS_FILE_KEYS = ["app.ts", "routes-storage.ts", "routes-index.ts", "schema-storage.ts", "schema-index.ts"];
 
-// Combined download (all .ts files)
 app.get("/downloads/combined.ts", (req, res) => {
   const parts = TS_FILE_KEYS.map((key) => {
     const entry = DOWNLOAD_FILES[key]!;
@@ -896,7 +1039,6 @@ app.get("/downloads/combined.ts", (req, res) => {
   res.type("text/plain").send(parts.join("\n\n"));
 });
 
-// Downloads index page
 app.get("/downloads", (req, res) => {
   const rows = Object.entries(DOWNLOAD_FILES)
     .map(([key, entry]) => {
@@ -922,7 +1064,7 @@ app.get("/downloads", (req, res) => {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Download Updated Files — QSC SIS</title>
+  <title>Download Updated Files &mdash; QSC SIS</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 48px; background: #f5f7fa; }
     h2 { color: #003087; margin-bottom: 6px; }
@@ -933,7 +1075,7 @@ app.get("/downloads", (req, res) => {
   </style>
 </head>
 <body>
-  <h2>Updated Files — Download Individually</h2>
+  <h2>Updated Files &mdash; Download Individually</h2>
   <p>Click any file to download it to your computer.</p>
   <ul>
     ${rows}
@@ -944,7 +1086,6 @@ app.get("/downloads", (req, res) => {
 </html>`);
 });
 
-// Individual file download
 app.get("/downloads/:file", (req, res) => {
   const key = req.params.file;
   const entry = DOWNLOAD_FILES[key];
@@ -959,7 +1100,6 @@ app.get("/downloads/:file", (req, res) => {
   res.download(entry.disk, entry.name);
 });
 
-// Serve favicon
 app.get("/favicon.svg", (req, res) => {
   const faviconPath = path.join(__dirname, "..", "public", "favicon.svg");
   if (fs.existsSync(faviconPath)) {
@@ -969,7 +1109,6 @@ app.get("/favicon.svg", (req, res) => {
   }
 });
 
-// Serve the SPA for all non-API routes
 app.get("/{*path}", (req, res) => {
   res.type("html").send(getInjectedHtml());
 });
