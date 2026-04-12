@@ -139,6 +139,27 @@ function gradeRemarks(g) {
   return {A1:'Excellent',B2:'Very Good',B3:'Good',C4:'Credit',C5:'Credit',C6:'Credit',D7:'Pass',E8:'Pass',F9:'Fail'}[g]||'';
 }
 
+/* Remove the Grade column (th + matching td) from every table inside container */
+function removeGradeColumn(container) {
+  var tables = container.querySelectorAll('table');
+  tables.forEach(function(table) {
+    var gradeIdx = -1;
+    var ths = table.querySelectorAll('thead tr th');
+    if (!ths.length) ths = table.querySelectorAll('tr:first-child th');
+    ths.forEach(function(th, idx) {
+      if (th.textContent.trim().toLowerCase() === 'grade') {
+        gradeIdx = idx;
+        th.style.cssText += 'display:none!important;';
+      }
+    });
+    if (gradeIdx === -1) return;
+    table.querySelectorAll('tbody tr').forEach(function(tr) {
+      var tds = tr.querySelectorAll('td');
+      if (tds[gradeIdx]) tds[gradeIdx].style.cssText += 'display:none!important;';
+    });
+  });
+}
+
 /* ═══ Hide Replit badge/pill everywhere including incognito ═══ */
 function removeReplitPill() {
   var pills = document.querySelectorAll('replit-badge,replit-pill,[data-repl-id]');
@@ -179,20 +200,16 @@ localStorage.setItem = function(key, value) {
   }
 };
 
-var _obs = new MutationObserver(function(){
-  removeReplitPill();
-  patchManageUsers();
-  patchScoreSheetModal();
-  patchCreateReport();
-  patchAdminReports();
-  patchStaffDashboard();
-  patchStaffDetailsForm();
-  patchAdminLogoUpload();
-  patchStaffReportAccess();
-  patchLoginPage();
-});
+function runAllPatches(){
+  var fns=[removeReplitPill,patchManageUsers,patchScoreSheetModal,patchCreateReport,
+           patchAdminReports,patchStaffDashboard,patchStaffDetailsForm,
+           patchAdminLogoUpload,patchStaffReportAccess,patchLoginPage];
+  fns.forEach(function(fn){ try{ fn(); }catch(e){ console.warn('[QSC patch error]',fn.name,e); } });
+}
+var _obs = new MutationObserver(runAllPatches);
 document.addEventListener('DOMContentLoaded', function(){
   _obs.observe(document.body, { childList:true, subtree:true });
+  runAllPatches();
 });
 
 /* ═══ LOGIN PAGE — fix credentials after admin update ═══ */
@@ -498,6 +515,8 @@ function patchScoreSheetModal() {
   var modal = heading.closest('.bg-white.rounded-2xl') || heading.closest('[class*="bg-white"]') || heading.closest('[class*="shadow"]');
   if (!modal || modal.dataset.qscSsPatched) return;
   modal.dataset.qscSsPatched = 'true';
+
+  removeGradeColumn(modal);
 
   /* Apply A4 portrait sizing to the inner scrollable content area, not the modal shell */
   var contentArea = modal.querySelector('[class*="overflow"]') || modal.querySelector('[class*="p-"]') || modal.children[1];
