@@ -1278,9 +1278,7 @@ app.get("/api/downloads/:file", (req, res) => {
   const entry = DOWNLOAD_FILES[key];
   if (!entry) { res.status(404).send("File not found"); return; }
   if (!fs.existsSync(entry.disk)) { res.status(500).send("Source file not found on disk: " + entry.disk); return; }
-  res.setHeader("Content-Disposition", `attachment; filename="${entry.name}"`);
-  res.setHeader("Content-Type", "application/octet-stream");
-  res.sendFile(entry.disk);
+  res.download(entry.disk, entry.name);
 });
 
 app.get("/favicon.svg", (req, res) => {
