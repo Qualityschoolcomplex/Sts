@@ -5,8 +5,14 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app: Express = express();
 
@@ -15,1056 +21,1198 @@ app.use(
     logger,
     serializers: {
       req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
+        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
       res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
+        return { statusCode: res.statusCode };
       },
     },
   }),
 );
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/api", router);
+
+const syncScript = `
+<script>
+(function(){
+  var SYNC_KEYS = ["qsc_users","qsc_reports","qsc_report_template","qsc_school_logo","qsc_score_sheets","qsc_student_names"];
+  var API_BASE = "/api/storage";
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", API_BASE, false);
+    xhr.send();
+    if (xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      for (var i = 0; i < SYNC_KEYS.length; i++) {
+        var k = SYNC_KEYS[i];
+        if (data.hasOwnProperty(k)) {
+          localStorage.setItem(k, data[k]);
+        } else {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+  } catch(e) { console.warn("Failed to preload data from server:", e); }
+  var origSetItem = localStorage.setItem.bind(localStorage);
+  var origRemoveItem = localStorage.removeItem.bind(localStorage);
+  localStorage.setItem = function(key, value) {
+    origSetItem(key, value);
+    if (SYNC_KEYS.indexOf(key) !== -1) {
+      fetch(API_BASE + "/" + encodeURIComponent(key), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: value })
+      }).catch(function(){});
+    }
+  };
+  localStorage.removeItem = function(key) {
+    origRemoveItem(key);
+    if (SYNC_KEYS.indexOf(key) !== -1) {
+      fetch(API_BASE + "/" + encodeURIComponent(key), {
+        method: "DELETE"
+      }).catch(function(){});
+    }
+  };
+})();
+</script>`;
+
+const patchScript = `
+<script>
+(function(){
+
+function showToast(msg, type) {
+  var t = document.getElementById('__qsc_toast__');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '__qsc_toast__';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;z-index:999999;font-family:system-ui,sans-serif;font-size:14px;padding:13px 22px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.18);transition:opacity 0.35s;max-width:360px;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  clearTimeout(t._tmr);
+  t.style.background = (type==='error')?'#fef2f2':(type==='warning'?'#fffbeb':'#f0fdf4');
+  t.style.color      = (type==='error')?'#b91c1c':(type==='warning'?'#92400e':'#15803d');
+  t.style.border     = '1.5px solid '+((type==='error')?'#fca5a5':(type==='warning'?'#fde68a':'#86efac'));
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.display = 'block';
+  t._tmr = setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.style.display='none'; },350); }, 3500);
+}
+window.__qscToast = showToast;
+
+function getCurrentUser() {
+  try { return JSON.parse(localStorage.getItem('qsc_current_user')||'null'); } catch(e){ return null; }
+}
+function getScoreSheets() {
+  try { return JSON.parse(localStorage.getItem('qsc_score_sheets')||'[]'); } catch(e){ return []; }
+}
+function saveScoreSheets(arr) {
+  localStorage.setItem('qsc_score_sheets', JSON.stringify(arr));
+}
+function getStudentNames() {
+  try { return JSON.parse(localStorage.getItem('qsc_student_names')||'[]'); } catch(e){ return []; }
+}
+function saveStudentNames(arr) {
+  localStorage.setItem('qsc_student_names', JSON.stringify(arr));
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function calcGrade(total) {
+  if (total>=80) return 'A1'; if (total>=70) return 'B2'; if (total>=65) return 'B3';
+  if (total>=60) return 'C4'; if (total>=55) return 'C5'; if (total>=50) return 'C6';
+  if (total>=45) return 'D7'; if (total>=40) return 'E8'; return 'F9';
+}
+function gradeRemarks(g) {
+  return {A1:'Excellent',B2:'Very Good',B3:'Good',C4:'Credit',C5:'Credit',C6:'Credit',D7:'Pass',E8:'Pass',F9:'Fail'}[g]||'';
+}
+
+var _appReady = false;
+window.addEventListener('load', function(){ setTimeout(function(){ _appReady=true; }, 900); });
+var _prevUsers = localStorage.getItem('qsc_users');
+var _setItemOrig = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value) {
+  _setItemOrig(key, value);
+  if (_appReady && key==='qsc_users' && value!==_prevUsers) {
+    _prevUsers = value;
+    showToast('User credentials updated successfully!', 'success');
+  }
+  if (key==='qsc_score_sheets') {
+    var p = document.getElementById('__qsc_ss_admin_panel__');
+    if (p) renderSubmittedSheets(p);
+  }
+};
+
+function removeReplitPill() {
+  var pill = document.querySelector('replit-badge,replit-pill,[data-repl-id]');
+  if (pill) pill.remove();
+  var style = document.getElementById('__qsc_pill_hide__');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = '__qsc_pill_hide__';
+    style.textContent = 'replit-badge,replit-pill,[data-repl-id],.replit-badge,.replit-pill{display:none!important;visibility:hidden!important;width:0!important;height:0!important;overflow:hidden!important;position:absolute!important;pointer-events:none!important;}';
+    document.head.appendChild(style);
+  }
+}
+removeReplitPill();
+setInterval(removeReplitPill, 500);
+
+var _obs = new MutationObserver(function(){
+  removeReplitPill();
+  patchManageUsers();
+  patchScoreSheetModal();
+  patchCreateReport();
+  patchAdminReports();
+  patchStaffDashboard();
+  patchStaffDetailsForm();
+  patchAdminLogoUpload();
+  patchStaffReportAccess();
+});
+document.addEventListener('DOMContentLoaded', function(){
+  _obs.observe(document.body, { childList:true, subtree:true });
+});
+
+/* ═══ STAFF DASHBOARD — Student Names Section ═══ */
+function patchStaffDashboard() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
+  var h2s = document.querySelectorAll('h2,h3');
+  var scoreHeading = null;
+  for (var i=0; i<h2s.length; i++) {
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Score Sheets' || txt === 'My Score Sheets' || txt === 'Create Score Sheet') {
+      scoreHeading = h2s[i];
+      break;
+    }
+  }
+  if (!scoreHeading) return;
+  var container = scoreHeading.parentElement;
+  if (!container) return;
+  for (var up=0; up<3; up++) {
+    if (container.parentElement && container.parentElement !== document.body) {
+      container = container.parentElement;
+      break;
+    }
+  }
+  if (container.dataset.qscSnPatched) return;
+  container.dataset.qscSnPatched = 'true';
+
+  var panel = document.createElement('div');
+  panel.id = '__qsc_sn_panel__';
+  panel.style.cssText = 'background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:22px 24px;margin-bottom:24px;';
+  renderStudentNamesPanel(panel);
+  container.insertBefore(panel, container.firstChild);
+}
+
+function renderStudentNamesPanel(panel) {
+  var names = getStudentNames();
+  panel.innerHTML = [
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">',
+    '<h3 style="font-size:16px;font-weight:700;color:#111;margin:0;">Student Names</h3>',
+    '<button id="__qsc_sn_add_btn__" style="background:#003087;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">+ Add Name</button>',
+    '</div>',
+    '<div id="__qsc_sn_add_row__" style="display:none;margin-bottom:12px;flex-wrap:wrap;gap:8px;align-items:center;">',
+    '<input id="__qsc_sn_input__" type="text" placeholder="Enter student name\\u2026" style="flex:1;min-width:180px;padding:9px 13px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:system-ui,sans-serif;outline:none;" />',
+    '<button id="__qsc_sn_save__" style="background:#16a34a;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Save</button>',
+    '<button id="__qsc_sn_cancel__" style="background:#f3f4f6;color:#374151;border:1.5px solid #d1d5db;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Cancel</button>',
+    '</div>',
+    names.length===0
+      ? '<p style="color:#9ca3af;font-size:13px;margin:0;">No student names saved yet. Click "+ Add Name" to start.</p>'
+      : '<ul id="__qsc_sn_list__" style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;">' +
+        names.map(function(n,idx){
+          return '<li style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:5px 12px;font-size:13px;color:#1e40af;font-family:system-ui,sans-serif;">'
+            + escHtml(n)
+            + '<button data-sn-del="'+idx+'" style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:14px;line-height:1;padding:0;margin-left:2px;">&times;</button>'
+            + '</li>';
+        }).join('')
+        + '</ul>',
+  ].join('');
+
+  var addBtn = document.getElementById('__qsc_sn_add_btn__');
+  var addRow = document.getElementById('__qsc_sn_add_row__');
+  var inp    = document.getElementById('__qsc_sn_input__');
+  var saveBtn= document.getElementById('__qsc_sn_save__');
+  var cancelBtn = document.getElementById('__qsc_sn_cancel__');
+
+  if (addBtn && addRow) {
+    addBtn.onclick = function(){
+      addRow.style.display = 'flex';
+      if (inp) inp.focus();
+    };
+  }
+  if (cancelBtn && addRow) {
+    cancelBtn.onclick = function(){
+      addRow.style.display = 'none';
+      if (inp) inp.value = '';
+    };
+  }
+  if (saveBtn && inp) {
+    saveBtn.onclick = function(){
+      var val = inp.value.trim();
+      if (!val) return;
+      var names2 = getStudentNames();
+      if (!names2.includes(val)) {
+        names2.push(val);
+        saveStudentNames(names2);
+        showToast('Student name saved!', 'success');
+      }
+      inp.value = '';
+      if (addRow) addRow.style.display = 'none';
+      renderStudentNamesPanel(panel);
+    };
+    inp.addEventListener('keydown', function(e){
+      if (e.key==='Enter') saveBtn.click();
+    });
+  }
+  var list = document.getElementById('__qsc_sn_list__');
+  if (list) {
+    list.onclick = function(e){
+      var btn = e.target.closest('[data-sn-del]');
+      if (!btn) return;
+      var idx = parseInt(btn.getAttribute('data-sn-del'));
+      var names3 = getStudentNames();
+      names3.splice(idx, 1);
+      saveStudentNames(names3);
+      renderStudentNamesPanel(panel);
+      showToast('Name removed.', 'warning');
+    };
+  }
+}
+
+/* ═══ STAFF DETAILS FORM — toast on save ═══ */
+function patchStaffDetailsForm() {
+  var btns = document.querySelectorAll('button');
+  btns.forEach(function(btn){
+    if (btn.dataset.qscStaffSavePatched) return;
+    var txt = btn.textContent.trim().toLowerCase();
+    if ((txt==='save changes' || txt==='update profile' || txt==='save profile' || txt==='update details' || txt==='save') && btn.closest('form,section,div')) {
+      var container = btn.closest('form,section,div');
+      if (!container) return;
+      var labels = container.querySelectorAll('label');
+      var isStaffForm = false;
+      labels.forEach(function(l){
+        if (l.textContent.toLowerCase().includes('display name') || l.textContent.toLowerCase().includes('username')) isStaffForm = true;
+      });
+      if (!isStaffForm) return;
+      btn.dataset.qscStaffSavePatched = 'true';
+      btn.addEventListener('click', function(){
+        setTimeout(function(){ showToast('Staff details updated successfully!', 'success'); }, 300);
+      });
+    }
+  });
+}
+
+/* ═══ MANAGE USERS — Add User button + Search ═══ */
+function patchManageUsers() {
+  var h2s = document.querySelectorAll('h2');
+  var heading = null;
+  for (var i=0; i<h2s.length; i++){
+    if (h2s[i].textContent.trim()==='Manage User Credentials') { heading=h2s[i]; break; }
+  }
+  if (!heading) return;
+  var container = heading.parentElement;
+  if (!container || container.dataset.qscMuPatched) return;
+  container.dataset.qscMuPatched = 'true';
+
+  var addBtn = document.createElement('button');
+  addBtn.textContent = '+ Add User';
+  addBtn.style.cssText = 'background:#003087;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;font-family:system-ui,sans-serif;display:block;';
+  addBtn.onmouseover = function(){ this.style.background='#004cc7'; };
+  addBtn.onmouseout  = function(){ this.style.background='#003087'; };
+  addBtn.onclick = function(){ showAddUserModal(); };
+  container.insertBefore(addBtn, heading.nextSibling);
+
+  var searchWrap = document.createElement('div');
+  searchWrap.style.cssText = 'margin-bottom:14px;';
+  searchWrap.innerHTML = '<input id="__qsc_user_search__" type="text" placeholder="Search users by name or username\\u2026" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:system-ui,sans-serif;outline:none;" />';
+  container.insertBefore(searchWrap, addBtn.nextSibling);
+
+  setInterval(function(){
+    var inp = document.getElementById('__qsc_user_search__');
+    if (!inp) return;
+    var q = inp.value.toLowerCase();
+    var cards = container.querySelectorAll('.bg-white.border.border-gray-200.rounded-xl,.bg-white.rounded-xl');
+    cards.forEach(function(card){
+      if (card.id && card.id.startsWith('__qsc_')) return;
+      card.style.display = (!q || card.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  }, 400);
+}
+
+function showAddUserModal() {
+  var old = document.getElementById('__qsc_au_modal__');
+  if (old) old.remove();
+
+  function field(lbl, id, type, ph) {
+    return '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#333;">'+lbl+'</label><input id="'+id+'" type="'+type+'" placeholder="'+ph+'" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:system-ui,sans-serif;" /></div>';
+  }
+
+  var modal = document.createElement('div');
+  modal.id = '__qsc_au_modal__';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;';
+  modal.innerHTML = [
+    '<div style="background:#fff;border-radius:16px;padding:32px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);">',
+    '<h3 style="font-size:18px;font-weight:700;margin:0 0 20px;color:#111;">Add New User</h3>',
+    '<div id="__qsc_au_err__" style="display:none;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div>',
+    field('Display Name','__au_dn__','text','e.g. John Doe'),
+    field('Username *','__au_un__','text','unique username'),
+    field('Password *','__au_pw__','password','password'),
+    '<div style="margin-bottom:20px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#333;">Role *</label>',
+    '<select id="__au_role__" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:system-ui,sans-serif;"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>',
+    '<div style="display:flex;gap:12px;">',
+    '<button id="__au_ok__" style="flex:1;background:#003087;color:#fff;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Add User</button>',
+    '<button id="__au_cancel__" style="flex:1;background:#f3f4f6;color:#333;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Cancel</button>',
+    '</div></div>'
+  ].join('');
+  document.body.appendChild(modal);
+
+  document.getElementById('__au_cancel__').onclick = function(){ modal.remove(); };
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  document.getElementById('__au_ok__').onclick = function(){
+    var dn   = document.getElementById('__au_dn__').value.trim();
+    var un   = document.getElementById('__au_un__').value.trim();
+    var pw   = document.getElementById('__au_pw__').value.trim();
+    var role = document.getElementById('__au_role__').value;
+    var err  = document.getElementById('__qsc_au_err__');
+    err.style.display='none';
+    if (!un||!pw){ err.textContent='Username and password are required.'; err.style.display='block'; return; }
+    var users=[];
+    try { users=JSON.parse(localStorage.getItem('qsc_users')||'[]'); } catch(e){}
+    if (users.find(function(u){ return u.username===un; })){
+      err.textContent='Username already exists.'; err.style.display='block'; return;
+    }
+    users.push({ id:'u_'+Date.now(), username:un, password:pw, displayName:dn||un, role:role });
+    localStorage.setItem('qsc_users', JSON.stringify(users));
+    modal.remove();
+    showToast('User "' +(dn||un)+ '" added successfully!', 'success');
+    window.dispatchEvent(new StorageEvent('storage', { key:'qsc_users' }));
+  };
+}
+
+/* ═══ SCORE SHEET MODAL — A4 size + Save Draft / Submit + Student dropdown ═══ */
+function patchScoreSheetModal() {
+  var h2s = document.querySelectorAll('h2');
+  var heading = null;
+  for (var i=0; i<h2s.length; i++){
+    if (h2s[i].textContent.trim()==='Create Score Sheet') { heading=h2s[i]; break; }
+  }
+  if (!heading) return;
+  var modal = heading.closest('.bg-white.rounded-2xl') || heading.closest('[class*="bg-white"]') || heading.closest('[class*="shadow"]');
+  if (!modal || modal.dataset.qscSsPatched) return;
+  modal.dataset.qscSsPatched = 'true';
+
+  modal.style.width = '210mm';
+  modal.style.maxWidth = '210mm';
+  modal.style.minHeight = '297mm';
+  modal.style.boxSizing = 'border-box';
+
+  injectStudentNameDropdowns(modal);
+
+  var btns = modal.querySelectorAll('button');
+  var printBtn = null;
+  for (var i=0; i<btns.length; i++){
+    var btnTxt = btns[i].textContent.trim().toLowerCase();
+    if (btnTxt.includes('print') || btnTxt.includes('export')) { printBtn=btns[i]; break; }
+  }
+  if (!printBtn) return;
+  var row = printBtn.parentElement;
+  if (!row || row.dataset.qscSsBtnPatched) return;
+  row.dataset.qscSsBtnPatched = 'true';
+
+  var draftBtn = document.createElement('button');
+  draftBtn.textContent = 'Save as Draft';
+  draftBtn.type = 'button';
+  draftBtn.style.cssText = 'background:#f3f4f6;color:#374151;border:1.5px solid #d1d5db;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;';
+  draftBtn.onclick = function(){ captureAndSaveSheet(modal, 'draft'); };
+  row.insertBefore(draftBtn, printBtn);
+
+  var submitBtn = document.createElement('button');
+  submitBtn.textContent = 'Submit to Admin';
+  submitBtn.type = 'button';
+  submitBtn.style.cssText = 'background:#16a34a;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;';
+  submitBtn.onclick = function(){ captureAndSaveSheet(modal, 'submitted'); };
+  row.insertBefore(submitBtn, printBtn);
+}
+
+function injectStudentNameDropdowns(modal) {
+  var names = getStudentNames();
+  if (!names.length) return;
+  var trs = modal.querySelectorAll('tbody tr');
+  trs.forEach(function(tr){
+    if (tr.dataset.qscSnDropdown) return;
+    var inputs = tr.querySelectorAll('input');
+    var nameInput = null;
+    inputs.forEach(function(inp){
+      if (inp.placeholder && inp.placeholder.toLowerCase().includes('name')) nameInput = inp;
+    });
+    if (!nameInput && inputs.length > 1) {
+      nameInput = inputs[1];
+    } else if (!nameInput && inputs.length > 0) {
+      nameInput = inputs[0];
+    }
+    if (!nameInput) return;
+    tr.dataset.qscSnDropdown = 'true';
+
+    var dlId = '__qsc_sn_dl_' + Math.random().toString(36).slice(2) + '__';
+    var dl = document.createElement('datalist');
+    dl.id = dlId;
+    names.forEach(function(n){
+      var opt = document.createElement('option');
+      opt.value = n;
+      dl.appendChild(opt);
+    });
+    nameInput.setAttribute('list', dlId);
+    nameInput.setAttribute('autocomplete', 'off');
+    nameInput.parentNode.appendChild(dl);
+  });
+}
+
+function captureAndSaveSheet(modal, status) {
+  var labels = modal.querySelectorAll('label');
+  function getFieldVal(labelText) {
+    for (var i=0; i<labels.length; i++){
+      if (labels[i].textContent.trim()===labelText) {
+        var sib = labels[i].nextElementSibling;
+        if (sib) return (sib.tagName==='SELECT' ? sib.options[sib.selectedIndex].text : sib.value)||'';
+      }
+    }
+    return '';
+  }
+  var title   = getFieldVal('Sheet Title');
+  var subject = getFieldVal('Subject');
+  var cls     = getFieldVal('Class');
+  var term    = getFieldVal('Term');
+  var yr      = getFieldVal('Academic Year');
+  var rows = [];
+  modal.querySelectorAll('tbody tr').forEach(function(tr){
+    var inp = tr.querySelectorAll('input');
+    if (inp.length>=3) {
+      rows.push({ no:rows.length+1, studentName:inp[0].value||inp[1]&&inp[1].value||'', classScore:inp[inp.length-2]?inp[inp.length-2].value:'', exam100:inp[inp.length-1]?inp[inp.length-1].value:'' });
+    }
+  });
+  var user = getCurrentUser();
+  var now  = new Date().toISOString();
+  var sheet = {
+    id:'ss_'+Date.now(), title:title||('Score Sheet '+new Date().toLocaleDateString()),
+    subject:subject, class:cls, term:term, academicYear:yr, rows:rows, status:status,
+    staffUsername:user?user.username:'', staffName:user?(user.displayName||user.username):'',
+    createdAt:now, submittedAt:status==='submitted'?now:null
+  };
+  var sheets = getScoreSheets();
+  sheets.push(sheet);
+  saveScoreSheets(sheets);
+  if (status==='draft') {
+    showToast('Score sheet saved as draft!', 'success');
+  } else {
+    showToast('Score sheet submitted to admin!', 'success');
+    var closeBtn = null;
+    var allBtns = modal.querySelectorAll('button');
+    for (var i=0; i<allBtns.length; i++){
+      if (allBtns[i].querySelector('svg') || allBtns[i].textContent.trim()==='\\u2715' || allBtns[i].getAttribute('aria-label')==='Close') { closeBtn=allBtns[i]; break; }
+    }
+    if (closeBtn) setTimeout(function(){ closeBtn.click(); }, 250);
+  }
+}
+
+/* ═══ CREATE REPORT — remove Grade column, student name dropdown, auto-fill from score sheets ═══ */
+function patchCreateReport() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
+  var h2s = document.querySelectorAll('h2');
+  var heading = null;
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt==='Create Report' || txt==='Generate Report' || txt==='Create Report Card') { heading=h2s[i]; break; }
+  }
+  if (!heading) return;
+  var modal = heading.closest('[style*="position: fixed"]') || heading.closest('[style*="position:fixed"]') || heading.closest('.fixed') || heading.closest('[class*="fixed"]') || heading.parentElement;
+  if (!modal || modal.dataset.qscCrPatched) return;
+  modal.dataset.qscCrPatched = 'true';
+
+  removeGradeColumn(modal);
+  injectStudentNameFieldDropdown(modal);
+  wireScoreSheetAutoFill(modal);
+}
+
+function removeGradeColumn(container) {
+  var ths = container.querySelectorAll('th');
+  var gradeColIdx = -1;
+  ths.forEach(function(th, idx){
+    var txt = th.textContent.trim().toLowerCase();
+    if (txt==='grade') {
+      th.style.display='none';
+      gradeColIdx = idx;
+    }
+  });
+  if (gradeColIdx < 0) return;
+  var trs = container.querySelectorAll('tbody tr, tr');
+  trs.forEach(function(tr){
+    var tds = tr.querySelectorAll('td');
+    if (tds[gradeColIdx]) tds[gradeColIdx].style.display='none';
+  });
+}
+
+function injectStudentNameFieldDropdown(modal) {
+  var labels = modal.querySelectorAll('label');
+  labels.forEach(function(lbl){
+    var lblTxt = lbl.textContent.trim().toLowerCase();
+    if (lblTxt !== 'student name' && lblTxt !== 'student\\'s name' && lblTxt !== 'name of student') return;
+    var inp = lbl.nextElementSibling;
+    if (!inp || inp.tagName!=='INPUT') {
+      var parent = lbl.parentElement;
+      if (parent) inp = parent.querySelector('input');
+    }
+    if (!inp || inp.tagName!=='INPUT') return;
+    if (inp.dataset.qscSnDl) return;
+    inp.dataset.qscSnDl = 'true';
+
+    var savedNames = getStudentNames();
+    var sheetNames = [];
+    var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
+    sheets.forEach(function(sheet){
+      (sheet.rows||[]).forEach(function(row){
+        if (row.studentName && sheetNames.indexOf(row.studentName) === -1) {
+          sheetNames.push(row.studentName);
+        }
+      });
+    });
+    var allNames = savedNames.slice();
+    sheetNames.forEach(function(n){
+      if (allNames.indexOf(n) === -1) allNames.push(n);
+    });
+
+    var dlId = '__qsc_cr_sn_dl__';
+    var existing = document.getElementById(dlId);
+    if (existing) existing.remove();
+    var dl = document.createElement('datalist');
+    dl.id = dlId;
+    allNames.forEach(function(n){
+      var opt = document.createElement('option'); opt.value=n; dl.appendChild(opt);
+    });
+    inp.setAttribute('list', dlId);
+    inp.setAttribute('autocomplete', 'off');
+    inp.parentNode.appendChild(dl);
+  });
+}
+
+function wireScoreSheetAutoFill(modal) {
+  var labels = modal.querySelectorAll('label');
+  labels.forEach(function(lbl){
+    var lblTxt = lbl.textContent.trim().toLowerCase();
+    if (lblTxt !== 'student name' && lblTxt !== 'student\\'s name' && lblTxt !== 'name of student') return;
+    var inp = lbl.nextElementSibling;
+    if (!inp || inp.tagName!=='INPUT') {
+      var parent = lbl.parentElement;
+      if (parent) inp = parent.querySelector('input');
+    }
+    if (!inp || inp.tagName!=='INPUT' || inp.dataset.qscAfWired) return;
+    inp.dataset.qscAfWired = 'true';
+    inp.addEventListener('change', function(){
+      var studentName = inp.value.trim();
+      if (!studentName) return;
+      autoFillFromScoreSheets(modal, studentName);
+    });
+    inp.addEventListener('input', function(){
+      var studentName = inp.value.trim();
+      if (!studentName) return;
+      var names = getStudentNames();
+      if (names.indexOf(studentName) !== -1) {
+        autoFillFromScoreSheets(modal, studentName);
+      }
+    });
+  });
+}
+
+function autoFillFromScoreSheets(modal, studentName) {
+  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
+  var matched = [];
+  sheets.forEach(function(sheet){
+    (sheet.rows||[]).forEach(function(row){
+      if ((row.studentName||'').toLowerCase()===studentName.toLowerCase()) {
+        matched.push({ subject:sheet.subject, classScore:row.classScore, exam100:row.exam100, sheet:sheet });
+      }
+    });
+  });
+  if (!matched.length) return;
+  var trs = modal.querySelectorAll('tbody tr');
+  matched.forEach(function(m, idx){
+    var tr = trs[idx];
+    if (!tr) return;
+    var inputs = tr.querySelectorAll('input');
+    var selects = tr.querySelectorAll('select');
+    if (selects.length > 0) {
+      for (var s=0; s<selects.length; s++) {
+        var sel = selects[s];
+        for (var o=0; o<sel.options.length; o++) {
+          if (sel.options[o].text === m.subject || sel.options[o].value === m.subject) {
+            sel.selectedIndex = o;
+            sel.dispatchEvent(new Event('change', {bubbles:true}));
+            break;
+          }
+        }
+      }
+    }
+    if (inputs[0] && !selects.length) { inputs[0].value = m.subject||''; inputs[0].dispatchEvent(new Event('input', {bubbles:true})); }
+    if (inputs.length >= 2) { inputs[inputs.length-2].value = m.classScore||''; inputs[inputs.length-2].dispatchEvent(new Event('input', {bubbles:true})); }
+    if (inputs.length >= 1) { inputs[inputs.length-1].value = m.exam100||''; inputs[inputs.length-1].dispatchEvent(new Event('input', {bubbles:true})); }
+  });
+  showToast('Score data auto-filled from submitted score sheets!', 'success');
+}
+
+/* ═══ ADMIN GENERATE REPORT — replace Grade with Position ═══ */
+function patchAdminReports() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
+  var h2s = document.querySelectorAll('h2,h3');
+  h2s.forEach(function(h2){
+    var txt = h2.textContent.trim();
+    if (txt!=='Student Reports' && txt!=='Generate Reports' && txt!=='Reports' && txt!=='Report Cards') return;
+    var container = h2.closest('[class*="p-"]') || h2.closest('[class*="bg-white"]') || h2.parentElement;
+    if (!container) return;
+
+    var ths = container.querySelectorAll('th');
+    ths.forEach(function(th){
+      if (th.textContent.trim().toLowerCase()==='grade' && !th.dataset.qscGrReplaced) {
+        th.dataset.qscGrReplaced = 'true';
+        th.textContent = 'Position';
+      }
+    });
+
+    var btns = container.querySelectorAll('button');
+    btns.forEach(function(btn){
+      if (btn.textContent.trim()==='View / Print' && !btn.dataset.qscPrintRenamed) {
+        btn.dataset.qscPrintRenamed = 'true';
+        btn.textContent = 'View & Print';
+      }
+    });
+  });
+
+  patchSubmittedScoreSheets();
+}
+
+/* ═══ SUBMITTED SCORE SHEETS (Admin view) ═══ */
+function patchSubmittedScoreSheets() {
+  var user = getCurrentUser();
+  if (!user || user.role!=='admin') return;
+
+  var h2s = document.querySelectorAll('h2,h3');
+  var reportsH2 = null;
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt==='Student Reports' || txt==='Reports' || txt==='Generate Reports' || txt==='Report Cards') {
+      reportsH2=h2s[i]; break;
+    }
+  }
+  if (!reportsH2) return;
+
+  var reportsSection = reportsH2.parentElement;
+  for (var up=0; up<5; up++){
+    if (reportsSection && reportsSection.children.length>=2) break;
+    reportsSection = reportsSection?reportsSection.parentElement:null;
+  }
+  if (!reportsSection) reportsSection = reportsH2.parentElement;
+  if (!reportsSection || reportsSection.dataset.qscSsAdminPatched) return;
+  reportsSection.dataset.qscSsAdminPatched = 'true';
+
+  var panel = document.createElement('div');
+  panel.id = '__qsc_ss_admin_panel__';
+  panel.style.cssText = 'margin-top:32px;';
+  reportsSection.appendChild(panel);
+  renderSubmittedSheets(panel);
+}
+
+function renderSubmittedSheets(panel) {
+  var sheets = getScoreSheets().filter(function(s){ return s.status==='submitted' || s.status==='approved'; });
+  panel.innerHTML = '';
+
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+  hdr.innerHTML = '<h2 style="font-size:18px;font-weight:700;color:#111;margin:0;">Submitted Score Sheets</h2>';
+  panel.appendChild(hdr);
+
+  if (!sheets.length) {
+    var empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:48px 0;color:#9ca3af;';
+    empty.innerHTML = '<div style="font-size:36px;margin-bottom:10px;">&#x1F4CA;</div><p style="font-weight:600;font-family:system-ui,sans-serif;">No submitted score sheets yet</p>';
+    panel.appendChild(empty);
+    return;
+  }
+
+  sheets.forEach(function(sheet){
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:12px;';
+    var d = new Date(sheet.submittedAt||sheet.createdAt);
+    var dateStr = d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    card.innerHTML = [
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;">',
+      '<div>',
+      '<h3 style="font-size:15px;font-weight:700;color:#111;margin:0 0 4px;font-family:system-ui,sans-serif;">'+escHtml(sheet.title||'Untitled')+'</h3>',
+      '<div style="font-size:13px;color:#6b7280;display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;font-family:system-ui,sans-serif;">',
+      '<span>Subject: <strong style="color:#374151;">'+escHtml(sheet.subject||'\\u2014')+'</strong></span>',
+      '<span>Class: <strong style="color:#374151;">'+escHtml(sheet.class||'\\u2014')+'</strong></span>',
+      '<span>Term: <strong style="color:#374151;">'+escHtml(sheet.term||'\\u2014')+'</strong></span>',
+      '<span>By: <strong style="color:#374151;">'+escHtml(sheet.staffName||sheet.staffUsername||'\\u2014')+'</strong></span>',
+      '<span>Submitted: <strong style="color:#374151;">'+dateStr+'</strong></span>',
+      '</div></div>',
+      '<div style="display:flex;gap:8px;margin-left:12px;flex-shrink:0;">',
+      (sheet.status==='submitted' ? '<button data-ss-approve="'+sheet.id+'" style="background:#16a34a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Approve</button>' : '<span style="background:#dcfce7;color:#15803d;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:system-ui,sans-serif;">Approved</span>'),
+      '<button data-ss-print="'+sheet.id+'" style="background:#003087;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Print</button>',
+      '<button data-ss-delete="'+sheet.id+'" style="background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Delete</button>',
+      '</div></div>',
+      sheet.rows&&sheet.rows.length
+        ? '<div style="font-size:12px;color:#9ca3af;margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6;font-family:system-ui,sans-serif;">'+sheet.rows.filter(function(r){return r.studentName;}).length+' student records</div>' : ''
+    ].join('');
+    panel.appendChild(card);
+  });
+
+  panel.onclick = function(e){
+    var target = e.target.closest ? e.target.closest('[data-ss-print],[data-ss-delete],[data-ss-approve]') : e.target;
+    if (!target) return;
+    var printId   = target.getAttribute('data-ss-print');
+    var deleteId  = target.getAttribute('data-ss-delete');
+    var approveId = target.getAttribute('data-ss-approve');
+    if (printId)   printScoreSheet(printId);
+    if (deleteId)  deleteScoreSheet(deleteId, panel);
+    if (approveId) approveScoreSheet(approveId, panel);
+  };
+}
+
+function printScoreSheet(id) {
+  var sheets = getScoreSheets();
+  var sheet = sheets.find(function(s){ return s.id===id; });
+  if (!sheet) return;
+  var rows = (sheet.rows||[]).map(function(r,idx){
+    var cs = parseFloat(r.classScore)||0;
+    var e100 = parseFloat(r.exam100)||0;
+    var e70 = Math.round(e100/100*70*10)/10;
+    var total = (r.classScore!==''||r.exam100!=='') ? Math.round((cs+e70)*10)/10 : '';
+    var grade = total!=='' ? calcGrade(total) : '';
+    var remarks = grade ? gradeRemarks(grade) : '';
+    return '<tr><td>'+(idx+1)+'</td><td style="text-align:left">'+escHtml(r.studentName||'')+'</td><td>'+cs+'</td><td>'+e100+'</td><td>'+e70+'</td><td style="font-weight:700">'+(total!==''?total:'')+'</td><td>'+grade+'</td><td>'+remarks+'</td></tr>';
+  }).join('');
+  var w = window.open('','_blank');
+  if (!w) return;
+  w.document.write([
+    '<!DOCTYPE html><html><head><title>Score Sheet - '+escHtml(sheet.title||'')+'</title>',
+    '<style>@page{size:A4 landscape;margin:10mm;}body{font-family:Arial,sans-serif;font-size:10px;}',
+    'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #555;padding:3px 5px;text-align:center;}',
+    'th{background:#dce8f5;}td:nth-child(2){text-align:left;}h2,h3{margin:0 0 4px;}',
+    '.meta{margin-bottom:8px;font-size:11px;}</style></head><body>',
+    '<h2>'+escHtml(sheet.title||'Score Sheet')+'</h2>',
+    '<div class="meta"><strong>Subject:</strong> '+escHtml(sheet.subject||'')+'&nbsp;&nbsp;',
+    '<strong>Class:</strong> '+escHtml(sheet.class||'')+'&nbsp;&nbsp;',
+    '<strong>Term:</strong> '+escHtml(sheet.term||'')+'&nbsp;&nbsp;',
+    '<strong>Year:</strong> '+escHtml(sheet.academicYear||'')+'&nbsp;&nbsp;',
+    '<strong>Staff:</strong> '+escHtml(sheet.staffName||sheet.staffUsername||''),
+    '</div>',
+    '<table><thead><tr><th>#</th><th>Student Name</th><th>Class Score (30%)</th><th>Exam Score (100%)</th>',
+    '<th>Exam Score (70%)</th><th>Total</th><th>Grade</th><th>Remarks</th>',
+    '</tr></thead><tbody>'+rows+'</tbody></table>',
+    '</body></html>'
+  ].join(''));
+  w.document.close();
+  setTimeout(function(){ w.focus(); w.print(); }, 500);
+}
+
+function deleteScoreSheet(id, panel) {
+  if (!confirm('Delete this score sheet?')) return;
+  var sheets = getScoreSheets().filter(function(s){ return s.id!==id; });
+  saveScoreSheets(sheets);
+  renderSubmittedSheets(panel);
+  showToast('Score sheet deleted.', 'warning');
+}
+
+function approveScoreSheet(id, panel) {
+  var sheets = getScoreSheets();
+  for (var i=0; i<sheets.length; i++) {
+    if (sheets[i].id === id) {
+      sheets[i].status = 'approved';
+      sheets[i].approvedAt = new Date().toISOString();
+      break;
+    }
+  }
+  saveScoreSheets(sheets);
+  renderSubmittedSheets(panel);
+  showToast('Score sheet approved! Staff can now create reports.', 'success');
+}
+
+/* ═══ ADMIN LOGO UPLOAD — between email and address sections ═══ */
+function patchAdminLogoUpload() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
+
+  var h2s = document.querySelectorAll('h2,h3');
+  var settingsHeading = null;
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Report Template' || txt === 'School Settings' || txt === 'Report Settings' || txt === 'Template Settings' || txt === 'Customize Report') {
+      settingsHeading = h2s[i]; break;
+    }
+  }
+  if (!settingsHeading) return;
+
+  var settingsContainer = settingsHeading.closest('[class*="bg-white"]') || settingsHeading.closest('[class*="p-"]') || settingsHeading.parentElement;
+  if (!settingsContainer || settingsContainer.dataset.qscLogoPatched) return;
+
+  var labels = settingsContainer.querySelectorAll('label');
+  var emailLabel = null;
+  var addressLabel = null;
+  for (var i=0; i<labels.length; i++) {
+    var lt = labels[i].textContent.trim().toLowerCase();
+    if (lt.includes('email') || lt.includes('e-mail')) emailLabel = labels[i];
+    if (lt.includes('address') || lt.includes('location')) addressLabel = labels[i];
+  }
+
+  var insertAfter = null;
+  if (emailLabel) {
+    insertAfter = emailLabel.parentElement || emailLabel;
+  }
+  if (!insertAfter) return;
+  settingsContainer.dataset.qscLogoPatched = 'true';
+
+  var logoPanel = document.createElement('div');
+  logoPanel.id = '__qsc_logo_panel__';
+  logoPanel.style.cssText = 'margin:16px 0;padding:16px;border:1.5px dashed #d1d5db;border-radius:12px;background:#f9fafb;';
+
+  function renderLogoPanel() {
+    var currentLogo = localStorage.getItem('qsc_school_logo') || '';
+    logoPanel.innerHTML = [
+      '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">School Logo</label>',
+      currentLogo
+        ? '<div style="margin-bottom:10px;text-align:center;"><img src="'+currentLogo+'" style="max-height:80px;max-width:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;" /><br/><button id="__qsc_logo_remove__" style="margin-top:6px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;">Remove Logo</button></div>'
+        : '<p style="font-size:12px;color:#9ca3af;margin:0 0 8px;">No logo uploaded. Upload a school logo to appear on reports.</p>',
+      '<input id="__qsc_logo_file__" type="file" accept="image/*" style="font-size:13px;font-family:system-ui,sans-serif;" />'
+    ].join('');
+
+    var fileInput = document.getElementById('__qsc_logo_file__');
+    if (fileInput) {
+      fileInput.onchange = function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('Logo file must be under 2MB.', 'error');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          localStorage.setItem('qsc_school_logo', ev.target.result);
+          showToast('School logo uploaded!', 'success');
+          renderLogoPanel();
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+    var removeBtn = document.getElementById('__qsc_logo_remove__');
+    if (removeBtn) {
+      removeBtn.onclick = function() {
+        localStorage.removeItem('qsc_school_logo');
+        showToast('Logo removed.', 'warning');
+        renderLogoPanel();
+      };
+    }
+  }
+
+  renderLogoPanel();
+
+  if (insertAfter.nextSibling) {
+    insertAfter.parentNode.insertBefore(logoPanel, insertAfter.nextSibling);
+  } else {
+    insertAfter.parentNode.appendChild(logoPanel);
+  }
+}
+
+/* ═══ STAFF REPORT ACCESS — only after admin has approved their score sheets ═══ */
+function patchStaffReportAccess() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
+
+  var approvedSheets = getScoreSheets().filter(function(s){
+    return s.staffUsername === user.username && s.status === 'approved';
+  });
+  var hasSubmitted = approvedSheets.length > 0;
+
+  var h2s = document.querySelectorAll('h2,h3');
+  for (var i=0; i<h2s.length; i++){
+    var txt = h2s[i].textContent.trim();
+    if (txt === 'Create Report' || txt === 'Generate Report' || txt === 'Create Report Card' || txt === 'Report Cards' || txt === 'Reports') {
+      var section = h2s[i].closest('[class*="bg-white"]') || h2s[i].closest('[class*="p-"]') || h2s[i].parentElement;
+      if (!section || section.dataset.qscAccessPatched) continue;
+
+      if (!hasSubmitted) {
+        section.dataset.qscAccessPatched = 'true';
+        var btns = section.querySelectorAll('button');
+        btns.forEach(function(btn){
+          var btnTxt = btn.textContent.trim().toLowerCase();
+          if (btnTxt.includes('create') || btnTxt.includes('generate') || btnTxt.includes('new report')) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.title = 'You must submit score sheets first before creating reports';
+            btn.onclick = function(e){
+              e.preventDefault();
+              e.stopPropagation();
+              showToast('Please submit your score sheets to admin first before creating reports.', 'warning');
+              return false;
+            };
+          }
+        });
+
+        if (!section.querySelector('#__qsc_access_msg__')) {
+          var msg = document.createElement('div');
+          msg.id = '__qsc_access_msg__';
+          msg.style.cssText = 'background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px;color:#92400e;font-family:system-ui,sans-serif;';
+          msg.innerHTML = '<strong>Access Restricted:</strong> Your score sheets must be approved by admin before you can create reports. Please submit your score sheets and wait for admin approval.';
+          var heading = h2s[i];
+          if (heading.nextSibling) {
+            heading.parentNode.insertBefore(msg, heading.nextSibling);
+          } else {
+            heading.parentNode.appendChild(msg);
+          }
+        }
+      }
+    }
+  }
+}
+
+})();
+</script>`;
+
+let cachedHtml: string | null = null;
+
+function getInjectedHtml(): string {
+  if (cachedHtml) return cachedHtml;
+  const htmlPath = path.join(__dirname, "..", "public", "index.html");
+  let raw = fs.readFileSync(htmlPath, "utf-8");
+  raw = raw.replace(/<script[^>]*replit-cdn\.com[^>]*><\/script>/gi, "");
+  raw = raw.replace(/<script[^>]*replit-pill[^>]*><\/script>/gi, "");
+  raw = raw.replace(/<script[^>]*data-repl-id[^>]*><\/script>/gi, "");
+  raw = raw.replace("<head>", "<head>" + syncScript + patchScript);
+  cachedHtml = raw;
+  return cachedHtml;
+}
+
+const DOWNLOAD_FILES: Record<string, { disk: string; name: string; label: string }> = {
+  "app.ts": {
+    disk: path.join(__dirname, "..", "src", "app.ts"),
+    name: "app.ts",
+    label: "Server entry (app.ts)",
+  },
+  "routes-storage.ts": {
+    disk: path.join(__dirname, "..", "src", "routes", "storage.ts"),
+    name: "routes-storage.ts",
+    label: "Storage routes (routes/storage.ts)",
+  },
+  "routes-index.ts": {
+    disk: path.join(__dirname, "..", "src", "routes", "index.ts"),
+    name: "routes-index.ts",
+    label: "Routes index (routes/index.ts)",
+  },
+  "schema-storage.ts": {
+    disk: path.join(__dirname, "..", "..", "..", "lib", "db", "src", "schema", "storage.ts"),
+    name: "schema-storage.ts",
+    label: "DB schema (lib/db/src/schema/storage.ts)",
+  },
+  "schema-index.ts": {
+    disk: path.join(__dirname, "..", "..", "..", "lib", "db", "src", "schema", "index.ts"),
+    name: "schema-index.ts",
+    label: "Schema index (lib/db/src/schema/index.ts)",
+  },
+  "index.html": {
+    disk: path.join(__dirname, "..", "public", "index.html"),
+    name: "index.html",
+    label: "Frontend HTML (public/index.html)",
+  },
+};
+
+const TS_FILE_KEYS = ["app.ts", "routes-storage.ts", "routes-index.ts", "schema-storage.ts", "schema-index.ts"];
+
+app.get("/downloads/combined.ts", (req, res) => {
+  const parts = TS_FILE_KEYS.map((key) => {
+    const entry = DOWNLOAD_FILES[key]!;
+    const content = fs.readFileSync(entry.disk, "utf-8");
+    const divider = "// " + "=".repeat(60);
+    return `${divider}\n// FILE: ${entry.name}\n${divider}\n\n${content}`;
+  });
+  res.setHeader("Content-Disposition", 'attachment; filename="combined.ts"');
+  res.type("text/plain").send(parts.join("\n\n"));
+});
+
+app.get("/downloads", (req, res) => {
+  const rows = Object.entries(DOWNLOAD_FILES)
+    .map(([key, entry]) => {
+      return `<li style="margin:10px 0">
+        <a href="/downloads/${encodeURIComponent(key)}" download="${entry.name}"
+           style="font-family:monospace;font-size:15px;color:#003087;text-decoration:none;border-bottom:1px solid #003087;">
+          ${entry.name}
+        </a>
+        <span style="font-size:12px;color:#555;margin-left:10px;">${entry.label}</span>
+      </li>`;
+    })
+    .join("");
+
+  const combinedRow = `<li style="margin:10px 0">
+    <a href="/downloads/combined.ts" download="combined.ts"
+       style="font-family:monospace;font-size:15px;color:#003087;text-decoration:none;border-bottom:1px solid #003087;">
+      combined.ts
+    </a>
+    <span style="font-size:12px;color:#555;margin-left:10px;">All .ts files merged into one</span>
+  </li>`;
+
+  res.type("html").send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Download Updated Files &mdash; QSC SIS</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 48px; background: #f5f7fa; }
+    h2 { color: #003087; margin-bottom: 6px; }
+    p { color: #555; margin-top: 0; font-size: 14px; }
+    ul { list-style: none; padding: 0; background: #fff; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    li a:hover { color: #004cc7; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <h2>Updated Files &mdash; Download Individually</h2>
+  <p>Click any file to download it to your computer.</p>
+  <ul>
+    ${rows}
+    <hr />
+    ${combinedRow}
+  </ul>
+</body>
+</html>`);
+});
+
+app.get("/downloads/:file", (req, res) => {
+  const key = req.params.file;
+  const entry = DOWNLOAD_FILES[key];
+  if (!entry) {
+    res.status(404).send("File not found");
+    return;
+  }
+  if (!fs.existsSync(entry.disk)) {
+    res.status(404).send("File does not exist on disk");
+    return;
+  }
+  res.download(entry.disk, entry.name);
+});
+
+app.get("/favicon.svg", (req, res) => {
+  const faviconPath = path.join(__dirname, "..", "public", "favicon.svg");
+  if (fs.existsSync(faviconPath)) {
+    res.type("image/svg+xml").sendFile(faviconPath);
+  } else {
+    res.status(204).end();
+  }
+});
+
+app.get("/{*path}", (req, res) => {
+  res.type("html").send(getInjectedHtml());
+});
 
 export default app;
 
 
 // ============================================================
-// FILE: index.ts
+// FILE: routes-storage.ts
 // ============================================================
 
-import app from "./app";
-import { logger } from "./lib/logger";
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { kvStore } from "@workspace/db/schema";
+import { eq, inArray } from "drizzle-orm";
 
-const rawPort = process.env["PORT"];
+const ALLOWED_KEYS = new Set([
+  "qsc_users",
+  "qsc_reports",
+  "qsc_report_template",
+  "qsc_school_logo",
+  "qsc_score_sheets",
+  "qsc_student_names",
+]);
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const router = Router();
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
+router.get("/storage", async (req, res) => {
+  const rows = await db
+    .select()
+    .from(kvStore)
+    .where(inArray(kvStore.key, [...ALLOWED_KEYS]));
+  const data: Record<string, string> = {};
+  for (const row of rows) {
+    data[row.key] = row.value;
   }
-
-  logger.info({ port }, "Server listening");
-});
-
-
-// ============================================================
-// FILE: index.ts
-// ============================================================
-
-import { Router, type IRouter } from "express";
-import downloadsRouter from "./downloads";
-import healthRouter from "./health";
-
-const router: IRouter = Router();
-
-router.use(downloadsRouter);
-router.use(healthRouter);
-
-export default router;
-
-
-// ============================================================
-// FILE: health.ts
-// ============================================================
-
-import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
-
-const router: IRouter = Router();
-
-router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
 });
 
+router.put("/storage/:key", async (req, res) => {
+  const { key } = req.params;
+  if (!ALLOWED_KEYS.has(key)) {
+    res.status(403).json({ error: "key not allowed" });
+    return;
+  }
+  const { value } = req.body;
+  if (typeof value !== "string") {
+    res.status(400).json({ error: "value must be a string" });
+    return;
+  }
+  await db
+    .insert(kvStore)
+    .values({ key, value, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: kvStore.key,
+      set: { value, updatedAt: new Date() },
+    });
+  res.json({ ok: true });
+});
+
+router.delete("/storage/:key", async (req, res) => {
+  const { key } = req.params;
+  if (!ALLOWED_KEYS.has(key)) {
+    res.status(403).json({ error: "key not allowed" });
+    return;
+  }
+  await db.delete(kvStore).where(eq(kvStore.key, key));
+  res.json({ ok: true });
+});
+
 export default router;
 
 
 // ============================================================
-// FILE: downloads.ts
+// FILE: routes-index.ts
 // ============================================================
 
-import path from "node:path";
 import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
-const allowedFiles = new Set([
-  "App.tsx",
-  "index.css",
-  "combined1.ts",
-  "index1.html",
-  "school-sis-index.html",
-  "downloads-page.html",
-  "replit.md",
-  "combined-school-sis-typescript.tsx",
-]);
-
-router.get("/downloads/:filename", (req, res) => {
-  const filename = req.params.filename;
-
-  if (!allowedFiles.has(filename)) {
-    res.status(404).json({ message: "File not found" });
-    return;
-  }
-
-  const filePath = path.resolve(
-    process.cwd(),
-    "../../artifacts/school-sis/public/downloads",
-    filename,
-  );
-
-  res.download(filePath, filename);
-});
+router.use(healthRouter);
+router.use(storageRouter);
 
 export default router;
 
+
 // ============================================================
-// FILE: logger.ts
+// FILE: schema-storage.ts
 // ============================================================
 
-import pino from "pino";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-const isProduction = process.env.NODE_ENV === "production";
-
-export const logger = pino({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']",
-  ],
-  ...(isProduction
-    ? {}
-    : {
-        transport: {
-          target: "pino-pretty",
-          options: { colorize: true },
-        },
-      }),
+export const kvStore = pgTable("kv_store", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 
 // ============================================================
-// FILE: main.ts
+// FILE: schema-index.ts
 // ============================================================
 
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
-
-createRoot(document.getElementById("root")!).render(<App />);
-
-
-// ============================================================
-// FILE: App.ts
-// ============================================================
-
-import { useEffect, useMemo, useState } from "react";
-
-type Role = "admin" | "staff";
-type Status = "draft" | "submitted";
-
-type User = {
-  id: string;
-  username: string;
-  password: string;
-  displayName: string;
-  role: Role;
-};
-
-type Student = {
-  id: string;
-  name: string;
-  className: string;
-};
-
-type ScoreRow = {
-  id: string;
-  studentName: string;
-  classScore: number;
-  examScore: number;
-  position: string;
-  remarks: string;
-};
-
-type ScoreSheet = {
-  id: string;
-  title: string;
-  subject: string;
-  className: string;
-  term: string;
-  year: string;
-  status: Status;
-  rows: ScoreRow[];
-  createdBy: string;
-  createdAt: string;
-};
-
-type Report = {
-  id: string;
-  studentName: string;
-  className: string;
-  term: string;
-  year: string;
-  position: string;
-  attendance: string;
-  conduct: string;
-  interest: string;
-  teacherRemark: string;
-  status: Status;
-  subjects: ScoreRow[];
-  createdBy: string;
-  createdAt: string;
-};
-
-type Template = {
-  uploaded: boolean;
-  note: string;
-  uploadedAt: string;
-};
-
-const defaultUsers: User[] = [
-  { id: "admin-1", username: "admin", password: "admin123", displayName: "Administrator", role: "admin" },
-  { id: "staff-1", username: "staff", password: "staff123", displayName: "Staff Member", role: "staff" },
-];
-
-const subjects = ["English Language", "Mathematics", "Integrated Science", "Social Studies", "Arabic", "Computing", "Creative Arts"];
-
-const keys = {
-  users: "qsc_users",
-  currentUser: "qsc_current_user",
-  students: "qsc_students",
-  scoreSheets: "qsc_score_sheets",
-  reports: "qsc_reports",
-  reportTemplate: "qsc_report_template",
-};
-
-function id(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function load<T>(key: string, fallback: T): T {
-  try {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function save<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function totalScore(row: ScoreRow) {
-  return Math.round((Number(row.classScore || 0) + (Number(row.examScore || 0) / 100) * 70) * 10) / 10;
-}
-
-function scoreGrade(total: number) {
-  if (total >= 80) return "A";
-  if (total >= 70) return "B";
-  if (total >= 60) return "C";
-  if (total >= 50) return "D";
-  if (total >= 40) return "E";
-  return "F";
-}
-
-function Button({ children, onClick, type = "button", variant = "primary", disabled = false }: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  type?: "button" | "submit";
-  variant?: "primary" | "secondary" | "danger" | "ghost";
-  disabled?: boolean;
-}) {
-  const classes = {
-    primary: "bg-blue-900 hover:bg-blue-800 text-white",
-    secondary: "bg-emerald-700 hover:bg-emerald-600 text-white",
-    danger: "bg-red-600 hover:bg-red-500 text-white",
-    ghost: "bg-white hover:bg-gray-50 text-blue-900 border border-blue-200",
-  };
-  return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${classes[variant]} disabled:cursor-not-allowed disabled:opacity-50`}>
-      {children}
-    </button>
-  );
-}
-
-function Field({ label, children, selector }: { label: string; children: React.ReactNode; selector?: string }) {
-  return (
-    <label className="block" data-selector={selector}>
-      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-gray-600">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100";
-
-function Login({ onLogin }: { onLogin: (user: User) => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
-    const users = load<User[]>(keys.users, defaultUsers);
-    if (!localStorage.getItem(keys.users)) save(keys.users, users);
-    const match = users.find((user) => user.username.trim().toLowerCase() === username.trim().toLowerCase() && user.password === password);
-    if (!match) {
-      setError("Wrong username or password. Please check the latest username and password saved by admin.");
-      return;
-    }
-    save(keys.currentUser, match);
-    onLogin(match);
-  }
-
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-slate-900 px-4 py-10 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
-        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl md:grid-cols-[1.05fr_.95fr]">
-          <section className="bg-blue-950 p-10">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-blue-200">Quality School Complex</p>
-            <h1 className="mt-5 text-4xl font-black leading-tight">Student Information System</h1>
-            <p className="mt-4 text-blue-100">Manage staff users, score sheets, student names, uploaded report templates, drafts, previews, and submitted reports from one place.</p>
-          </section>
-          <form onSubmit={submit} className="p-10 text-gray-900" data-selector="login-form">
-            <h2 className="text-2xl font-black text-blue-950">Sign in</h2>
-            <p className="mt-2 text-sm text-gray-500">Use the current username and password saved in user management.</p>
-            <div className="mt-8 space-y-4">
-              <Field label="Username" selector="login-username">
-                <input className={inputClass} value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
-              </Field>
-              <Field label="Password" selector="login-password">
-                <input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
-              </Field>
-              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
-              <Button type="submit">Login</Button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function Header({ user, onLogout }: { user: User; onLogout: () => void }) {
-  return (
-    <header className="sticky top-0 z-20 border-b border-blue-800 bg-blue-950 px-5 py-4 text-white shadow-lg">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-200">Quality School Complex</p>
-          <h1 className="text-xl font-black">{user.role === "admin" ? "Admin Dashboard" : "Staff Dashboard"}</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden text-right text-sm sm:block">
-            <p className="font-bold">{user.displayName}</p>
-            <p className="capitalize text-blue-200">{user.role}</p>
-          </div>
-          <Button onClick={onLogout} variant="ghost">Sign Out</Button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function Tabs({ tabs, active, setActive }: { tabs: { id: string; label: string }[]; active: string; setActive: (tab: string) => void }) {
-  return (
-    <nav className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-5">
-        {tabs.map((tab) => (
-          <button key={tab.id} onClick={() => setActive(tab.id)} className={`whitespace-nowrap border-b-4 px-4 py-3 text-sm font-bold transition ${active === tab.id ? "border-blue-900 text-blue-900" : "border-transparent text-gray-500 hover:text-blue-900"}`} data-selector={`tab-${tab.id}`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function StudentNamesSection({ refreshKey }: { refreshKey: number }) {
-  const [students, setStudents] = useState<Student[]>(() => load(keys.students, []));
-  const [name, setName] = useState("");
-  const [className, setClassName] = useState("");
-
-  useEffect(() => {
-    setStudents(load(keys.students, []));
-  }, [refreshKey]);
-
-  function addStudent(event: React.FormEvent) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    const next = [...students, { id: id("student"), name: name.trim(), className: className.trim() }];
-    setStudents(next);
-    save(keys.students, next);
-    setName("");
-    setClassName("");
-  }
-
-  function removeStudent(studentId: string) {
-    const next = students.filter((student) => student.id !== studentId);
-    setStudents(next);
-    save(keys.students, next);
-  }
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="staff-student-names-section">
-      <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-        <div>
-          <h2 className="text-lg font-black text-gray-900">Student Names</h2>
-          <p className="text-sm text-gray-500">Saved names automatically appear in score sheets and the student name selector in create report.</p>
-        </div>
-      </div>
-      <form onSubmit={addStudent} className="grid gap-3 md:grid-cols-[1fr_180px_auto]" data-selector="add-student-name-form">
-        <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} placeholder="Student full name" data-selector="student-name-input" />
-        <input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Class" data-selector="student-class-input" />
-        <Button type="submit">Save Student</Button>
-      </form>
-      <div className="mt-5 grid gap-2 md:grid-cols-2">
-        {students.map((student) => (
-          <div key={student.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-            <div>
-              <p className="font-bold text-gray-900">{student.name}</p>
-              <p className="text-xs text-gray-500">{student.className || "Class not set"}</p>
-            </div>
-            <button onClick={() => removeStudent(student.id)} className="text-sm font-bold text-red-600">Remove</button>
-          </div>
-        ))}
-        {!students.length && <p className="text-sm text-gray-500">No student names saved yet.</p>}
-      </div>
-    </section>
-  );
-}
-
-function collectStudentNames() {
-  const savedStudents = load<Student[]>(keys.students, []).map((student) => ({ name: student.name, className: student.className }));
-  const fromSheets = load<ScoreSheet[]>(keys.scoreSheets, []).flatMap((sheet) => sheet.rows.map((row) => ({ name: row.studentName, className: sheet.className })));
-  const map = new Map<string, { name: string; className: string }>();
-  [...savedStudents, ...fromSheets].forEach((student) => {
-    if (student.name) map.set(student.name.toLowerCase(), student);
-  });
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function ScoreSheetForm({ user, onSaved, editing }: { user: User; onSaved: () => void; editing?: ScoreSheet }) {
-  const studentOptions = collectStudentNames();
-  const [title, setTitle] = useState(editing?.title || "End of Term Score Sheet");
-  const [subject, setSubject] = useState(editing?.subject || subjects[0]);
-  const [className, setClassName] = useState(editing?.className || "");
-  const [term, setTerm] = useState(editing?.term || "First Term");
-  const [year, setYear] = useState(editing?.year || new Date().getFullYear().toString());
-  const [rows, setRows] = useState<ScoreRow[]>(editing?.rows || studentOptions.slice(0, 8).map((student) => ({ id: id("row"), studentName: student.name, classScore: 0, examScore: 0, position: "", remarks: "" })));
-  const [preview, setPreview] = useState(false);
-
-  function updateRow(rowId: string, updates: Partial<ScoreRow>) {
-    setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...updates } : row)));
-  }
-
-  function addRow() {
-    setRows((current) => [...current, { id: id("row"), studentName: "", classScore: 0, examScore: 0, position: "", remarks: "" }]);
-  }
-
-  function persist(status: Status) {
-    const sheet: ScoreSheet = {
-      id: editing?.id || id("sheet"),
-      title,
-      subject,
-      className,
-      term,
-      year,
-      rows: rows.filter((row) => row.studentName.trim()),
-      status,
-      createdBy: user.displayName,
-      createdAt: editing?.createdAt || new Date().toISOString(),
-    };
-    const sheets = load<ScoreSheet[]>(keys.scoreSheets, []);
-    const next = sheets.some((item) => item.id === sheet.id) ? sheets.map((item) => (item.id === sheet.id ? sheet : item)) : [sheet, ...sheets];
-    save(keys.scoreSheets, next);
-    onSaved();
-  }
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="staff-score-sheet-form">
-      <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-        <div>
-          <h2 className="text-lg font-black text-gray-900">Staff Score Sheet</h2>
-          <p className="text-sm text-gray-500">A4 sheet size preview and print layout. Use Save as Draft, Preview, or Submit.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => persist("draft")} variant="ghost">Save as Draft</Button>
-          <Button onClick={() => setPreview(true)} variant="secondary">Preview</Button>
-          <Button onClick={() => persist("submitted")}>Submit</Button>
-        </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-5">
-        <Field label="Sheet Title"><input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
-        <Field label="Subject"><select className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)}>{subjects.map((item) => <option key={item}>{item}</option>)}</select></Field>
-        <Field label="Class"><input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} /></Field>
-        <Field label="Term"><input className={inputClass} value={term} onChange={(event) => setTerm(event.target.value)} /></Field>
-        <Field label="Year"><input className={inputClass} value={year} onChange={(event) => setYear(event.target.value)} /></Field>
-      </div>
-      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200">
-        <table className="w-full min-w-[900px] border-collapse text-sm" data-selector="score-sheet-table">
-          <thead className="bg-blue-50 text-xs uppercase text-blue-950">
-            <tr>
-              <th className="border border-gray-200 px-2 py-2">No.</th>
-              <th className="border border-gray-200 px-2 py-2 text-left">Student Name</th>
-              <th className="border border-gray-200 px-2 py-2">Class Score (30%)</th>
-              <th className="border border-gray-200 px-2 py-2">Exam Score (100)</th>
-              <th className="border border-gray-200 px-2 py-2">Total Score (100%)</th>
-              <th className="border border-gray-200 px-2 py-2">Position</th>
-              <th className="border border-gray-200 px-2 py-2">Grade</th>
-              <th className="border border-gray-200 px-2 py-2">Remarks</th>
-              <th className="border border-gray-200 px-2 py-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => {
-              const total = totalScore(row);
-              return (
-                <tr key={row.id}>
-                  <td className="border border-gray-200 px-2 py-2 text-center">{index + 1}</td>
-                  <td className="border border-gray-200 px-2 py-2">
-                    <select className={inputClass} value={row.studentName} onChange={(event) => updateRow(row.id, { studentName: event.target.value })} data-selector="score-sheet-student-name-select">
-                      <option value="">Select student</option>
-                      {studentOptions.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
-                    </select>
-                  </td>
-                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} type="number" value={row.classScore} onChange={(event) => updateRow(row.id, { classScore: Number(event.target.value) })} /></td>
-                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} type="number" value={row.examScore} onChange={(event) => updateRow(row.id, { examScore: Number(event.target.value) })} /></td>
-                  <td className="border border-gray-200 px-2 py-2 text-center font-bold">{total}</td>
-                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} value={row.position} onChange={(event) => updateRow(row.id, { position: event.target.value })} /></td>
-                  <td className="border border-gray-200 px-2 py-2 text-center font-bold">{scoreGrade(total)}</td>
-                  <td className="border border-gray-200 px-2 py-2"><input className={inputClass} value={row.remarks} onChange={(event) => updateRow(row.id, { remarks: event.target.value })} /></td>
-                  <td className="border border-gray-200 px-2 py-2 text-center"><button className="font-bold text-red-600" onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}>Remove</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4"><Button onClick={addRow} variant="ghost">Add Row</Button></div>
-      {preview && <ScoreSheetPreview sheet={{ id: "preview", title, subject, className, term, year, rows, status: "draft", createdBy: user.displayName, createdAt: new Date().toISOString() }} onClose={() => setPreview(false)} />}
-    </section>
-  );
-}
-
-function ScoreSheetPreview({ sheet, onClose }: { sheet: ScoreSheet; onClose: () => void }) {
-  function print() {
-    window.print();
-  }
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" data-selector="score-sheet-preview-modal">
-      <div className="mx-auto max-w-6xl rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="mb-4 flex justify-end gap-2 print:hidden">
-          <Button onClick={print}>Print / Save PDF</Button>
-          <Button onClick={onClose} variant="ghost">Close</Button>
-        </div>
-        <div className="score-a4 mx-auto bg-white p-6 text-black shadow-xl print:shadow-none" data-selector="staff-score-sheet-a4">
-          <div className="text-center">
-            <h2 className="text-xl font-black text-blue-950">QUALITY SCHOOL COMPLEX</h2>
-            <p className="font-bold">ENGLISH AND ARABIC</p>
-            <p className="text-sm">{sheet.title}</p>
-          </div>
-          <div className="my-4 grid grid-cols-2 gap-2 text-sm">
-            <p><strong>Subject:</strong> {sheet.subject}</p>
-            <p><strong>Class:</strong> {sheet.className}</p>
-            <p><strong>Term:</strong> {sheet.term}</p>
-            <p><strong>Year:</strong> {sheet.year}</p>
-          </div>
-          <table className="w-full border-collapse text-[11px]">
-            <thead>
-              <tr className="bg-blue-100">
-                {['No.', 'Student Name', 'Class Score (30%)', 'Exam Score (100)', 'Total Score (100%)', 'Position', 'Grade', 'Remarks'].map((header) => <th key={header} className="border border-gray-500 px-2 py-1">{header}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {sheet.rows.map((row, index) => <tr key={row.id}><td className="border border-gray-500 px-2 py-1 text-center">{index + 1}</td><td className="border border-gray-500 px-2 py-1">{row.studentName}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.classScore}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.examScore}</td><td className="border border-gray-500 px-2 py-1 text-center">{totalScore(row)}</td><td className="border border-gray-500 px-2 py-1 text-center">{row.position}</td><td className="border border-gray-500 px-2 py-1 text-center">{scoreGrade(totalScore(row))}</td><td className="border border-gray-500 px-2 py-1">{row.remarks}</td></tr>)}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScoreSheetsList() {
-  const [sheets, setSheets] = useState<ScoreSheet[]>(() => load(keys.scoreSheets, []));
-  function refresh() { setSheets(load(keys.scoreSheets, [])); }
-  function remove(sheetId: string) {
-    const next = sheets.filter((sheet) => sheet.id !== sheetId);
-    setSheets(next);
-    save(keys.scoreSheets, next);
-  }
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="score-sheets-list">
-      <h2 className="text-lg font-black text-gray-900">Saved Score Sheets</h2>
-      <div className="mt-4 grid gap-3">
-        {sheets.map((sheet) => (
-          <div key={sheet.id} className="rounded-xl border border-gray-200 p-4">
-            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-              <div>
-                <p className="font-black text-gray-900">{sheet.title}</p>
-                <p className="text-sm text-gray-500">{sheet.subject} • {sheet.className || "No class"} • {sheet.term} • {sheet.status}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => window.dispatchEvent(new CustomEvent("preview-sheet", { detail: sheet }))} variant="secondary">Preview</Button>
-                <Button onClick={() => { remove(sheet.id); refresh(); }} variant="danger">Delete</Button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {!sheets.length && <p className="text-sm text-gray-500">No score sheets saved yet.</p>}
-      </div>
-    </section>
-  );
-}
-
-function ReportForm({ user, isAdmin, onSaved }: { user: User; isAdmin: boolean; onSaved: () => void }) {
-  const template = load<Template | null>(keys.reportTemplate, null);
-  const names = collectStudentNames();
-  const sheets = load<ScoreSheet[]>(keys.scoreSheets, []).filter((sheet) => sheet.status === "submitted" || sheet.status === "draft");
-  const [studentName, setStudentName] = useState("");
-  const [className, setClassName] = useState("");
-  const [term, setTerm] = useState("First Term");
-  const [year, setYear] = useState(new Date().getFullYear().toString());
-  const [position, setPosition] = useState("");
-  const [attendance, setAttendance] = useState("");
-  const [conduct, setConduct] = useState("");
-  const [interest, setInterest] = useState("");
-  const [teacherRemark, setTeacherRemark] = useState("");
-  const [preview, setPreview] = useState<Report | null>(null);
-
-  const selectedSubjects = useMemo(() => {
-    if (!studentName) return [];
-    return sheets.flatMap((sheet) => sheet.rows.filter((row) => row.studentName === studentName).map((row) => ({ ...row, id: `${sheet.id}-${row.id}`, studentName: sheet.subject })));
-  }, [studentName, sheets]);
-
-  useEffect(() => {
-    const found = names.find((name) => name.name === studentName);
-    setClassName(found?.className || className);
-    const rowWithPosition = sheets.flatMap((sheet) => sheet.rows).find((row) => row.studentName === studentName && row.position);
-    if (rowWithPosition) setPosition(rowWithPosition.position);
-  }, [studentName]);
-
-  if (!isAdmin && !template?.uploaded) {
-    return (
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900" data-selector="staff-report-locked">
-        <h2 className="text-lg font-black">Report unavailable</h2>
-        <p className="mt-2 text-sm font-semibold">Admin must upload the report template before staff can access Create Report.</p>
-      </section>
-    );
-  }
-
-  function makeReport(status: Status): Report {
-    return {
-      id: id("report"),
-      studentName,
-      className,
-      term,
-      year,
-      position,
-      attendance,
-      conduct,
-      interest,
-      teacherRemark,
-      subjects: selectedSubjects,
-      status,
-      createdBy: user.displayName,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  function persist(status: Status) {
-    if (!studentName.trim() && !isAdmin) return;
-    const report = makeReport(status);
-    save(keys.reports, [report, ...load<Report[]>(keys.reports, [])]);
-    onSaved();
-  }
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector={isAdmin ? "admin-generate-report-form" : "staff-create-report-form"}>
-      <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-        <div>
-          <h2 className="text-lg font-black text-gray-900">{isAdmin ? "Generate Report" : "Create Report"}</h2>
-          <p className="text-sm text-gray-500">Student Name selects from score sheets and saved student names. Grade has been removed from the report table.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => persist("draft")} variant="ghost">Save as Draft</Button>
-          <Button onClick={() => setPreview(makeReport("draft"))} variant="secondary">Preview</Button>
-          <Button onClick={() => persist("submitted")}>Submit</Button>
-        </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-4">
-        <Field label="Student Name" selector="report-student-name">
-          <select className={inputClass} value={studentName} onChange={(event) => setStudentName(event.target.value)} data-selector="report-student-name-select">
-            <option value="">Select student from score sheets</option>
-            {names.map((student) => <option key={student.name} value={student.name}>{student.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Class"><input className={inputClass} value={className} onChange={(event) => setClassName(event.target.value)} /></Field>
-        <Field label="Term"><input className={inputClass} value={term} onChange={(event) => setTerm(event.target.value)} /></Field>
-        <Field label="Year"><input className={inputClass} value={year} onChange={(event) => setYear(event.target.value)} /></Field>
-        <Field label="Position"><input className={inputClass} value={position} onChange={(event) => setPosition(event.target.value)} /></Field>
-        <Field label="Attendance"><input className={inputClass} value={attendance} onChange={(event) => setAttendance(event.target.value)} /></Field>
-        <Field label="Conduct"><input className={inputClass} value={conduct} onChange={(event) => setConduct(event.target.value)} /></Field>
-        <Field label="Interest"><input className={inputClass} value={interest} onChange={(event) => setInterest(event.target.value)} /></Field>
-      </div>
-      <Field label="Teacher Remark" selector="report-teacher-remark"><textarea className={`${inputClass} mt-3 min-h-24`} value={teacherRemark} onChange={(event) => setTeacherRemark(event.target.value)} /></Field>
-      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200">
-        <table className="w-full min-w-[720px] border-collapse text-sm" data-selector={isAdmin ? "admin-generate-report-table" : "staff-create-report-table"}>
-          <thead className="bg-blue-50 text-xs uppercase text-blue-950">
-            <tr>
-              <th className="border border-gray-200 px-2 py-2 text-left">Subject</th>
-              <th className="border border-gray-200 px-2 py-2">Class Score</th>
-              <th className="border border-gray-200 px-2 py-2">Exam Score</th>
-              <th className="border border-gray-200 px-2 py-2">Total</th>
-              <th className="border border-gray-200 px-2 py-2">Position</th>
-              <th className="border border-gray-200 px-2 py-2">Remarks</th>
-            </tr>
-          </thead>
-          <tbody>
-            {selectedSubjects.map((row) => <tr key={row.id}><td className="border border-gray-200 px-2 py-2 font-bold">{row.studentName}</td><td className="border border-gray-200 px-2 py-2 text-center">{row.classScore}</td><td className="border border-gray-200 px-2 py-2 text-center">{row.examScore}</td><td className="border border-gray-200 px-2 py-2 text-center">{totalScore(row)}</td><td className="border border-gray-200 px-2 py-2 text-center">{row.position}</td><td className="border border-gray-200 px-2 py-2">{row.remarks}</td></tr>)}
-            {!selectedSubjects.length && <tr><td colSpan={6} className="border border-gray-200 px-3 py-6 text-center text-gray-500">Select a student to upload results from score sheets automatically.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      {preview && <ReportPreview report={preview} onClose={() => setPreview(null)} />}
-    </section>
-  );
-}
-
-function ReportPreview({ report, onClose }: { report: Report; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" data-selector="report-preview-modal">
-      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="mb-4 flex justify-end gap-2 print:hidden"><Button onClick={() => window.print()}>Print / Save PDF</Button><Button onClick={onClose} variant="ghost">Close</Button></div>
-        <div className="report-a4 mx-auto bg-white p-7 text-black shadow-xl print:shadow-none" data-selector="report-a4-preview">
-          <div className="border-b-2 border-blue-900 pb-2 text-center">
-            <h2 className="text-[18px] font-black tracking-wide text-blue-950">QUALITY SCHOOL COMPLEX</h2>
-            <p className="text-[13px] font-bold text-blue-950">ENGLISH AND ARABIC</p>
-            <p className="text-[10px] font-semibold text-gray-600">LOCATION: KAKPAGYILI SAVANNA AREA – SAWALNI</p>
-          </div>
-
-          <div className="my-3 flex items-start justify-between text-[10px] leading-5">
-            <div>
-              <p><strong>Serial No.:</strong> ................................</p>
-              <p><strong>Admission No.:</strong> ..........................</p>
-            </div>
-            <div className="text-center">
-              <div className="mx-auto flex h-16 w-24 items-center justify-center rounded border border-gray-300 text-[9px] font-bold text-gray-400">LOGO</div>
-            </div>
-            <div className="text-right">
-              <p><strong>Term:</strong> {report.term || "........................"}</p>
-              <p><strong>Year:</strong> {report.year || "........................"}</p>
-            </div>
-          </div>
-
-          <div className="my-2 border-y border-gray-400 py-2 text-[10px] leading-5">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-              <p><strong>Name of Student:</strong> <span className="inline-block min-w-40 border-b border-black px-1">{report.studentName}</span></p>
-              <p><strong>Class:</strong> <span className="inline-block min-w-28 border-b border-black px-1">{report.className}</span></p>
-              <p><strong>Attendance:</strong> <span className="inline-block min-w-24 border-b border-black px-1">{report.attendance}</span></p>
-              <p><strong>Position:</strong> <span className="inline-block min-w-24 border-b border-black px-1">{report.position}</span></p>
-            </div>
-          </div>
-
-          <div className="my-2 border border-gray-400 bg-gray-100 px-2 py-1 text-[9px] font-bold">
-            KEY: Class Score = 30%, Examination Score = 70%, Total Score = 100%
-          </div>
-
-          <table className="w-full border-collapse text-[10px]" data-selector="report-preview-table-no-grade">
-            <thead>
-              <tr className="bg-blue-100">
-                <th className="border border-gray-600 px-2 py-1 text-left">Subject</th>
-                <th className="border border-gray-600 px-2 py-1">Class Score</th>
-                <th className="border border-gray-600 px-2 py-1">Exam Score</th>
-                <th className="border border-gray-600 px-2 py-1">Total</th>
-                <th className="border border-gray-600 px-2 py-1">Position</th>
-                <th className="border border-gray-600 px-2 py-1">Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.subjects.map((row) => (
-                <tr key={row.id}>
-                  <td className="border border-gray-600 px-2 py-1 text-left">{row.studentName}</td>
-                  <td className="border border-gray-600 px-2 py-1 text-center">{row.classScore}</td>
-                  <td className="border border-gray-600 px-2 py-1 text-center">{row.examScore}</td>
-                  <td className="border border-gray-600 px-2 py-1 text-center">{totalScore(row)}</td>
-                  <td className="border border-gray-600 px-2 py-1 text-center">{row.position}</td>
-                  <td className="border border-gray-600 px-2 py-1">{row.remarks}</td>
-                </tr>
-              ))}
-              {!report.subjects.length && (
-                <tr>
-                  <td className="border border-gray-600 px-2 py-6 text-center text-gray-500" colSpan={6}>No score sheet results selected.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          <div className="mt-3 space-y-2 text-[10px] leading-5">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-              <p><strong>Conduct:</strong> <span className="inline-block min-w-32 border-b border-black px-1">{report.conduct}</span></p>
-              <p><strong>Interest:</strong> <span className="inline-block min-w-32 border-b border-black px-1">{report.interest}</span></p>
-              <p><strong>Promoted to:</strong> <span className="inline-block min-w-32 border-b border-black px-1"></span></p>
-              <p><strong>Next Term Begins:</strong> <span className="inline-block min-w-32 border-b border-black px-1"></span></p>
-            </div>
-            <p><strong>Teacher's Remark:</strong> <span className="inline-block min-w-[70%] border-b border-black px-1">{report.teacherRemark}</span></p>
-            <p><strong>Headmaster's Signature:</strong> <span className="inline-block min-w-[65%] border-b border-black px-1"></span></p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReportsList({ isAdmin }: { isAdmin: boolean }) {
-  const [reports, setReports] = useState<Report[]>(() => load(keys.reports, []));
-  const [preview, setPreview] = useState<Report | null>(null);
-  function remove(reportId: string) {
-    const next = reports.filter((report) => report.id !== reportId);
-    setReports(next);
-    save(keys.reports, next);
-  }
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector={isAdmin ? "admin-reports-list" : "staff-reports-list"}>
-      <h2 className="text-lg font-black text-gray-900">Reports</h2>
-      <div className="mt-4 grid gap-3">
-        {reports.map((report) => <div key={report.id} className="rounded-xl border border-gray-200 p-4"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-center"><div><p className="font-black text-gray-900">{report.studentName || "Report template"}</p><p className="text-sm text-gray-500">{report.className} • {report.term} • Position: {report.position || "-"} • {report.status}</p></div><div className="flex gap-2"><Button onClick={() => setPreview(report)} variant="secondary">Preview</Button><Button onClick={() => remove(report.id)} variant="danger">Delete</Button></div></div></div>)}
-        {!reports.length && <p className="text-sm text-gray-500">No reports found.</p>}
-      </div>
-      {preview && <ReportPreview report={preview} onClose={() => setPreview(null)} />}
-    </section>
-  );
-}
-
-function TemplateUpload() {
-  const [template, setTemplate] = useState<Template | null>(() => load(keys.reportTemplate, null));
-  const [note, setNote] = useState(template?.note || "Quality School Complex approved report template");
-  function upload() {
-    const next = { uploaded: true, note, uploadedAt: new Date().toISOString() };
-    save(keys.reportTemplate, next);
-    setTemplate(next);
-  }
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="admin-report-upload-section">
-      <h2 className="text-lg font-black text-gray-900">Upload Report Before Staff Access</h2>
-      <p className="mt-1 text-sm text-gray-500">Staff cannot create reports until this report template is uploaded by admin.</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-        <input className={inputClass} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Template note or name" data-selector="admin-report-template-input" />
-        <Button onClick={upload}>Upload Report Template</Button>
-      </div>
-      {template?.uploaded && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">Uploaded: {template.note}</p>}
-    </section>
-  );
-}
-
-function UserManagement() {
-  const [users, setUsers] = useState<User[]>(() => load(keys.users, defaultUsers));
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ displayName: "", username: "", password: "", role: "staff" as Role });
-
-  function persist(next: User[]) {
-    setUsers(next);
-    save(keys.users, next);
-    const current = load<User | null>(keys.currentUser, null);
-    if (current) {
-      const refreshed = next.find((user) => user.id === current.id);
-      if (refreshed) save(keys.currentUser, refreshed);
-    }
-  }
-
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!form.username.trim() || !form.password.trim()) return;
-    const duplicate = users.some((user) => user.username.trim().toLowerCase() === form.username.trim().toLowerCase() && user.id !== editingId);
-    if (duplicate) return;
-    if (editingId) {
-      persist(users.map((user) => user.id === editingId ? { ...user, ...form } : user));
-    } else {
-      persist([...users, { id: id("user"), ...form }]);
-    }
-    setEditingId(null);
-    setForm({ displayName: "", username: "", password: "", role: "staff" });
-  }
-
-  function edit(user: User) {
-    setEditingId(user.id);
-    setForm({ displayName: user.displayName, username: user.username, password: user.password, role: user.role });
-  }
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" data-selector="admin-user-management">
-      <h2 className="text-lg font-black text-gray-900">Manage Users</h2>
-      <form onSubmit={submit} className="mt-4 grid gap-3 md:grid-cols-5" data-selector="admin-add-user-form">
-        <input className={inputClass} value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Display name" />
-        <input className={inputClass} value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="Username" />
-        <input className={inputClass} value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} placeholder="Password" />
-        <select className={inputClass} value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}><option value="staff">Staff</option><option value="admin">Admin</option></select>
-        <Button type="submit">{editingId ? "Save Changes" : "Add User"}</Button>
-      </form>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        {users.map((user) => <div key={user.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-4"><div><p className="font-black text-gray-900">{user.displayName}</p><p className="text-sm text-gray-500">{user.username} • {user.role}</p></div><Button onClick={() => edit(user)} variant="ghost">Edit</Button></div>)}
-      </div>
-    </section>
-  );
-}
-
-function StaffDashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const [tab, setTab] = useState("students");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [previewSheet, setPreviewSheet] = useState<ScoreSheet | null>(null);
-  useEffect(() => {
-    const handler = (event: Event) => setPreviewSheet((event as CustomEvent<ScoreSheet>).detail);
-    window.addEventListener("preview-sheet", handler);
-    return () => window.removeEventListener("preview-sheet", handler);
-  }, []);
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <Header user={user} onLogout={onLogout} />
-      <Tabs tabs={[{ id: "students", label: "Student Names" }, { id: "scores", label: "Score Sheets" }, { id: "reports", label: "Create Report" }, { id: "saved", label: "Saved Reports" }]} active={tab} setActive={setTab} />
-      <main className="mx-auto max-w-7xl space-y-5 px-5 py-6">
-        {tab === "students" && <StudentNamesSection refreshKey={refreshKey} />}
-        {tab === "scores" && <><ScoreSheetForm user={user} onSaved={() => setRefreshKey((value) => value + 1)} /><ScoreSheetsList /></>}
-        {tab === "reports" && <ReportForm user={user} isAdmin={false} onSaved={() => setTab("saved")} />}
-        {tab === "saved" && <ReportsList isAdmin={false} />}
-      </main>
-      {previewSheet && <ScoreSheetPreview sheet={previewSheet} onClose={() => setPreviewSheet(null)} />}
-    </div>
-  );
-}
-
-function AdminDashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const [tab, setTab] = useState("reports");
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <Header user={user} onLogout={onLogout} />
-      <Tabs tabs={[{ id: "reports", label: "Reports" }, { id: "generate", label: "Generate Report" }, { id: "upload", label: "Upload Report" }, { id: "users", label: "Manage Users" }]} active={tab} setActive={setTab} />
-      <main className="mx-auto max-w-7xl space-y-5 px-5 py-6">
-        {tab === "reports" && <ReportsList isAdmin />}
-        {tab === "generate" && <ReportForm user={user} isAdmin onSaved={() => setTab("reports")} />}
-        {tab === "upload" && <TemplateUpload />}
-        {tab === "users" && <UserManagement />}
-      </main>
-    </div>
-  );
-}
-
-export default function App() {
-  const [user, setUser] = useState<User | null>(() => load(keys.currentUser, null));
-  useEffect(() => {
-    if (!localStorage.getItem(keys.users)) save(keys.users, defaultUsers);
-  }, []);
-  function logout() {
-    localStorage.removeItem(keys.currentUser);
-    setUser(null);
-  }
-  if (!user) return <Login onLogin={setUser} />;
-  if (user.role === "admin") return <AdminDashboard user={user} onLogout={logout} />;
-  return <StaffDashboard user={user} onLogout={logout} />;
-}
-
-
-// ============================================================
-// FILE: vite.config.ts
-// ============================================================
-
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
-
-export default defineConfig({
-  base: basePath,
-  plugins: [
-    react(),
-    tailwindcss(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, ".."),
-            }),
-          ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
-    },
-    dedupe: ["react", "react-dom"],
-  },
-  root: path.resolve(import.meta.dirname),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    port,
-    host: "0.0.0.0",
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
-  },
-  preview: {
-    port,
-    host: "0.0.0.0",
-    allowedHosts: true,
-  },
-});
-
+export * from "./storage";
