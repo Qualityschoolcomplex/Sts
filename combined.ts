@@ -224,6 +224,7 @@ function patchLoginPage() {
 }
 
 /* ═══ STAFF DASHBOARD — Student Names Section ═══ */
+/* FIX: The actual page heading is "Student Reports", not the tab button texts */
 function patchStaffDashboard() {
   var user = getCurrentUser();
   if (!user || user.role !== 'staff') return;
@@ -231,7 +232,7 @@ function patchStaffDashboard() {
   var scoreHeading = null;
   for (var i=0; i<h2s.length; i++) {
     var txt = h2s[i].textContent.trim();
-    if (txt === 'Score Sheets' || txt === 'My Score Sheets' || txt === 'Create Score Sheet') {
+    if (txt === 'Student Reports') {
       scoreHeading = h2s[i];
       break;
     }
@@ -484,7 +485,9 @@ function showAddUserModal() {
   };
 }
 
-/* ═══ SCORE SHEET MODAL — A4 size, Save Draft / Preview / Submit, search names ═══ */
+/* ═══ SCORE SHEET MODAL — Save Draft / Preview / Submit, search names ═══ */
+/* FIX: Removed A4 size overrides — React already renders Position/Grade columns
+        and the explicit width/minHeight fought React's own layout */
 function patchScoreSheetModal() {
   var h2s = document.querySelectorAll('h2');
   var heading = null;
@@ -496,11 +499,7 @@ function patchScoreSheetModal() {
   if (!modal || modal.dataset.qscSsPatched) return;
   modal.dataset.qscSsPatched = 'true';
 
-  /* A4 portrait size */
-  modal.style.width = '210mm';
-  modal.style.maxWidth = '210mm';
-  modal.style.minHeight = '297mm';
-  modal.style.boxSizing = 'border-box';
+  /* A4 size overrides intentionally removed — React controls the layout */
 
   injectStudentNameDropdowns(modal);
   injectStudentSearchField(modal);
@@ -703,40 +702,26 @@ function captureAndSaveSheet(modal, status) {
   }
 }
 
-/* ═══ CREATE REPORT — remove Grade column, student dropdown, auto-fill from sheets ═══ */
+/* ═══ CREATE REPORT — student dropdown, auto-fill from sheets ═══ */
+/* FIX: Added "Generate Student Report" to heading match list.
+        Removed incorrect staff-only role guard — admins also open this modal
+        and should not be blocked from seeing/using the form. */
 function patchCreateReport() {
   var user = getCurrentUser();
-  if (!user || user.role !== 'staff') return;
+  if (!user) return;
   var h2s = document.querySelectorAll('h2');
   var heading = null;
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Create Report'||txt==='Generate Report'||txt==='Create Report Card') { heading=h2s[i]; break; }
+    if (txt==='Create Report'||txt==='Generate Report'||txt==='Create Report Card'||txt==='Generate Student Report') { heading=h2s[i]; break; }
   }
   if (!heading) return;
   var modal = heading.closest('[style*="position: fixed"]')||heading.closest('[style*="position:fixed"]')||heading.closest('.fixed')||heading.closest('[class*="fixed"]')||heading.parentElement;
   if (!modal||modal.dataset.qscCrPatched) return;
   modal.dataset.qscCrPatched = 'true';
 
-  removeGradeColumn(modal);
   injectStudentNameFieldDropdown(modal);
   wireScoreSheetAutoFill(modal);
-}
-
-function removeGradeColumn(container) {
-  var ths = container.querySelectorAll('th');
-  var gradeColIdx = -1;
-  ths.forEach(function(th, idx){
-    if (th.textContent.trim().toLowerCase()==='grade') {
-      th.style.display='none';
-      gradeColIdx = idx;
-    }
-  });
-  if (gradeColIdx < 0) return;
-  container.querySelectorAll('tbody tr, tr').forEach(function(tr){
-    var tds = tr.querySelectorAll('td');
-    if (tds[gradeColIdx]) tds[gradeColIdx].style.display='none';
-  });
 }
 
 function injectStudentNameFieldDropdown(modal) {
@@ -827,7 +812,10 @@ function autoFillFromScoreSheets(modal, studentName) {
   showToast('Results auto-filled from submitted score sheets!','success');
 }
 
-/* ═══ ADMIN GENERATE REPORT — remove Grade, add Position, show submitted sheets ═══ */
+/* ═══ ADMIN GENERATE REPORT — show submitted sheets ═══ */
+/* FIX: Grade→Position replacement now targets <th> elements directly inside
+        <table> elements found within the heading's section, rather than all
+        th descendants of the heading's container (which matched wrong elements) */
 function patchAdminReports() {
   var user = getCurrentUser();
   if (!user||user.role!=='admin') return;
@@ -837,10 +825,14 @@ function patchAdminReports() {
     if (txt!=='Student Reports'&&txt!=='Generate Reports'&&txt!=='Reports'&&txt!=='Report Cards') return;
     var container = h2.closest('[class*="p-"]')||h2.closest('[class*="bg-white"]')||h2.parentElement;
     if (!container) return;
-    container.querySelectorAll('th').forEach(function(th){
-      if (th.textContent.trim().toLowerCase()==='grade'&&!th.dataset.qscGrReplaced){
-        th.dataset.qscGrReplaced='true'; th.textContent='Position';
-      }
+    /* Target only table headers inside actual table elements to avoid wrong container */
+    var tables = container.querySelectorAll('table');
+    tables.forEach(function(table){
+      table.querySelectorAll('th').forEach(function(th){
+        if (th.textContent.trim().toLowerCase()==='grade'&&!th.dataset.qscGrReplaced){
+          th.dataset.qscGrReplaced='true'; th.textContent='Position';
+        }
+      });
     });
   });
   patchSubmittedScoreSheets();
