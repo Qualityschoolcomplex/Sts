@@ -499,7 +499,13 @@ function patchScoreSheetModal() {
   if (!modal || modal.dataset.qscSsPatched) return;
   modal.dataset.qscSsPatched = 'true';
 
-  /* A4 size overrides intentionally removed — React controls the layout */
+  /* Apply A4 portrait sizing to the inner scrollable content area, not the modal shell */
+  var contentArea = modal.querySelector('[class*="overflow"]') || modal.querySelector('[class*="p-"]') || modal.children[1];
+  if (contentArea && !contentArea.dataset.qscA4) {
+    contentArea.dataset.qscA4 = 'true';
+    contentArea.style.minWidth = '210mm';
+    contentArea.style.overflowX = 'auto';
+  }
 
   injectStudentNameDropdowns(modal);
   injectStudentSearchField(modal);
@@ -720,6 +726,7 @@ function patchCreateReport() {
   if (!modal||modal.dataset.qscCrPatched) return;
   modal.dataset.qscCrPatched = 'true';
 
+  removeGradeColumn(modal);
   injectStudentNameFieldDropdown(modal);
   wireScoreSheetAutoFill(modal);
 }
