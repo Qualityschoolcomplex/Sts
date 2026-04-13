@@ -73,7 +73,12 @@ async function readStore(): Promise<Store> {
     const parsed = JSON.parse(raw) as Store;
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
       return {};
     }
     throw err;
@@ -90,7 +95,8 @@ storageRouter.get("/storage", async (req, res, next) => {
     const data = await readStore();
     const filtered: Store = {};
     for (const key of allowedKeys) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) filtered[key] = data[key]!;
+      if (Object.prototype.hasOwnProperty.call(data, key))
+        filtered[key] = data[key]!;
     }
     res.json(filtered);
   } catch (err) {
@@ -152,14 +158,29 @@ const publicDir = path.join(__dirname_dl, "..", "public");
 
 const downloadFiles: Record<string, { path: string; name: string }> = {
   "index-html": { path: path.join(publicDir, "index.html"), name: "index.html" },
-  "combined-ts": { path: path.join(downloadsDir, "combined-typescript.ts"), name: "combined-typescript.ts" },
+  "combined-ts": {
+    path: path.join(downloadsDir, "combined-typescript.ts"),
+    name: "combined-typescript.ts",
+  },
   "app-ts": { path: path.join(downloadsDir, "app.ts"), name: "app.ts" },
-  "server-index-ts": { path: path.join(downloadsDir, "server-index.ts"), name: "index.ts" },
+  "server-index-ts": {
+    path: path.join(downloadsDir, "server-index.ts"),
+    name: "index.ts",
+  },
   "logger-ts": { path: path.join(downloadsDir, "logger.ts"), name: "logger.ts" },
-  "routes-index-ts": { path: path.join(downloadsDir, "routes-index.ts"), name: "routes-index.ts" },
+  "routes-index-ts": {
+    path: path.join(downloadsDir, "routes-index.ts"),
+    name: "routes-index.ts",
+  },
   "health-ts": { path: path.join(downloadsDir, "health.ts"), name: "health.ts" },
-  "storage-ts": { path: path.join(downloadsDir, "storage.ts"), name: "storage.ts" },
-  "downloads-ts": { path: path.join(downloadsDir, "downloads.ts"), name: "downloads.ts" },
+  "storage-ts": {
+    path: path.join(downloadsDir, "storage.ts"),
+    name: "storage.ts",
+  },
+  "downloads-ts": {
+    path: path.join(downloadsDir, "downloads.ts"),
+    name: "downloads.ts",
+  },
 };
 
 const downloadsRouter: IRouter = Router();
@@ -204,11 +225,12 @@ export default router;
 
 
 // ============================================================
-// FILE: src/app.ts
+// FILE: src/app.ts  (updated — gzip compression + HTML caching)
 // ============================================================
 
 import express, { type Express } from "express";
 import cors from "cors";
+import compression from "compression";
 import pinoHttp from "pino-http";
 import fsnative from "fs";
 
@@ -230,6 +252,7 @@ app.use(
     },
   }),
 );
+app.use(compression());
 app.use(cors());
 app.disable("etag");
 app.use((_req, res, next) => {
@@ -243,12 +266,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/api", router);
 
+const htmlPath_app = path.join(__dirname_app, "..", "public", "index.html");
 let cachedHtml: string | null = null;
 
 function getInjectedHtml(): string {
-  if (cachedHtml && process.env.NODE_ENV !== "development") return cachedHtml;
-  const htmlPath = path.join(__dirname_app, "..", "public", "index.html");
-  cachedHtml = fsnative.readFileSync(htmlPath, "utf-8");
+  if (cachedHtml) return cachedHtml;
+  cachedHtml = fsnative.readFileSync(htmlPath_app, "utf-8");
   return cachedHtml;
 }
 
