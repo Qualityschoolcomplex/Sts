@@ -46,9 +46,6 @@
 <script>
 (function(){
 
-/* ══════════════════════════════════════════════════════════════
-   HELPERS
-══════════════════════════════════════════════════════════════ */
 function showToast(msg, type) {
   var t = document.getElementById('__qsc_toast__');
   if (!t) {
@@ -77,12 +74,6 @@ function ordinal(n) {
 function getCurrentUser() {
   try { return JSON.parse(localStorage.getItem('qsc_current_user')||'null'); } catch(e){ return null; }
 }
-function getUsers() {
-  try { return JSON.parse(localStorage.getItem('qsc_users')||'[]'); } catch(e){ return []; }
-}
-function saveUsers(arr) {
-  localStorage.setItem('qsc_users', JSON.stringify(arr));
-}
 function getScoreSheets() {
   try { return JSON.parse(localStorage.getItem('qsc_score_sheets')||'[]'); } catch(e){ return []; }
 }
@@ -94,6 +85,12 @@ function getStudentNames() {
 }
 function saveStudentNames(arr) {
   localStorage.setItem('qsc_student_names', JSON.stringify(arr));
+}
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem('qsc_users')||'[]'); } catch(e){ return []; }
+}
+function saveUsers(arr) {
+  localStorage.setItem('qsc_users', JSON.stringify(arr));
 }
 function getReports() {
   try { return JSON.parse(localStorage.getItem('qsc_reports')||'[]'); } catch(e){ return []; }
@@ -113,63 +110,28 @@ function gradeRemarks(g) {
   return {A1:'Excellent',B2:'Very Good',B3:'Good',C4:'Credit',C5:'Credit',C6:'Credit',D7:'Pass',E8:'Pass',F9:'Fail'}[g]||'';
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SYNC: When qsc_users is updated, keep qsc_current_user in sync
-   so login from new browser/incognito with new creds works
-══════════════════════════════════════════════════════════════ */
 var _appReady = false;
 window.addEventListener('load', function(){ setTimeout(function(){ _appReady=true; }, 900); });
 var _prevUsers = localStorage.getItem('qsc_users');
 var _setItemOrig = localStorage.setItem.bind(localStorage);
 localStorage.setItem = function(key, value) {
   _setItemOrig(key, value);
-
-  // Sync current user session if admin changes their credentials
-  if (key === 'qsc_users') {
-    try {
-      var updatedUsers = JSON.parse(value || '[]');
-      var currentUser  = getCurrentUser();
-      if (currentUser) {
-        var match = updatedUsers.find(function(u){
-          return u.id === currentUser.id || u.username === currentUser.username;
-        });
-        if (match) {
-          _setItemOrig('qsc_current_user', JSON.stringify(match));
-        }
-      }
-    } catch(e){}
-
-    if (_appReady && value !== _prevUsers) {
-      _prevUsers = value;
-      showToast('User credentials updated successfully!', 'success');
-    }
+  if (_appReady && key==='qsc_users' && value!==_prevUsers) {
+    _prevUsers = value;
+    showToast('User credentials updated successfully!', 'success');
   }
-
-  if (key === 'qsc_score_sheets') {
+  if (key==='qsc_score_sheets') {
     var p = document.getElementById('__qsc_ss_admin_panel__');
     if (p) renderSubmittedSheets(p);
     var sp = document.getElementById('__qsc_staff_report_import_panel__');
     if (sp) renderStaffReportImportPanel(sp);
-    // Refresh admin class view panel
-    var cp = document.getElementById('__qsc_admin_class_panel__');
-    if (cp) refreshAdminClassPanel(cp);
   }
-  if (key === 'qsc_reports') {
+  if (key==='qsc_reports') {
     var rp = document.getElementById('__qsc_staff_report_import_panel__');
     if (rp) renderStaffReportImportPanel(rp);
-    var cp2 = document.getElementById('__qsc_admin_class_panel__');
-    if (cp2) refreshAdminClassPanel(cp2);
-  }
-  if (key === 'qsc_student_names') {
-    // Refresh students panel if visible
-    var snp = document.getElementById('__qsc_sn_panel__');
-    if (snp) renderStudentNamesPanel(snp);
   }
 };
 
-/* ══════════════════════════════════════════════════════════════
-   MUTATION OBSERVER
-══════════════════════════════════════════════════════════════ */
 var _obs = new MutationObserver(function(){
   patchLoginForm();
   patchManageUsers();
@@ -181,17 +143,12 @@ var _obs = new MutationObserver(function(){
   patchAdminLogoUpload();
   patchStaffReportAccess();
   patchStaffGenerateReport();
-  patchAdminDashboardButtons();
-  patchAdminClassView();
 });
 document.addEventListener('DOMContentLoaded', function(){
   _obs.observe(document.body, { childList:true, subtree:true });
 });
 
-/* ══════════════════════════════════════════════════════════════
-   LOGIN FORM — validate against fresh localStorage so new creds
-   from incognito/new browser always work after admin changes them
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ LOGIN FORM — intercept to validate against fresh localStorage ╔═══ */
 function patchLoginForm() {
   var forms = document.querySelectorAll('form');
   forms.forEach(function(form){
@@ -207,7 +164,7 @@ function patchLoginForm() {
     if (!hasUsername || !hasPassword) return;
     form.dataset.qscLoginPatched = 'true';
 
-    function doLoginIntercept() {
+    form.addEventListener('submit', function(e){
       var unInp = null, pwInp = null;
       form.querySelectorAll('input').forEach(function(inp){
         var t=(inp.type||'').toLowerCase();
@@ -219,127 +176,59 @@ function patchLoginForm() {
       var enteredUser = unInp.value.trim();
       var enteredPass = pwInp.value;
       if (!enteredUser||!enteredPass) return;
-      // Always read from storage fresh (handles incognito/new browser after admin changes)
       var users = getUsers();
       var match = users.find(function(u){ return u.username===enteredUser && u.password===enteredPass; });
       if (match) {
-        _setItemOrig('qsc_current_user', JSON.stringify(match));
-      } else {
-        // Show error toast after short delay
-        setTimeout(function(){
-          var errEl = form.querySelector('[class*="text-red"],[class*="error"],[class*="danger"]');
-          if (!errEl) showToast('Wrong username or password. Please try again.', 'error');
-        }, 400);
+        localStorage.setItem('qsc_current_user', JSON.stringify(match));
       }
-    }
+    }, true);
 
-    form.addEventListener('submit', function(e){ doLoginIntercept(); }, true);
     var submitBtns = form.querySelectorAll('button[type="submit"],button:not([type])');
     submitBtns.forEach(function(btn){
       if (btn.dataset.qscLoginBtnPatched) return;
       btn.dataset.qscLoginBtnPatched = 'true';
-      btn.addEventListener('click', function(){ doLoginIntercept(); });
+      btn.addEventListener('click', function(){
+        var unInp = null, pwInp = null;
+        form.querySelectorAll('input').forEach(function(inp){
+          var t=(inp.type||'').toLowerCase();
+          var n=(inp.name||inp.placeholder||inp.id||'').toLowerCase();
+          if (!unInp && (t==='text'||t==='email'||n.includes('user')||n.includes('login'))) unInp=inp;
+          if (!pwInp && (t==='password'||n.includes('pass'))) pwInp=inp;
+        });
+        if (!unInp||!pwInp) return;
+        var enteredUser = unInp.value.trim();
+        var enteredPass = pwInp.value;
+        if (!enteredUser||!enteredPass) return;
+        var users = getUsers();
+        var match = users.find(function(u){ return u.username===enteredUser && u.password===enteredPass; });
+        if (match) {
+          localStorage.setItem('qsc_current_user', JSON.stringify(match));
+        }
+      }, true);
     });
   });
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STAFF DASHBOARD — Students button + Student Names panel
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ STAFF DASHBOARD — Student Names Section ╔═══ */
 function patchStaffDashboard() {
   var user = getCurrentUser();
   if (!user || user.role !== 'staff') return;
-
-  // Find the tab nav bar for staff
-  var navBar = null;
-  var btns = document.querySelectorAll('button');
-  for (var i=0; i<btns.length; i++) {
-    var t = btns[i].textContent.trim();
-    if (t === 'Create Score Sheet' || t === 'View Reports') {
-      navBar = btns[i].parentElement;
-      break;
-    }
-  }
-
-  // Inject "Students" tab button if not present
-  if (navBar && !navBar.dataset.qscStudentsBtnAdded) {
-    navBar.dataset.qscStudentsBtnAdded = 'true';
-    var studBtn = document.createElement('button');
-    studBtn.id = '__qsc_students_tab__';
-    studBtn.textContent = 'Students';
-    studBtn.style.cssText = 'padding:13px 22px;font-size:14px;font-weight:600;border:none;border-bottom:3px solid transparent;color:#555;background:transparent;cursor:pointer;transition:color 0.15s;margin-bottom:-2px;font-family:Inter,system-ui,sans-serif;';
-    studBtn.onclick = function(){
-      // Toggle active styles
-      navBar.querySelectorAll('button').forEach(function(b){ b.style.borderBottom='3px solid transparent'; b.style.color='#555'; });
-      studBtn.style.borderBottom = '3px solid #003087';
-      studBtn.style.color = '#003087';
-      // Show students panel, hide main content
-      var mainEl = document.querySelector('main');
-      if (mainEl) mainEl.style.display = 'none';
-      showStudentNamesFullPanel();
-    };
-    navBar.appendChild(studBtn);
-  }
-
-  // Also inject into score sheet area as a sidebar card
-  injectStudentNamesCard();
-}
-
-function showStudentNamesFullPanel() {
-  var old = document.getElementById('__qsc_students_full_panel__');
-  if (old) { old.remove(); }
-  var mainEl = document.querySelector('main');
-  if (!mainEl) return;
-
-  var panel = document.createElement('div');
-  panel.id = '__qsc_students_full_panel__';
-  panel.style.cssText = 'flex:1;padding:24px;font-family:Inter,system-ui,sans-serif;';
-
-  var card = document.createElement('div');
-  card.id = '__qsc_sn_panel__';
-  card.style.cssText = 'background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:22px 24px;box-shadow:0 1px 4px rgba(0,0,0,0.04);max-width:860px;';
-  panel.appendChild(card);
-  renderStudentNamesPanel(card);
-
-  // Insert after main's parent
-  mainEl.parentElement.insertBefore(panel, mainEl.nextSibling);
-
-  // Wire "View Reports", "Create Score Sheet" etc to hide this and show main
-  var navBar = null;
-  var navBtns = document.querySelectorAll('button');
-  for (var i=0; i<navBtns.length; i++) {
-    var t = navBtns[i].textContent.trim();
-    if (t === 'Create Score Sheet' || t === 'View Reports' || t === 'Generate Report') {
-      if (!navBar) navBar = navBtns[i].parentElement;
-      if (!navBtns[i].dataset.qscNavRestorePatched) {
-        navBtns[i].dataset.qscNavRestorePatched = 'true';
-        navBtns[i].addEventListener('click', function(){
-          var fp = document.getElementById('__qsc_students_full_panel__');
-          if (fp) fp.remove();
-          if (mainEl) mainEl.style.display = '';
-        });
-      }
-    }
-  }
-}
-
-function injectStudentNamesCard() {
-  // Inject small students panel near score sheet section for quick reference
   var h2s = document.querySelectorAll('h2,h3');
   var scoreHeading = null;
   for (var i=0; i<h2s.length; i++) {
     var txt = h2s[i].textContent.trim();
-    if (txt === 'Score Sheets' || txt === 'My Score Sheets') {
-      scoreHeading = h2s[i]; break;
+    if (txt === 'Score Sheets' || txt === 'My Score Sheets' || txt === 'Create Score Sheet') {
+      scoreHeading = h2s[i];
+      break;
     }
   }
   if (!scoreHeading) return;
   var container = scoreHeading.parentElement;
   if (!container) return;
-  // Walk up a bit
   for (var up=0; up<3; up++) {
     if (container.parentElement && container.parentElement !== document.body) {
-      container = container.parentElement; break;
+      container = container.parentElement;
+      break;
     }
   }
   if (container.dataset.qscSnPatched) return;
@@ -348,8 +237,8 @@ function injectStudentNamesCard() {
   var panel = document.createElement('div');
   panel.id = '__qsc_sn_panel__';
   panel.style.cssText = 'background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:22px 24px;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,0.04);';
-  renderStudentNamesPanel(panel);
   container.insertBefore(panel, container.firstChild);
+  renderStudentNamesPanel(panel);
 }
 
 function renderStudentNamesPanel(panel) {
@@ -357,7 +246,7 @@ function renderStudentNamesPanel(panel) {
   panel.innerHTML = [
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">',
     '<h3 style="font-size:16px;font-weight:700;color:#111827;margin:0;font-family:Inter,system-ui,sans-serif;">Student Names</h3>',
-    '<button id="__qsc_sn_add_btn__" style="background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">+ Add Name</button>',
+    '<button id="__qsc_sn_add_btn__" style="background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;transition:background 0.2s;">+ Add Name</button>',
     '</div>',
     '<div id="__qsc_sn_search_row__" style="margin-bottom:10px;">',
     '<input id="__qsc_sn_search__" type="text" placeholder="Search student names…" style="width:100%;padding:8px 13px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Inter,system-ui,sans-serif;outline:none;box-sizing:border-box;" />',
@@ -369,7 +258,7 @@ function renderStudentNamesPanel(panel) {
     '</div>',
     '<div id="__qsc_sn_list_wrap__">',
     names.length===0
-      ? '<p style="color:#9ca3af;font-size:13px;margin:0;font-family:Inter,system-ui,sans-serif;">No student names saved yet. Click "+ Add Name" to start.</p>'
+      ? '<p style="color:#9ca3af;font-size:13px;margin:0;font-family:Inter,system-ui,sans-serif;">No student names saved yet. Click “+ Add Name” to start.</p>'
       : '<ul id="__qsc_sn_list__" style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;">' +
         names.map(function(n,idx){
           return '<li data-sn-name="'+escHtml(n)+'" style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:5px 12px;font-size:13px;color:#1e40af;font-family:Inter,system-ui,sans-serif;">'
@@ -399,8 +288,18 @@ function renderStudentNamesPanel(panel) {
     };
   }
 
-  if (addBtn && addRow) { addBtn.onclick = function(){ addRow.style.display='flex'; if(inp) inp.focus(); }; }
-  if (cancelBtn && addRow) { cancelBtn.onclick = function(){ addRow.style.display='none'; if(inp) inp.value=''; }; }
+  if (addBtn && addRow) {
+    addBtn.onclick = function(){
+      addRow.style.display = 'flex';
+      if (inp) inp.focus();
+    };
+  }
+  if (cancelBtn && addRow) {
+    cancelBtn.onclick = function(){
+      addRow.style.display = 'none';
+      if (inp) inp.value = '';
+    };
+  }
   if (saveBtn && inp) {
     saveBtn.onclick = function(){
       var val = inp.value.trim();
@@ -415,7 +314,9 @@ function renderStudentNamesPanel(panel) {
       if (addRow) addRow.style.display = 'none';
       renderStudentNamesPanel(panel);
     };
-    inp.addEventListener('keydown', function(e){ if(e.key==='Enter') saveBtn.click(); });
+    inp.addEventListener('keydown', function(e){
+      if (e.key==='Enter') saveBtn.click();
+    });
   }
   var list = panel.querySelector('#__qsc_sn_list__');
   if (list) {
@@ -423,329 +324,39 @@ function renderStudentNamesPanel(panel) {
       var btn = e.target.closest('[data-sn-del]');
       if (!btn) return;
       var idx = parseInt(btn.getAttribute('data-sn-del'));
-      var names3 = getStudentNames(); names3.splice(idx,1); saveStudentNames(names3);
-      renderStudentNamesPanel(panel); showToast('Name removed.', 'warning');
+      var names3 = getStudentNames();
+      names3.splice(idx, 1);
+      saveStudentNames(names3);
+      renderStudentNamesPanel(panel);
+      showToast('Name removed.', 'warning');
     };
   }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STAFF DETAILS FORM — toast on save
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ STAFF DETAILS FORM — toast on save ╔═══ */
 function patchStaffDetailsForm() {
-  document.querySelectorAll('button').forEach(function(btn){
+  var btns = document.querySelectorAll('button');
+  btns.forEach(function(btn){
     if (btn.dataset.qscStaffSavePatched) return;
     var txt = btn.textContent.trim().toLowerCase();
-    if ((txt==='save changes'||txt==='update profile'||txt==='save profile'||txt==='update details'||txt==='save') && btn.closest('form,section,div')) {
-      var container = btn.closest('form,section,div'); if (!container) return;
+    if ((txt==='save changes' || txt==='update profile' || txt==='save profile' || txt==='update details' || txt==='save') && btn.closest('form,section,div')) {
+      var container = btn.closest('form,section,div');
+      if (!container) return;
+      var labels = container.querySelectorAll('label');
       var isStaffForm = false;
-      container.querySelectorAll('label').forEach(function(l){
-        if (l.textContent.toLowerCase().includes('display name')||l.textContent.toLowerCase().includes('username')) isStaffForm=true;
+      labels.forEach(function(l){
+        if (l.textContent.toLowerCase().includes('display name') || l.textContent.toLowerCase().includes('username')) isStaffForm = true;
       });
       if (!isStaffForm) return;
       btn.dataset.qscStaffSavePatched = 'true';
-      btn.addEventListener('click', function(){ setTimeout(function(){ showToast('Staff details updated successfully!','success'); },300); });
-    }
-  });
-}
-
-/* ══════════════════════════════════════════════════════════════
-   ADMIN DASHBOARD BUTTONS:
-   - Replace "Generate Report" with "Create Report"
-   - Add "Upload Saved Report" button  
-   - Add Class View button
-══════════════════════════════════════════════════════════════ */
-function patchAdminDashboardButtons() {
-  var user = getCurrentUser();
-  if (!user || user.role !== 'admin') return;
-
-  // Find admin tab nav
-  var navBars = document.querySelectorAll('div[style*="borderBottom"]');
-  navBars.forEach(function(navBar){
-    if (navBar.dataset.qscAdminNavPatched) return;
-    var btns = navBar.querySelectorAll('button');
-    var hasAdminBtn = false;
-    btns.forEach(function(b){ if (b.textContent.trim()==='Manage Users'||b.textContent.trim()==='Reports') hasAdminBtn=true; });
-    if (!hasAdminBtn) return;
-    navBar.dataset.qscAdminNavPatched = 'true';
-
-    // Add "Upload Report" button if not present
-    var hasUpload = false;
-    btns.forEach(function(b){ if (b.textContent.includes('Upload')) hasUpload=true; });
-    if (!hasUpload) {
-      var uploadBtn = document.createElement('button');
-      uploadBtn.textContent = 'Upload Saved Report';
-      uploadBtn.style.cssText = 'padding:13px 22px;font-size:14px;font-weight:600;border:none;border-bottom:3px solid transparent;color:#555;background:transparent;cursor:pointer;margin-bottom:-2px;font-family:Inter,system-ui,sans-serif;';
-      uploadBtn.onclick = function(){ showUploadReportModal(); };
-      navBar.appendChild(uploadBtn);
-    }
-
-    // Add "Class View" button if not present  
-    var hasClassView = false;
-    btns.forEach(function(b){ if (b.textContent.includes('Class View')||b.textContent.includes('By Class')) hasClassView=true; });
-    if (!hasClassView) {
-      var classBtn = document.createElement('button');
-      classBtn.textContent = 'Class View';
-      classBtn.style.cssText = 'padding:13px 22px;font-size:14px;font-weight:600;border:none;border-bottom:3px solid transparent;color:#555;background:transparent;cursor:pointer;margin-bottom:-2px;font-family:Inter,system-ui,sans-serif;';
-      classBtn.onclick = function(){
-        // Toggle active
-        navBar.querySelectorAll('button').forEach(function(b){ b.style.borderBottom='3px solid transparent'; b.style.color='#555'; });
-        classBtn.style.borderBottom = '3px solid #003087';
-        classBtn.style.color = '#003087';
-        showAdminClassViewPanel();
-      };
-      navBar.appendChild(classBtn);
-    }
-  });
-}
-
-/* ══════════════════════════════════════════════════════════════
-   ADMIN: Upload Saved Report Modal
-   Admin uploads a report template/saved report so staff can access it
-══════════════════════════════════════════════════════════════ */
-function showUploadReportModal() {
-  var old = document.getElementById('__qsc_upload_report_modal__'); if(old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '__qsc_upload_report_modal__';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;';
-
-  var existingReports = getReports().filter(function(r){ return r.submittedByAdmin; });
-  var reportsHtml = existingReports.length===0
-    ? '<p style="font-size:13px;color:#9ca3af;margin:0 0 16px;">No saved reports uploaded yet.</p>'
-    : '<div style="margin-bottom:16px;max-height:200px;overflow-y:auto;">'
-      + existingReports.map(function(r){
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;">'
-            + '<div style="font-size:13px;font-family:Inter,system-ui,sans-serif;"><strong>'+escHtml(r.title||r.id)+'</strong><br/><span style="color:#9ca3af;font-size:11px;">'+new Date(r.submittedAt||r.createdAt||Date.now()).toLocaleDateString()+'</span></div>'
-            + '<button data-del-report="'+r.id+'" style="background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:5px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Delete</button>'
-            + '</div>';
-        }).join('')
-      + '</div>';
-
-  modal.innerHTML = [
-    '<div style="background:#fff;border-radius:16px;padding:32px;width:500px;max-width:92vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">',
-    '<h3 style="font-size:18px;font-weight:700;margin:0 0 20px;color:#111827;font-family:Inter,system-ui,sans-serif;">Upload Saved Report</h3>',
-    '<p style="font-size:13px;color:#6b7280;margin:0 0 16px;font-family:Inter,system-ui,sans-serif;">Upload a report template so staff can access and import student results from it. Staff will see this when creating reports.</p>',
-    '<div id="__qsc_uploaded_reports_list__">',
-    reportsHtml,
-    '</div>',
-    '<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:4px;">',
-    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;font-family:Inter,system-ui,sans-serif;">Report Title *</label>',
-    '<input id="__qsc_ur_title__" type="text" placeholder="e.g. End of Term 1 Report Template" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:Inter,system-ui,sans-serif;outline:none;margin-bottom:12px;" />',
-    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;font-family:Inter,system-ui,sans-serif;">Class</label>',
-    '<select id="__qsc_ur_class__" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:Inter,system-ui,sans-serif;background:#fff;margin-bottom:12px;outline:none;">',
-    '<option value="">Select class (optional)</option>',
-    ['Nursery 1','Nursery 2','KG 1','KG 2','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','Basic 7','Basic 8','Basic 9'].map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join(''),
-    '</select>',
-    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;font-family:Inter,system-ui,sans-serif;">Term</label>',
-    '<select id="__qsc_ur_term__" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:Inter,system-ui,sans-serif;background:#fff;margin-bottom:12px;outline:none;">',
-    '<option value="">Select term (optional)</option>',
-    '<option value="First Term">First Term</option><option value="Second Term">Second Term</option><option value="Third Term">Third Term</option>',
-    '</select>',
-    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;font-family:Inter,system-ui,sans-serif;">Notes / Instructions for Staff</label>',
-    '<textarea id="__qsc_ur_notes__" rows="3" placeholder="Any instructions for staff when using this report…" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:Inter,system-ui,sans-serif;resize:vertical;outline:none;"></textarea>',
-    '</div>',
-    '<div style="display:flex;gap:12px;margin-top:20px;">',
-    '<button id="__qsc_ur_ok__" style="flex:1;background:#003087;color:#fff;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Upload Report</button>',
-    '<button id="__qsc_ur_cancel__" style="flex:1;background:#f3f4f6;color:#374151;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Cancel</button>',
-    '</div></div>'
-  ].join('');
-  document.body.appendChild(modal);
-
-  document.getElementById('__qsc_ur_cancel__').onclick = function(){ modal.remove(); };
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-
-  // Delete uploaded reports
-  modal.querySelector('#__qsc_uploaded_reports_list__').onclick = function(e){
-    var btn = e.target.closest('[data-del-report]'); if (!btn) return;
-    var rid = btn.getAttribute('data-del-report');
-    if (!confirm('Delete this uploaded report?')) return;
-    var rpts = getReports().filter(function(r){ return r.id !== rid; });
-    saveReports(rpts);
-    modal.remove();
-    showToast('Report deleted.', 'warning');
-    showUploadReportModal();
-  };
-
-  document.getElementById('__qsc_ur_ok__').onclick = function(){
-    var title = document.getElementById('__qsc_ur_title__').value.trim();
-    if (!title) { showToast('Please enter a report title.', 'error'); return; }
-    var cls  = document.getElementById('__qsc_ur_class__').value;
-    var term = document.getElementById('__qsc_ur_term__').value;
-    var notes = document.getElementById('__qsc_ur_notes__').value.trim();
-    var adminUser = getCurrentUser();
-    var report = {
-      id: 'rpt_admin_' + Date.now(),
-      title: title,
-      class: cls,
-      term: term,
-      notes: notes,
-      submittedByAdmin: true,
-      submittedAt: new Date().toISOString(),
-      adminUsername: adminUser ? adminUser.username : 'admin',
-      rows: [],
-      fields: { Class: cls, Term: term },
-      createdAt: new Date().toISOString()
-    };
-    var rpts = getReports();
-    rpts.push(report);
-    saveReports(rpts);
-    modal.remove();
-    showToast('Report "'+title+'" uploaded! Staff can now access it.', 'success');
-  };
-}
-
-/* ══════════════════════════════════════════════════════════════
-   ADMIN: Class View Panel — select class and see score sheets + reports
-══════════════════════════════════════════════════════════════ */
-function patchAdminClassView() {
-  // This is handled via showAdminClassViewPanel() called from button
-}
-
-function showAdminClassViewPanel() {
-  var mainEl = document.querySelector('main');
-  if (!mainEl) return;
-
-  var old = document.getElementById('__qsc_class_view_wrapper__');
-  if (old) { old.remove(); mainEl.style.display=''; return; }
-  mainEl.style.display = 'none';
-
-  var wrapper = document.createElement('div');
-  wrapper.id = '__qsc_class_view_wrapper__';
-  wrapper.style.cssText = 'flex:1;padding:24px;font-family:Inter,system-ui,sans-serif;';
-
-  var CLASSES = ['Nursery 1','Nursery 2','KG 1','KG 2','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','Basic 7','Basic 8','Basic 9'];
-
-  wrapper.innerHTML = [
-    '<div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:22px 24px;max-width:1000px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">',
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">',
-    '<h2 style="font-size:18px;font-weight:700;color:#111827;margin:0;">Class View</h2>',
-    '<div style="display:flex;align-items:center;gap:12px;">',
-    '<label style="font-size:13px;font-weight:600;color:#374151;">Select Class:</label>',
-    '<select id="__qsc_class_select__" style="padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:Inter,system-ui,sans-serif;background:#fff;outline:none;">',
-    '<option value="">-- Select a class --</option>',
-    CLASSES.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join(''),
-    '</select>',
-    '</div></div>',
-    '<div id="__qsc_admin_class_panel__" style="min-height:100px;">',
-    '<p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px 0;">Select a class above to view score sheets and reports.</p>',
-    '</div>',
-    '</div>'
-  ].join('');
-
-  mainEl.parentElement.insertBefore(wrapper, mainEl.nextSibling);
-
-  document.getElementById('__qsc_class_select__').onchange = function(){
-    var cls = this.value;
-    var panel = document.getElementById('__qsc_admin_class_panel__');
-    if (!cls) {
-      panel.innerHTML = '<p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px 0;">Select a class above to view score sheets and reports.</p>';
-      return;
-    }
-    renderAdminClassPanel(panel, cls);
-  };
-
-  // Restore main when switching tabs
-  var navBtns = document.querySelectorAll('button[style*="padding:13px"]');
-  navBtns.forEach(function(btn){
-    if (!btn.dataset.qscClassViewRestorePatched) {
-      btn.dataset.qscClassViewRestorePatched = 'true';
       btn.addEventListener('click', function(){
-        var w = document.getElementById('__qsc_class_view_wrapper__');
-        if (w) { w.remove(); if(mainEl) mainEl.style.display=''; }
+        setTimeout(function(){ showToast('Staff details updated successfully!', 'success'); }, 300);
       });
     }
   });
 }
 
-function renderAdminClassPanel(panel, cls) {
-  var sheets = getScoreSheets().filter(function(s){ return s.class===cls && (s.status==='submitted'||s.status==='approved'); });
-  var reports = getReports().filter(function(r){ return r.class===cls; });
-
-  var html = '<h3 style="font-size:15px;font-weight:700;color:#111827;margin:0 0 16px;font-family:Inter,system-ui,sans-serif;">'+escHtml(cls)+' — Score Sheets & Reports</h3>';
-
-  // Score sheets
-  html += '<div style="margin-bottom:24px;">';
-  html += '<h4 style="font-size:14px;font-weight:600;color:#1d4ed8;margin:0 0 10px;font-family:Inter,system-ui,sans-serif;">Score Sheets ('+sheets.length+')</h4>';
-  if (!sheets.length) {
-    html += '<p style="font-size:13px;color:#9ca3af;font-family:Inter,system-ui,sans-serif;">No submitted score sheets for this class.</p>';
-  } else {
-    sheets.forEach(function(sheet){
-      var statusBadge = sheet.status==='approved'
-        ? '<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">✓ Approved</span>'
-        : '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Submitted</span>';
-      html += '<div style="background:#f8fafc;border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">';
-      html += '<div style="font-family:Inter,system-ui,sans-serif;"><span style="font-size:13px;font-weight:600;color:#111;">'+escHtml(sheet.title||'Score Sheet')+'</span> '+statusBadge;
-      html += '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Subject: '+escHtml(sheet.subject||'—')+' | By: '+escHtml(sheet.staffName||sheet.staffUsername||'—')+'</div></div>';
-      html += '<div style="display:flex;gap:8px;">';
-      html += '<button data-cls-print="'+sheet.id+'" style="background:#1d4ed8;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Print</button>';
-      if (sheet.status==='submitted') {
-        html += '<button data-cls-approve="'+sheet.id+'" style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Approve</button>';
-      }
-      html += '<button data-cls-del-sheet="'+sheet.id+'" style="background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Delete</button>';
-      html += '</div></div>';
-    });
-  }
-  html += '</div>';
-
-  // Reports
-  html += '<div>';
-  html += '<h4 style="font-size:14px;font-weight:600;color:#7c3aed;margin:0 0 10px;font-family:Inter,system-ui,sans-serif;">Reports ('+reports.length+')</h4>';
-  if (!reports.length) {
-    html += '<p style="font-size:13px;color:#9ca3af;font-family:Inter,system-ui,sans-serif;">No reports found for this class.</p>';
-  } else {
-    reports.forEach(function(rpt){
-      html += '<div style="background:#f5f3ff;border:1.5px solid #ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">';
-      html += '<div style="font-family:Inter,system-ui,sans-serif;"><span style="font-size:13px;font-weight:600;color:#111;">'+escHtml(rpt.title||rpt.studentName||'Report')+'</span>';
-      if (rpt.submittedByAdmin) html += ' <span style="background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin Upload</span>';
-      html += '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Term: '+escHtml(rpt.term||'—')+'</div></div>';
-      html += '<button data-cls-del-report="'+rpt.id+'" style="background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Delete</button>';
-      html += '</div>';
-    });
-  }
-  html += '</div>';
-
-  panel.innerHTML = html;
-
-  panel.onclick = function(e){
-    var printBtn   = e.target.closest('[data-cls-print]');
-    var approveBtn = e.target.closest('[data-cls-approve]');
-    var delSheet   = e.target.closest('[data-cls-del-sheet]');
-    var delReport  = e.target.closest('[data-cls-del-report]');
-
-    if (printBtn) { printScoreSheet(printBtn.getAttribute('data-cls-print')); }
-    if (approveBtn) {
-      var id = approveBtn.getAttribute('data-cls-approve');
-      var sheets2 = getScoreSheets();
-      for (var i=0; i<sheets2.length; i++) {
-        if (sheets2[i].id===id) { sheets2[i].status='approved'; sheets2[i].approvedAt=new Date().toISOString(); break; }
-      }
-      saveScoreSheets(sheets2);
-      renderAdminClassPanel(panel, cls);
-      showToast('Score sheet approved!', 'success');
-    }
-    if (delSheet) {
-      if (!confirm('Delete this score sheet?')) return;
-      saveScoreSheets(getScoreSheets().filter(function(s){ return s.id!==delSheet.getAttribute('data-cls-del-sheet'); }));
-      renderAdminClassPanel(panel, cls);
-      showToast('Score sheet deleted.', 'warning');
-    }
-    if (delReport) {
-      if (!confirm('Delete this report?')) return;
-      saveReports(getReports().filter(function(r){ return r.id!==delReport.getAttribute('data-cls-del-report'); }));
-      renderAdminClassPanel(panel, cls);
-      showToast('Report deleted.', 'warning');
-    }
-  };
-}
-
-function refreshAdminClassPanel(panel) {
-  var sel = document.getElementById('__qsc_class_select__');
-  if (sel && sel.value) renderAdminClassPanel(panel, sel.value);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   MANAGE USERS — Add User + Search + Delete (admin only; no delete for admins)
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ MANAGE USERS — Add User + Search + Delete ╔═══ */
 function patchManageUsers() {
   var h2s = document.querySelectorAll('h2');
   var heading = null;
@@ -785,12 +396,18 @@ function patchManageUsers() {
 }
 
 function getUsernameFromCard(card) {
-  var monoEl = card.querySelector('[class*="font-mono"]');
-  if (monoEl) return monoEl.textContent.trim();
-  var allText = card.textContent;
-  var match = allText.match(/Username:\s*(\S+)/i);
-  if (match) return match[1];
-  return '';
+  var usernameEl = card.querySelector('[class*="font-mono"],[class*="text-sm"],[class*="text-gray-500"]');
+  var username = '';
+  if (usernameEl) {
+    var parts = usernameEl.textContent.split('@');
+    username = (parts[0]||'').trim().replace('@','').trim();
+  }
+  if (!username) {
+    var allText = card.textContent;
+    var match = allText.match(/@(S+)/);
+    if (match) username = match[1];
+  }
+  return username;
 }
 
 function patchDeleteUserButtons(container) {
@@ -808,9 +425,7 @@ function patchDeleteUserButtons(container) {
     var cardUsername = getUsernameFromCard(card);
     var users = getUsers();
     var cardUser = users.find(function(u){ return u.username === cardUsername; });
-    // Don't add delete button for admin users
     if (cardUser && cardUser.role === 'admin') return;
-    if (!cardUsername) return;
 
     var delBtn = document.createElement('button');
     delBtn.textContent = 'Delete';
@@ -818,7 +433,10 @@ function patchDeleteUserButtons(container) {
     delBtn.onclick = function(e){
       e.stopPropagation();
       var username = getUsernameFromCard(card);
-      if (!username) { showToast('Could not identify user.', 'error'); return; }
+      if (!username) {
+        showToast('Could not identify user to delete.', 'error');
+        return;
+      }
       var allUsers = getUsers();
       var target = allUsers.find(function(u){ return u.username === username; });
       if (target && target.role === 'admin') {
@@ -832,14 +450,15 @@ function patchDeleteUserButtons(container) {
 }
 
 function showDeleteUserModal(username, card) {
-  var old = document.getElementById('__qsc_del_modal__'); if (old) old.remove();
+  var old = document.getElementById('__qsc_del_modal__');
+  if (old) old.remove();
   var modal = document.createElement('div');
   modal.id = '__qsc_del_modal__';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;';
   modal.innerHTML = [
     '<div style="background:#fff;border-radius:16px;padding:32px;width:400px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.25);">',
     '<h3 style="font-size:18px;font-weight:700;margin:0 0 12px;color:#111827;">Delete User Account</h3>',
-    '<p style="font-size:14px;color:#4b5563;margin:0 0 24px;">Are you sure you want to permanently delete the account for <strong>@'+escHtml(username)+'</strong>? This cannot be undone.</p>',
+    '<p style="font-size:14px;color:#4b5563;margin:0 0 24px;">Are you sure you want to permanently delete the account for <strong>@'+escHtml(username)+'</strong>? This action cannot be undone.</p>',
     '<div style="display:flex;gap:12px;">',
     '<button id="__qsc_del_confirm__" style="flex:1;background:#dc2626;color:#fff;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Yes, Delete</button>',
     '<button id="__qsc_del_cancel__" style="flex:1;background:#f3f4f6;color:#374151;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Cancel</button>',
@@ -859,10 +478,13 @@ function showDeleteUserModal(username, card) {
 }
 
 function showAddUserModal() {
-  var old = document.getElementById('__qsc_au_modal__'); if (old) old.remove();
+  var old = document.getElementById('__qsc_au_modal__');
+  if (old) old.remove();
+
   function field(lbl, id, type, ph) {
     return '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;font-family:Inter,system-ui,sans-serif;">'+lbl+'</label><input id="'+id+'" type="'+type+'" placeholder="'+ph+'" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:Inter,system-ui,sans-serif;outline:none;" /></div>';
   }
+
   var modal = document.createElement('div');
   modal.id = '__qsc_au_modal__';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;';
@@ -881,6 +503,7 @@ function showAddUserModal() {
     '</div></div>'
   ].join('');
   document.body.appendChild(modal);
+
   document.getElementById('__au_cancel__').onclick = function(){ modal.remove(); };
   modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
   document.getElementById('__au_ok__').onclick = function(){
@@ -898,15 +521,12 @@ function showAddUserModal() {
     users.push({ id:'u_'+Date.now(), username:un, password:pw, displayName:dn||un, role:role });
     saveUsers(users);
     modal.remove();
-    showToast('User "'+(dn||un)+'" added successfully!', 'success');
+    showToast('User "' +(dn||un)+ '" added successfully!', 'success');
     window.dispatchEvent(new StorageEvent('storage', { key:'qsc_users' }));
   };
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SCORE SHEET MODAL — student name dropdown from saved names,
-   Save as Draft, Preview, Submit to Admin buttons
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ SCORE SHEET MODAL — A4, ordinal position, no grade ╔═══ */
 function patchScoreSheetModal() {
   var h2s = document.querySelectorAll('h2');
   var heading = null;
@@ -991,18 +611,8 @@ function convertPositionToOrdinal(modal) {
 }
 
 function injectStudentNameDropdowns(modal) {
-  // Combine saved names + names from score sheets
-  var savedNames = getStudentNames();
-  var sheetNames = [];
-  getScoreSheets().forEach(function(sheet){
-    (sheet.rows||[]).forEach(function(row){
-      if (row.studentName && sheetNames.indexOf(row.studentName)===-1) sheetNames.push(row.studentName);
-    });
-  });
-  var allNames = savedNames.slice();
-  sheetNames.forEach(function(n){ if (allNames.indexOf(n)===-1) allNames.push(n); });
-  if (!allNames.length) return;
-
+  var names = getStudentNames();
+  if (!names.length) return;
   var trs = modal.querySelectorAll('tbody tr');
   trs.forEach(function(tr){
     if (tr.dataset.qscSnDropdown) return;
@@ -1019,8 +629,10 @@ function injectStudentNameDropdowns(modal) {
     var dlId = '__qsc_sn_dl_' + Math.random().toString(36).slice(2) + '__';
     var dl = document.createElement('datalist');
     dl.id = dlId;
-    allNames.forEach(function(n){
-      var opt = document.createElement('option'); opt.value=n; dl.appendChild(opt);
+    names.forEach(function(n){
+      var opt = document.createElement('option');
+      opt.value = n;
+      dl.appendChild(opt);
     });
     nameInput.setAttribute('list', dlId);
     nameInput.setAttribute('autocomplete', 'off');
@@ -1131,24 +743,10 @@ function buildScoreSheetHtml(sheet) {
   ].join('');
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STAFF: "Create Report" (was "Generate Report")
-   Student name dropdown from saved names + score sheets.
-   Staff can select student name and import individual subject results.
-   Save, Preview, Submit to Admin buttons.
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ CREATE REPORT — grade removed, student name from score sheets ╔═══ */
 function patchCreateReport() {
   var user = getCurrentUser();
   if (!user || user.role !== 'staff') return;
-
-  // Rename "Generate Report" tab to "Create Report" in staff nav
-  document.querySelectorAll('button').forEach(function(btn){
-    if (btn.textContent.trim()==='Generate Report' && !btn.dataset.qscRenamePatched) {
-      btn.dataset.qscRenamePatched = 'true';
-      btn.textContent = 'Create Report';
-    }
-  });
-
   var h2s = document.querySelectorAll('h2');
   var heading = null;
   for (var i=0; i<h2s.length; i++){
@@ -1160,13 +758,9 @@ function patchCreateReport() {
   if (!modal || modal.dataset.qscCrPatched) return;
   modal.dataset.qscCrPatched = 'true';
 
-  // Also rename heading inside modal
-  if (heading.textContent.trim()==='Generate Report') heading.textContent = 'Create Report';
-
   removeGradeColumn(modal);
   injectStudentNameFieldDropdown(modal);
   wireScoreSheetAutoFill(modal);
-  injectCreateReportButtons(modal);
 }
 
 function removeGradeColumn(container) {
@@ -1188,7 +782,7 @@ function removeGradeColumn(container) {
 function injectStudentNameFieldDropdown(modal) {
   var labels = modal.querySelectorAll('label');
   labels.forEach(function(lbl){
-    var lblTxt = lbl.textContent.trim().toLowerCase().replace(/[*]/g,'').trim();
+    var lblTxt = lbl.textContent.trim().toLowerCase();
     if (lblTxt !== 'student name' && lblTxt !== "student's name" && lblTxt !== 'name of student') return;
     var inp = lbl.nextElementSibling;
     if (!inp || inp.tagName!=='INPUT') {
@@ -1210,7 +804,9 @@ function injectStudentNameFieldDropdown(modal) {
       });
     });
     var allNames = savedNames.slice();
-    sheetNames.forEach(function(n){ if (allNames.indexOf(n) === -1) allNames.push(n); });
+    sheetNames.forEach(function(n){
+      if (allNames.indexOf(n) === -1) allNames.push(n);
+    });
 
     var dlId = '__qsc_cr_sn_dl__';
     var existing = document.getElementById(dlId);
@@ -1229,7 +825,7 @@ function injectStudentNameFieldDropdown(modal) {
 function wireScoreSheetAutoFill(modal) {
   var labels = modal.querySelectorAll('label');
   labels.forEach(function(lbl){
-    var lblTxt = lbl.textContent.trim().toLowerCase().replace(/[*]/g,'').trim();
+    var lblTxt = lbl.textContent.trim().toLowerCase();
     if (lblTxt !== 'student name' && lblTxt !== "student's name" && lblTxt !== 'name of student') return;
     var inp = lbl.nextElementSibling;
     if (!inp || inp.tagName!=='INPUT') {
@@ -1287,31 +883,7 @@ function autoFillFromScoreSheets(modal, studentName) {
   showToast('Score data auto-filled from submitted score sheets!', 'success');
 }
 
-function injectCreateReportButtons(modal) {
-  // Add Save, Preview, Submit buttons if not present
-  var btnRow = null;
-  var btns = modal.querySelectorAll('button');
-  for (var i=0; i<btns.length; i++){
-    var t = btns[i].textContent.trim().toLowerCase();
-    if (t==='save report'||t==='preview'||t==='save') { btnRow = btns[i].parentElement; break; }
-  }
-  if (!btnRow || btnRow.dataset.qscCrBtnsPatched) return;
-  btnRow.dataset.qscCrBtnsPatched = 'true';
-
-  // Add "Submit to Admin" button
-  var submitBtn = document.createElement('button');
-  submitBtn.type = 'button';
-  submitBtn.textContent = 'Submit to Admin';
-  submitBtn.style.cssText = 'background:#16a34a;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;';
-  submitBtn.onclick = function(){
-    showToast('Report submitted to admin!', 'success');
-  };
-  btnRow.appendChild(submitBtn);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   ADMIN REPORTS — grade→position, submitted sheets panel
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ ADMIN GENERATE REPORT — grade→position, submitted sheets, submit report ╔═══ */
 function patchAdminReports() {
   var user = getCurrentUser();
   if (!user || user.role !== 'admin') return;
@@ -1323,20 +895,90 @@ function patchAdminReports() {
     }
   });
 
+  patchAdminSubmitReportButtons();
   patchSubmittedScoreSheets();
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SUBMITTED SCORE SHEETS — admin review panel
-══════════════════════════════════════════════════════════════ */
+function patchAdminSubmitReportButtons() {
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
+  var btns = document.querySelectorAll('button');
+  btns.forEach(function(btn){
+    if (btn.dataset.qscAdminSubmitPatched) return;
+    var txt = btn.textContent.trim().toLowerCase();
+    if (!txt.includes('generate') && !txt.includes('create report') && !txt.includes('save report') && !txt.includes('submit')) return;
+    var form = btn.closest('form') || btn.closest('[class*="bg-white"]') || btn.closest('[class*="p-6"]');
+    if (!form) return;
+    var hasTable = form.querySelector('table,tbody,tr');
+    if (!hasTable) return;
+    btn.dataset.qscAdminSubmitPatched = 'true';
+
+    if (form.dataset.qscAdminSubmitBtnAdded) return;
+    form.dataset.qscAdminSubmitBtnAdded = 'true';
+
+    var submitBtn = document.createElement('button');
+    submitBtn.type = 'button';
+    submitBtn.textContent = 'Submit Report to Staff';
+    submitBtn.style.cssText = 'background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;margin-left:8px;';
+    submitBtn.onclick = function(){
+      var reportData = extractAdminReportData(form);
+      var reports = getReports();
+      var existing = reports.findIndex(function(r){ return r.id === reportData.id; });
+      if (existing >= 0) {
+        reports[existing] = reportData;
+      } else {
+        reports.push(reportData);
+      }
+      saveReports(reports);
+      showToast('Report submitted to staff successfully!', 'success');
+    };
+    btn.insertAdjacentElement('afterend', submitBtn);
+  });
+}
+
+function extractAdminReportData(form) {
+  var rows = [];
+  form.querySelectorAll('tbody tr').forEach(function(tr){
+    var cells = tr.querySelectorAll('td,th');
+    var row = [];
+    cells.forEach(function(td){ row.push(td.textContent.trim()); });
+    if (row.some(function(c){ return c; })) rows.push(row);
+  });
+  var headers = [];
+  form.querySelectorAll('thead th,thead td').forEach(function(th){ headers.push(th.textContent.trim()); });
+  var inputs = {};
+  form.querySelectorAll('input,select,textarea').forEach(function(inp){
+    var lbl = '';
+    if (inp.id) {
+      var labelEl = form.querySelector('label[for="'+inp.id+'"]');
+      if (labelEl) lbl = labelEl.textContent.trim();
+    }
+    if (!lbl) lbl = inp.name||inp.placeholder||inp.id||'field';
+    inputs[lbl] = inp.value;
+  });
+  return {
+    id: 'rpt_admin_' + (inputs['Student Name']||inputs['Class']||'').replace(/s+/g,'_') + '_' + Date.now(),
+    submittedByAdmin: true,
+    submittedAt: new Date().toISOString(),
+    adminUsername: getCurrentUser() ? getCurrentUser().username : 'admin',
+    headers: headers,
+    rows: rows,
+    fields: inputs
+  };
+}
+
+/* ╔═══ SUBMITTED SCORE SHEETS (Admin view) ╔═══ */
 function patchSubmittedScoreSheets() {
-  var user = getCurrentUser(); if (!user||user.role!=='admin') return;
+  var user = getCurrentUser();
+  if (!user || user.role!=='admin') return;
 
   var h2s = document.querySelectorAll('h2,h3');
   var reportsH2 = null;
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Student Reports'||txt==='Reports'||txt==='Generate Reports'||txt==='Report Cards') { reportsH2=h2s[i]; break; }
+    if (txt==='Student Reports' || txt==='Reports' || txt==='Generate Reports' || txt==='Report Cards') {
+      reportsH2=h2s[i]; break;
+    }
   }
   if (!reportsH2) return;
 
@@ -1448,18 +1090,17 @@ function approveScoreSheet(id, panel) {
   showToast('Score sheet approved! Staff can now create reports.', 'success');
 }
 
-/* ══════════════════════════════════════════════════════════════
-   ADMIN LOGO UPLOAD
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ ADMIN LOGO UPLOAD ╔═══ */
 function patchAdminLogoUpload() {
-  var user = getCurrentUser(); if (!user||user.role!=='admin') return;
+  var user = getCurrentUser();
+  if (!user || user.role !== 'admin') return;
 
   var h2s = document.querySelectorAll('h2,h3');
   var settingsHeading = null;
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Report Template'||txt==='School Settings'||txt==='Report Settings'||txt==='Template Settings'||txt==='Customize Report') {
-      settingsHeading=h2s[i]; break;
+    if (txt === 'Report Template' || txt === 'School Settings' || txt === 'Report Settings' || txt === 'Template Settings' || txt === 'Customize Report') {
+      settingsHeading = h2s[i]; break;
     }
   }
   if (!settingsHeading) return;
@@ -1471,7 +1112,7 @@ function patchAdminLogoUpload() {
   var emailLabel = null;
   for (var i=0; i<labels.length; i++) {
     var lt = labels[i].textContent.trim().toLowerCase();
-    if (lt.includes('email')||lt.includes('e-mail')) emailLabel=labels[i];
+    if (lt.includes('email') || lt.includes('e-mail')) emailLabel = labels[i];
   }
 
   var insertAfter = null;
@@ -1498,7 +1139,7 @@ function patchAdminLogoUpload() {
       fileInput.onchange = function(e) {
         var file = e.target.files[0];
         if (!file) return;
-        if (file.size > 2*1024*1024) { showToast('Logo file must be under 2MB.', 'error'); return; }
+        if (file.size > 2 * 1024 * 1024) { showToast('Logo file must be under 2MB.', 'error'); return; }
         var reader = new FileReader();
         reader.onload = function(ev) {
           localStorage.setItem('qsc_school_logo', ev.target.result);
@@ -1526,11 +1167,10 @@ function patchAdminLogoUpload() {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STAFF REPORT ACCESS — admin must upload a report first
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ STAFF REPORT ACCESS — admin must submit a report first ╔═══ */
 function patchStaffReportAccess() {
-  var user = getCurrentUser(); if (!user||user.role!=='staff') return;
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
 
   var adminReports = getReports().filter(function(r){ return r.submittedByAdmin; });
   var hasAdminReport = adminReports.length > 0;
@@ -1538,7 +1178,7 @@ function patchStaffReportAccess() {
   var h2s = document.querySelectorAll('h2,h3');
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Create Report'||txt==='Generate Report'||txt==='Create Report Card'||txt==='Report Cards'||txt==='Reports') {
+    if (txt === 'Create Report' || txt === 'Generate Report' || txt === 'Create Report Card' || txt === 'Report Cards' || txt === 'Reports') {
       var section = h2s[i].closest('[class*="bg-white"]') || h2s[i].closest('[class*="p-"]') || h2s[i].parentElement;
       if (!section || section.dataset.qscAccessPatched) continue;
 
@@ -1546,14 +1186,14 @@ function patchStaffReportAccess() {
         section.dataset.qscAccessPatched = 'true';
         section.querySelectorAll('button').forEach(function(btn){
           var btnTxt = btn.textContent.trim().toLowerCase();
-          if (btnTxt.includes('create')||btnTxt.includes('generate')||btnTxt.includes('new report')) {
+          if (btnTxt.includes('create') || btnTxt.includes('generate') || btnTxt.includes('new report')) {
             btn.disabled = true;
             btn.style.opacity = '0.5';
             btn.style.cursor = 'not-allowed';
-            btn.title = 'Admin must upload a report template first';
+            btn.title = 'Admin must submit a report before you can generate reports';
             btn.onclick = function(e){
               e.preventDefault(); e.stopPropagation();
-              showToast('Admin has not uploaded a report yet. Access will be unlocked once admin uploads a report template.', 'warning');
+              showToast('Admin has not submitted a report yet. Access will be unlocked once admin submits a report.', 'warning');
               return false;
             };
           }
@@ -1563,7 +1203,7 @@ function patchStaffReportAccess() {
           var msg = document.createElement('div');
           msg.id = '__qsc_access_msg__';
           msg.style.cssText = 'background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px;color:#92400e;font-family:Inter,system-ui,sans-serif;';
-          msg.innerHTML = '<strong>Access Restricted:</strong> Admin has not uploaded a report template yet. Once admin uploads a report, you will be able to create reports.';
+          msg.innerHTML = '<strong>Access Restricted:</strong> Admin has not submitted a report yet. Once admin submits a report, you will be able to generate reports.';
           var heading = h2s[i];
           if (heading.nextSibling) {
             heading.parentNode.insertBefore(msg, heading.nextSibling);
@@ -1576,13 +1216,10 @@ function patchStaffReportAccess() {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STAFF GENERATE REPORT — import from admin-uploaded reports + 
-   approved score sheets. Staff can select student names from
-   score sheets to upload individual subject results.
-══════════════════════════════════════════════════════════════ */
+/* ╔═══ STAFF GENERATE REPORT — import from admin-submitted reports + approved score sheets ╔═══ */
 function patchStaffGenerateReport() {
-  var user = getCurrentUser(); if (!user||user.role!=='staff') return;
+  var user = getCurrentUser();
+  if (!user || user.role !== 'staff') return;
 
   var adminReports = getReports().filter(function(r){ return r.submittedByAdmin; });
   var approvedSheets = getScoreSheets().filter(function(s){
@@ -1593,7 +1230,7 @@ function patchStaffGenerateReport() {
   var h2s = document.querySelectorAll('h2,h3');
   for (var i=0; i<h2s.length; i++){
     var txt = h2s[i].textContent.trim();
-    if (txt==='Generate Report'||txt==='Create Report'||txt==='Report Cards') {
+    if (txt === 'Generate Report' || txt === 'Create Report' || txt === 'Report Cards') {
       var section = h2s[i].closest('[class*="bg-white"]') || h2s[i].closest('[class*="p-"]') || h2s[i].parentElement;
       if (!section || section.dataset.qscStaffImportPatched) continue;
       section.dataset.qscStaffImportPatched = 'true';
@@ -1614,7 +1251,8 @@ function patchStaffGenerateReport() {
 }
 
 function renderStaffReportImportPanel(panel) {
-  var user = getCurrentUser(); if (!user) return;
+  var user = getCurrentUser();
+  if (!user) return;
 
   var adminReports = getReports().filter(function(r){ return r.submittedByAdmin; });
   var approvedSheets = getScoreSheets().filter(function(s){
@@ -1625,25 +1263,25 @@ function renderStaffReportImportPanel(panel) {
 
   panel.innerHTML = '';
 
-  // Admin uploaded reports section
   if (adminReports.length) {
     var adminHdr = document.createElement('h4');
     adminHdr.style.cssText = 'font-size:14px;font-weight:700;color:#7c3aed;margin:0 0 10px;font-family:Inter,system-ui,sans-serif;';
-    adminHdr.textContent = 'Admin Uploaded Report Templates';
+    adminHdr.textContent = 'Admin Submitted Reports';
     panel.appendChild(adminHdr);
 
     adminReports.forEach(function(report){
-      var d = new Date(report.submittedAt||report.createdAt||Date.now());
+      var d = new Date(report.submittedAt);
       var dateStr = d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:10px 14px;margin-bottom:8px;';
+      var title = report.fields && (report.fields['Student Name']||report.fields['Class']||report.fields['Term']) ? 
+        [report.fields['Student Name'],report.fields['Class'],report.fields['Term']].filter(Boolean).join(' — ') :
+        'Admin Report';
       row.innerHTML = [
         '<div style="font-family:Inter,system-ui,sans-serif;font-size:13px;">',
-        '<strong>'+escHtml(report.title||'Admin Report')+'</strong>',
-        report.class ? ' <span style="color:#9ca3af;font-size:12px;">— '+escHtml(report.class)+'</span>' : '',
-        report.term ? ' <span style="color:#9ca3af;font-size:12px;">'+escHtml(report.term)+'</span>' : '',
-        '<span style="color:#9ca3af;margin-left:8px;font-size:12px;">Uploaded '+escHtml(dateStr)+'</span>',
-        report.notes ? '<div style="font-size:12px;color:#374151;margin-top:3px;font-style:italic;">'+escHtml(report.notes)+'</div>' : '',
+        '<strong>'+escHtml(title)+'</strong>',
+        '<span style="color:#9ca3af;margin-left:8px;font-size:12px;">Submitted '+escHtml(dateStr)+'</span>',
+        '<span style="display:block;color:#6b7280;font-size:12px;margin-top:2px;">'+report.rows.length+' row(s) of data</span>',
         '</div>',
         '<button data-import-admin-report="'+escHtml(report.id)+'" style="background:#7c3aed;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">View Report</button>'
       ].join('');
@@ -1651,29 +1289,22 @@ function renderStaffReportImportPanel(panel) {
     });
   }
 
-  // Approved score sheets section
   if (approvedSheets.length) {
     var sheetsHdr = document.createElement('h4');
     sheetsHdr.style.cssText = 'font-size:14px;font-weight:700;color:#0369a1;margin:'+(adminReports.length?'14px':'0')+' 0 10px;font-family:Inter,system-ui,sans-serif;';
-    sheetsHdr.textContent = 'Approved Score Sheets — Import Student Results';
+    sheetsHdr.textContent = 'Approved Score Sheets';
     panel.appendChild(sheetsHdr);
-
-    var desc = document.createElement('p');
-    desc.style.cssText = 'font-size:13px;color:#374151;margin:0 0 10px;font-family:Inter,system-ui,sans-serif;';
-    desc.textContent = 'Select a score sheet, then choose a student name to import their individual subject results when creating a report.';
-    panel.appendChild(desc);
 
     approvedSheets.forEach(function(sheet){
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0f2fe;border-radius:8px;padding:10px 14px;margin-bottom:8px;';
-      var studentCount = (sheet.rows||[]).filter(function(r){return r.studentName;}).length;
       row.innerHTML = [
         '<div style="font-family:Inter,system-ui,sans-serif;font-size:13px;">',
         '<strong>'+escHtml(sheet.title||'Score Sheet')+'</strong>',
         ' &mdash; '+escHtml(sheet.subject||'')+(sheet.class?' ('+escHtml(sheet.class)+')':''),
-        '<span style="color:#9ca3af;margin-left:8px;">'+studentCount+' students</span>',
+        '<span style="color:#9ca3af;margin-left:8px;">'+sheet.rows.filter(function(r){return r.studentName;}).length+' students</span>',
         '</div>',
-        '<button data-import-sheet="'+sheet.id+'" style="background:#0369a1;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Import Results</button>'
+        '<button data-import-sheet="'+sheet.id+'" style="background:#0369a1;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Import Details</button>'
       ].join('');
       panel.appendChild(row);
     });
@@ -1686,7 +1317,7 @@ function renderStaffReportImportPanel(panel) {
       var sheetId = sheetBtn.getAttribute('data-import-sheet');
       var sheet = getScoreSheets().find(function(s){ return s.id===sheetId; });
       if (!sheet) return;
-      showImportSheetModal(sheet);
+      showToast('Sheet "'+sheet.title+'" selected. Fill in the student name above to auto-fill scores.', 'success');
     }
     if (adminBtn) {
       var reportId = adminBtn.getAttribute('data-import-admin-report');
@@ -1697,145 +1328,49 @@ function renderStaffReportImportPanel(panel) {
   };
 }
 
-function showImportSheetModal(sheet) {
-  var old = document.getElementById('__qsc_import_sheet_modal__'); if(old) old.remove();
-  var rows = (sheet.rows||[]).filter(function(r){ return r.studentName; });
-
-  var modal = document.createElement('div');
-  modal.id = '__qsc_import_sheet_modal__';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;font-family:Inter,system-ui,sans-serif;';
-
-  var rowHtml = rows.map(function(r, idx){
-    var cs = parseFloat(r.classScore)||0, e100 = parseFloat(r.exam100)||0;
-    var e70 = Math.round(e100/100*70*10)/10;
-    var total = Math.round((cs+e70)*10)/10;
-    var grade = calcGrade(total); var remarks = gradeRemarks(grade);
-    return '<tr style="cursor:pointer;" data-student-row="'+idx+'">'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:left;">'+escHtml(r.studentName)+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;">'+cs+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;">'+e100+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;">'+e70+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;font-weight:700;">'+total+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;">'+grade+'</td>'
-      +'<td style="border:1px solid #e5e7eb;padding:8px 10px;text-align:center;font-size:12px;color:#6b7280;">'+remarks+'</td>'
-      +'</tr>';
-  }).join('');
-
-  modal.innerHTML = [
-    '<div style="background:#fff;border-radius:16px;width:100%;max-width:860px;box-shadow:0 24px 64px rgba(0,0,0,0.3);">',
-    '<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #e5e7eb;">',
-    '<div>',
-    '<h2 style="font-size:18px;font-weight:700;margin:0;color:#111;">Import Student Results</h2>',
-    '<p style="font-size:13px;color:#6b7280;margin:4px 0 0;">'+escHtml(sheet.title||'')+'  &bull;  Subject: '+escHtml(sheet.subject||'')+'  &bull;  Class: '+escHtml(sheet.class||'')+'  &bull;  Term: '+escHtml(sheet.term||'')+'</p>',
-    '</div>',
-    '<button id="__qsc_import_close__" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;">&times;</button>',
-    '</div>',
-    rows.length===0
-      ? '<div style="padding:40px;text-align:center;color:#9ca3af;"><p>No student records in this score sheet.</p></div>'
-      : [
-        '<div style="padding:16px 24px;border-bottom:1px solid #e5e7eb;">',
-        '<p style="font-size:13px;color:#374151;margin:0;">Click a student row to import their results into the Create Report form.</p>',
-        '</div>',
-        '<div style="overflow-x:auto;padding:20px 24px;">',
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;">',
-        '<thead><tr style="background:#f0f4ff;">',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;text-align:left;font-weight:600;color:#374151;">Student Name</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Class Score (30%)</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Exam Score (100%)</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Exam Score (70%)</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Total</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Grade</th>',
-        '<th style="border:1px solid #e5e7eb;padding:8px 10px;font-weight:600;color:#374151;">Remarks</th>',
-        '</tr></thead>',
-        '<tbody id="__qsc_import_tbody__">'+rowHtml+'</tbody>',
-        '</table></div>',
-        '<div style="padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;gap:12px;justify-content:flex-end;">',
-        '<button id="__qsc_import_cancel__" style="background:#f3f4f6;color:#374151;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>',
-        '</div>',
-      ].join(''),
-    '</div>'
-  ].join('');
-  document.body.appendChild(modal);
-
-  document.getElementById('__qsc_import_close__').onclick = function(){ modal.remove(); };
-  var cancelEl = document.getElementById('__qsc_import_cancel__');
-  if (cancelEl) cancelEl.onclick = function(){ modal.remove(); };
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-
-  // Row click to import
-  var tbody = document.getElementById('__qsc_import_tbody__');
-  if (tbody) {
-    tbody.querySelectorAll('tr').forEach(function(tr, idx){
-      tr.onmouseover = function(){ this.style.background='#f0f4ff'; };
-      tr.onmouseout  = function(){ this.style.background=''; };
-      tr.onclick = function(){
-        var r = rows[idx]; if(!r) return;
-        fillCreateReportField(r.studentName, sheet);
-        modal.remove();
-        showToast('Imported results for '+r.studentName, 'success');
-      };
-    });
-  }
-}
-
-function fillCreateReportField(studentName, sheet) {
-  var createModal = null;
-  document.querySelectorAll('h2').forEach(function(h){
-    var txt = h.textContent.trim();
-    if (txt==='Create Report'||txt==='Generate Report'||txt==='Create Report Card') {
-      createModal = h.closest('[style*="position: fixed"]')||h.closest('[style*="position:fixed"]')||h.closest('.fixed')||h.closest('[class*="fixed"]')||h.parentElement;
-    }
-  });
-  if (!createModal) { showToast('Open the Create Report form first, then import.', 'warning'); return; }
-  createModal.querySelectorAll('label').forEach(function(lbl){
-    var t = lbl.textContent.trim().toLowerCase().replace(/[*]/g,'').trim();
-    if (t!=='student name'&&t!=="student's name"&&t!=='name of student') return;
-    var inp = lbl.nextElementSibling;
-    if (!inp||inp.tagName!=='INPUT') { var p=lbl.parentElement; if(p) inp=p.querySelector('input'); }
-    if (!inp||inp.tagName!=='INPUT') return;
-    inp.value = studentName;
-    inp.dispatchEvent(new Event('input',{bubbles:true}));
-    inp.dispatchEvent(new Event('change',{bubbles:true}));
-  });
-  autoFillFromScoreSheets(createModal, studentName);
-}
-
 function showAdminReportModal(report) {
-  var old = document.getElementById('__qsc_ar_modal__'); if (old) old.remove();
+  var old = document.getElementById('__qsc_ar_modal__');
+  if (old) old.remove();
   var modal = document.createElement('div');
   modal.id = '__qsc_ar_modal__';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;padding:24px;box-sizing:border-box;';
-  var d = new Date(report.submittedAt||report.createdAt||Date.now());
+  var d = new Date(report.submittedAt);
   var dateStr = d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
+  var headerRow = report.headers && report.headers.length
+    ? '<tr>'+report.headers.map(function(h){ return '<th style="padding:8px 12px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:left;border-bottom:1.5px solid #e5e7eb;font-family:Inter,system-ui,sans-serif;">'+escHtml(h)+'</th>'; }).join('')+'</tr>'
+    : '';
+  var bodyRows = report.rows.map(function(row){
+    return '<tr>'+row.map(function(cell){ return '<td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #f3f4f6;font-family:Inter,system-ui,sans-serif;">'+escHtml(cell)+'</td>'; }).join('')+'</tr>';
+  }).join('');
+  var fieldsHtml = '';
+  if (report.fields) {
+    var keys = Object.keys(report.fields).filter(function(k){ return report.fields[k]; });
+    if (keys.length) {
+      fieldsHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:16px;">'
+        + keys.map(function(k){ return '<span style="font-size:13px;color:#374151;font-family:Inter,system-ui,sans-serif;"><strong>'+escHtml(k)+':</strong> '+escHtml(report.fields[k])+'</span>'; }).join('')
+        + '</div>';
+    }
+  }
+
   modal.innerHTML = [
-    '<div style="background:#fff;border-radius:16px;padding:28px;width:600px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">',
+    '<div style="background:#fff;border-radius:16px;padding:28px;width:720px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">',
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">',
-    '<h3 style="font-size:17px;font-weight:700;margin:0;color:#111827;font-family:Inter,system-ui,sans-serif;">Admin Uploaded Report</h3>',
-    '<button id="__qsc_ar_close__" style="background:#f3f4f6;border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;line-height:1;">&times;</button>',
+    '<h3 style="font-size:17px;font-weight:700;margin:0;color:#111827;font-family:Inter,system-ui,sans-serif;">Admin Submitted Report</h3>',
+    '<button id="__qsc_ar_close__" style="background:#f3f4f6;border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;font-family:Inter,system-ui,sans-serif;line-height:1;">&times;</button>',
     '</div>',
-    '<div style="font-size:13px;color:#374151;font-family:Inter,system-ui,sans-serif;line-height:2;margin-bottom:16px;">',
-    '<strong>Title:</strong> '+escHtml(report.title||'—')+'<br/>',
-    '<strong>Class:</strong> '+escHtml(report.class||'—')+'<br/>',
-    '<strong>Term:</strong> '+escHtml(report.term||'—')+'<br/>',
-    '<strong>Uploaded:</strong> '+escHtml(dateStr)+'<br/>',
-    report.notes ? '<strong>Notes:</strong> '+escHtml(report.notes) : '',
-    '</div>',
-    '<p style="font-size:13px;color:#9ca3af;font-family:Inter,system-ui,sans-serif;">Use the "Import Results" button next to your approved score sheets to fill in student data for this report template.</p>',
-    '<div style="margin-top:16px;text-align:right;">',
-    '<button id="__qsc_ar_close2__" style="background:#f3f4f6;color:#374151;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,system-ui,sans-serif;">Close</button>',
-    '</div>',
+    '<p style="font-size:12px;color:#9ca3af;margin:0 0 14px;font-family:Inter,system-ui,sans-serif;">Submitted: '+escHtml(dateStr)+' by admin</p>',
+    fieldsHtml,
+    (report.rows.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Inter,system-ui,sans-serif;"><thead>'+headerRow+'</thead><tbody>'+bodyRows+'</tbody></table></div>' : '<p style="color:#9ca3af;font-size:14px;font-family:Inter,system-ui,sans-serif;">No table data.</p>'),
     '</div>'
   ].join('');
   document.body.appendChild(modal);
-  document.querySelector('#__qsc_ar_close__').onclick = function(){ modal.remove(); };
-  document.querySelector('#__qsc_ar_close2__').onclick = function(){ modal.remove(); };
+  modal.querySelector('#__qsc_ar_close__').onclick = function(){ modal.remove(); };
   modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
 }
 
 })();
 </script>
-
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Quality School Complex SIS</title>
