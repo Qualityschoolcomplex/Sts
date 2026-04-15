@@ -1,0 +1,210 @@
+import { useState } from "react";
+import {
+  useListResults, useListClasses, useListTerms, useListSubjects, useListClassStudents,
+  useBatchCreateResults, useDeleteResult,
+  getListResultsQueryKey, getListClassesQueryKey, getListTermsQueryKey, getListSubjectsQueryKey, getListClassStudentsQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Save, FileText } from "lucide-react";
+import { Link } from "wouter";
+
+export default function ResultsPage() {
+  const [classId, setClassId] = useState<string>("");
+  const [termId, setTermId] = useState<string>("");
+  const [subjectId, setSubjectId] = useState<string>("");
+  const [scores, setScores] = useState<Record<number, { classScore: string; examScore: string }>>({});
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: classes } = useListClasses({ query: { queryKey: getListClassesQueryKey() } });
+  const { data: terms } = useListTerms({ query: { queryKey: getListTermsQueryKey() } });
+
+  const selectedClass = classes?.find((c) => c.id === parseInt(classId));
+
+  const { data: subjects } = useListSubjects(
+    selectedClass ? { classLevel: selectedClass.level } : {},
+    { query: { enabled: !!selectedClass, queryKey: getListSubjectsQueryKey(selectedClass ? { classLevel: selectedClass.level } as any : undefined) } }
+  );
+
+  const { data: classStudents } = useListClassStudents(parseInt(classId) || 0, {
+    query: { enabled: !!classId, queryKey: getListClassStudentsQueryKey(parseInt(classId) || 0) },
+  });
+
+  const resultParams: Record<string, unknown> = {};
+  if (classId) resultParams.classId = parseInt(classId);
+  if (termId) resultParams.termId = parseInt(termId);
+  if (subjectId) resultParams.subjectId = parseInt(subjectId);
+
+  const { data: existingResults } = useListResults(resultParams, {
+    query: { enabled: !!classId && !!termId && !!subjectId, queryKey: getListResultsQueryKey(resultParams as any) },
+  });
+
+  const batchCreate = useBatchCreateResults();
+  const deleteResult = useDeleteResult();
+
+  const handleSave = async () => {
+    if (!classId || !termId || !subjectId) {
+      toast({ title: "Select class, term, and subject first", variant: "destructive" });
+      return;
+    }
+
+    const results = Object.entries(scores)
+      .filter(([_, s]) => s.classScore && s.examScore)
+      .map(([studentId, s]) => ({
+        studentId: parseInt(studentId),
+        subjectId: parseInt(subjectId),
+        classId: parseInt(classId),
+        termId: parseInt(termId),
+        classScore: parseFloat(s.classScore),
+        examScore: parseFloat(s.examScore),
+      }));
+
+    if (results.length === 0) {
+      toast({ title: "Enter scores for at least one student", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await batchCreate.mutateAsync({ data: { results } });
+      queryClient.invalidateQueries({ queryKey: getListResultsQueryKey() });
+      setScores({});
+      toast({ title: `${results.length} results saved successfully` });
+    } catch {
+      toast({ title: "Failed to save results", variant: "destructive" });
+    }
+  };
+
+  const existingMap = new Map((existingResults || []).map((r) => [r.studentId, r]));
+
+  return (
+    <div className="space-y-6" data-testid="results-page">
+      <div>
+        <h1 className="text-2xl font-bold">Results Entry</h1>
+        <p className="text-muted-foreground text-sm">Enter student scores per subject per term</p>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Select Class, Term & Subject</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Class</Label>
+              <Select value={classId} onValueChange={(v) => { setClassId(v); setSubjectId(""); setScores({}); }}>
+                <SelectTrigger data-testid="select-class"><SelectValue placeholder="Select class" /></SelectTrigger>
+                <SelectContent>
+                  {classes?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Term</Label>
+              <Select value={termId} onValueChange={(v) => { setTermId(v); setScores({}); }}>
+                <SelectTrigger data-testid="select-term"><SelectValue placeholder="Select term" /></SelectTrigger>
+                <SelectContent>
+                  {terms?.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Select value={subjectId} onValueChange={(v) => { setSubjectId(v); setScores({}); }}>
+                <SelectTrigger data-testid="select-subject"><SelectValue placeholder="Select subject" /></SelectTrigger>
+                <SelectContent>
+                  {subjects?.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {classId && termId && subjectId && classStudents && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Enter Scores (Class Score: max 30, Exam Score: max 70)</CardTitle>
+              <Button onClick={handleSave} disabled={batchCreate.isPending} data-testid="button-save-results">
+                <Save className="w-4 h-4 mr-2" /> {batchCreate.isPending ? "Saving..." : "Save Results"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">#</TableHead>
+                  <TableHead>Student Name</TableHead>
+                  <TableHead className="w-32">Class Score (30)</TableHead>
+                  <TableHead className="w-32">Exam Score (70)</TableHead>
+                  <TableHead className="w-20">Total</TableHead>
+                  <TableHead className="w-16">Grade</TableHead>
+                  <TableHead className="w-24">Report</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {classStudents.length > 0 ? classStudents.map((s, i) => {
+                  const existing = existingMap.get(s.id);
+                  const score = scores[s.id] || { classScore: "", examScore: "" };
+                  const cs = existing ? existing.classScore : (score.classScore ? parseFloat(score.classScore) : 0);
+                  const es = existing ? existing.examScore : (score.examScore ? parseFloat(score.examScore) : 0);
+                  const total = cs + es;
+
+                  return (
+                    <TableRow key={s.id} data-testid={`row-result-${s.id}`}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="font-medium">{s.lastName}, {s.firstName}</TableCell>
+                      <TableCell>
+                        {existing ? (
+                          <span className="text-sm font-medium">{existing.classScore}</span>
+                        ) : (
+                          <Input
+                            type="number" min="0" max="30" step="0.5"
+                            placeholder="0"
+                            className="w-20 h-8"
+                            value={score.classScore}
+                            onChange={(e) => setScores({ ...scores, [s.id]: { ...score, classScore: e.target.value } })}
+                            data-testid={`input-class-score-${s.id}`}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {existing ? (
+                          <span className="text-sm font-medium">{existing.examScore}</span>
+                        ) : (
+                          <Input
+                            type="number" min="0" max="70" step="0.5"
+                            placeholder="0"
+                            className="w-20 h-8"
+                            value={score.examScore}
+                            onChange={(e) => setScores({ ...scores, [s.id]: { ...score, examScore: e.target.value } })}
+                            data-testid={`input-exam-score-${s.id}`}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{existing ? existing.totalScore : (total > 0 ? total : "-")}</TableCell>
+                      <TableCell>{existing ? existing.grade : "-"}</TableCell>
+                      <TableCell>
+                        <Link href={`/reports/${s.id}/${termId}`}>
+                          <Button variant="ghost" size="sm" data-testid={`button-report-${s.id}`}><FileText className="w-4 h-4" /></Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                }) : (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No students in this class</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

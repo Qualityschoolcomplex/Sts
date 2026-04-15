@@ -1,0 +1,136 @@
+import { useState } from "react";
+import { useListUsers, useCreateUser, useDeleteUser, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Trash2 } from "lucide-react";
+
+export default function UsersManagementPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: users, isLoading } = useListUsers({ query: { queryKey: getListUsersQueryKey() } });
+  const createUser = useCreateUser();
+  const deleteUser = useDeleteUser();
+
+  const [form, setForm] = useState({ username: "", password: "", fullName: "", role: "staff" });
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createUser.mutateAsync({ data: form as any });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      setDialogOpen(false);
+      setForm({ username: "", password: "", fullName: "", role: "staff" });
+      toast({ title: "Staff account created" });
+    } catch {
+      toast({ title: "Failed to create account", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this staff account?")) return;
+    try {
+      await deleteUser.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      toast({ title: "Account deleted" });
+    } catch {
+      toast({ title: "Failed to delete account", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="users-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Staff Management</h1>
+          <p className="text-muted-foreground text-sm">Manage admin and staff accounts</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-user"><Plus className="w-4 h-4 mr-2" /> Add Staff</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Create Staff Account</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required data-testid="input-full-name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required data-testid="input-username" />
+              </div>
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required data-testid="input-password" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <SelectTrigger data-testid="select-role"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" className="w-full" disabled={createUser.isPending} data-testid="button-submit-user">
+                {createUser.isPending ? "Creating..." : "Create Account"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-16">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users && users.length > 0 ? users.map((u) => (
+                  <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
+                    <TableCell className="font-medium">{u.fullName}</TableCell>
+                    <TableCell>{u.username}</TableCell>
+                    <TableCell>
+                      <Badge variant={u.role === "admin" ? "default" : "secondary"} className="capitalize">
+                        {u.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)} data-testid={`button-delete-${u.id}`}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff accounts found</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,122 @@
+export function calculateGrade(totalScore: number): { grade: string; remarks: string } {
+  if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
+  if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
+  if (totalScore >= 60) return { grade: "3", remarks: "Good" };
+  if (totalScore >= 55) return { grade: "4", remarks: "Credit" };
+  if (totalScore >= 50) return { grade: "5", remarks: "Credit" };
+  if (totalScore >= 45) return { grade: "6", remarks: "Credit" };
+  if (totalScore >= 40) return { grade: "7", remarks: "Pass" };
+  if (totalScore >= 35) return { grade: "8", remarks: "Pass" };
+  return { grade: "9", remarks: "Fail" };
+}
+
+export const GES_SUBJECTS: Record<string, { name: string; isCore: boolean }[]> = {
+  basic_1: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+  ],
+  basic_2: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+  ],
+  basic_3: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+  ],
+  basic_4: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+    { name: "French", isCore: false },
+  ],
+  basic_5: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+    { name: "French", isCore: false },
+  ],
+  basic_6: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Natural Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Physical Education", isCore: false },
+    { name: "Information and Communication Technology", isCore: false },
+    { name: "French", isCore: false },
+  ],
+  jhs_1: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Integrated Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts and Design", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Information and Communication Technology", isCore: true },
+    { name: "French", isCore: false },
+    { name: "Physical Education", isCore: false },
+    { name: "Pre-Technical Skills", isCore: false },
+  ],
+  jhs_2: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Integrated Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts and Design", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Information and Communication Technology", isCore: true },
+    { name: "French", isCore: false },
+    { name: "Physical Education", isCore: false },
+    { name: "Pre-Technical Skills", isCore: false },
+  ],
+  jhs_3: [
+    { name: "English Language", isCore: true },
+    { name: "Mathematics", isCore: true },
+    { name: "Integrated Science", isCore: true },
+    { name: "Social Studies", isCore: true },
+    { name: "Religious and Moral Education", isCore: true },
+    { name: "Creative Arts and Design", isCore: true },
+    { name: "Ghanaian Language", isCore: true },
+    { name: "Information and Communication Technology", isCore: true },
+    { name: "French", isCore: false },
+    { name: "Physical Education", isCore: false },
+    { name: "Pre-Technical Skills", isCore: false },
+  ],
+};

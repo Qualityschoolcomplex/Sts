@@ -1,0 +1,274 @@
+import { useState } from "react";
+import { useGetStudentReport, useUpdateReportRemarks, getGetStudentReportQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Printer, Save, ArrowLeft, GraduationCap } from "lucide-react";
+import { Link } from "wouter";
+
+export default function ReportCardPage({ studentId, termId }: { studentId: string; termId: string }) {
+  const sId = parseInt(studentId);
+  const tId = parseInt(termId);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showRemarks, setShowRemarks] = useState(false);
+
+  const { data: report, isLoading } = useGetStudentReport(sId, tId, {
+    query: { enabled: !!sId && !!tId, queryKey: getGetStudentReportQueryKey(sId, tId) },
+  });
+
+  const updateRemarks = useUpdateReportRemarks();
+
+  const [remarks, setRemarks] = useState({
+    teacherRemarks: "", headteacherRemarks: "", conduct: "Good",
+    interest: "Good", attitude: "Good", totalDays: "0", daysPresent: "0",
+  });
+
+  const handleSaveRemarks = async () => {
+    try {
+      await updateRemarks.mutateAsync({
+        studentId: sId,
+        termId: tId,
+        data: {
+          teacherRemarks: remarks.teacherRemarks || undefined,
+          headteacherRemarks: remarks.headteacherRemarks || undefined,
+          conduct: remarks.conduct || undefined,
+          interest: remarks.interest || undefined,
+          attitude: remarks.attitude || undefined,
+          attendance: {
+            totalDays: parseInt(remarks.totalDays) || 0,
+            daysPresent: parseInt(remarks.daysPresent) || 0,
+          },
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getGetStudentReportQueryKey(sId, tId) });
+      setShowRemarks(false);
+      toast({ title: "Remarks saved successfully" });
+    } catch {
+      toast({ title: "Failed to save remarks", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>;
+  }
+
+  if (!report) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Report card data not available</p>
+        <Link href="/results"><Button variant="link">Go to Results</Button></Link>
+      </div>
+    );
+  }
+
+  const gradingScale = [
+    { range: "80-100", grade: "1", remark: "Excellent" },
+    { range: "70-79", grade: "2", remark: "Very Good" },
+    { range: "60-69", grade: "3", remark: "Good" },
+    { range: "55-59", grade: "4", remark: "Credit" },
+    { range: "50-54", grade: "5", remark: "Credit" },
+    { range: "45-49", grade: "6", remark: "Credit" },
+    { range: "40-44", grade: "7", remark: "Pass" },
+    { range: "35-39", grade: "8", remark: "Pass" },
+    { range: "0-34", grade: "9", remark: "Fail" },
+  ];
+
+  return (
+    <div className="space-y-4" data-testid="report-card-page">
+      <div className="flex items-center justify-between no-print">
+        <div className="flex items-center gap-4">
+          <Link href="/results"><Button variant="ghost" size="sm" data-testid="button-back"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button></Link>
+          <h1 className="text-xl font-bold">Report Card</h1>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowRemarks(!showRemarks)} data-testid="button-toggle-remarks">
+            <Save className="w-4 h-4 mr-2" /> Remarks
+          </Button>
+          <Button onClick={() => window.print()} data-testid="button-print">
+            <Printer className="w-4 h-4 mr-2" /> Print
+          </Button>
+        </div>
+      </div>
+
+      {showRemarks && (
+        <Card className="no-print">
+          <CardHeader><CardTitle className="text-base">Teacher & Headteacher Remarks</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Conduct</Label>
+                <Select value={remarks.conduct} onValueChange={(v) => setRemarks({ ...remarks, conduct: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Excellent", "Very Good", "Good", "Satisfactory", "Needs Improvement"].map((v) => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Interest</Label>
+                <Select value={remarks.interest} onValueChange={(v) => setRemarks({ ...remarks, interest: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Excellent", "Very Good", "Good", "Satisfactory", "Needs Improvement"].map((v) => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Attitude</Label>
+                <Select value={remarks.attitude} onValueChange={(v) => setRemarks({ ...remarks, attitude: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Excellent", "Very Good", "Good", "Satisfactory", "Needs Improvement"].map((v) => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Total School Days</Label>
+                <Input type="number" value={remarks.totalDays} onChange={(e) => setRemarks({ ...remarks, totalDays: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Days Present</Label>
+                <Input type="number" value={remarks.daysPresent} onChange={(e) => setRemarks({ ...remarks, daysPresent: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Class Teacher's Remarks</Label>
+              <Textarea value={remarks.teacherRemarks} onChange={(e) => setRemarks({ ...remarks, teacherRemarks: e.target.value })} placeholder="Enter teacher's remarks..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Headteacher's Remarks</Label>
+              <Textarea value={remarks.headteacherRemarks} onChange={(e) => setRemarks({ ...remarks, headteacherRemarks: e.target.value })} placeholder="Enter headteacher's remarks..." />
+            </div>
+            <Button onClick={handleSaveRemarks} disabled={updateRemarks.isPending}>
+              {updateRemarks.isPending ? "Saving..." : "Save Remarks"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="bg-white border rounded-lg p-8 max-w-4xl mx-auto print:border-0 print:shadow-none print:p-4" id="report-card">
+        <div className="text-center border-b-2 border-black pb-4 mb-6">
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center print:bg-green-700">
+              <GraduationCap className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold uppercase tracking-wide" data-testid="text-report-school-name">{report.schoolName}</h1>
+          <p className="text-sm text-gray-600 mt-1" data-testid="text-report-contact">{report.schoolContact}</p>
+          <p className="text-xs italic text-gray-500 mt-1" data-testid="text-report-motto">Motto: "{report.schoolMotto}"</p>
+          <h2 className="text-lg font-bold mt-3 uppercase">Terminal Report Card</h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-6">
+          <div className="flex gap-2"><span className="font-semibold w-32">Student Name:</span><span data-testid="text-report-student-name">{report.student.firstName} {report.student.lastName}</span></div>
+          <div className="flex gap-2"><span className="font-semibold w-32">Class:</span><span>{report.className}</span></div>
+          <div className="flex gap-2"><span className="font-semibold w-32">Gender:</span><span className="capitalize">{report.student.gender}</span></div>
+          <div className="flex gap-2"><span className="font-semibold w-32">Term:</span><span>{report.term.name}</span></div>
+          <div className="flex gap-2"><span className="font-semibold w-32">Date of Birth:</span><span>{report.student.dateOfBirth}</span></div>
+          <div className="flex gap-2"><span className="font-semibold w-32">Academic Year:</span><span>{report.term.academicYear}</span></div>
+        </div>
+
+        <table className="w-full border-collapse border border-gray-400 text-sm mb-6">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-400 px-3 py-2 text-left">Subject</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-24">Class Score (30%)</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-24">Exam Score (70%)</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-20">Total (100%)</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-16">Grade</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-24">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.results.map((r, i) => (
+              <tr key={r.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                <td className="border border-gray-400 px-3 py-1.5 font-medium">{r.subjectName}</td>
+                <td className="border border-gray-400 px-3 py-1.5 text-center">{r.classScore}</td>
+                <td className="border border-gray-400 px-3 py-1.5 text-center">{r.examScore}</td>
+                <td className="border border-gray-400 px-3 py-1.5 text-center font-bold">{r.totalScore}</td>
+                <td className="border border-gray-400 px-3 py-1.5 text-center font-bold">{r.grade}</td>
+                <td className="border border-gray-400 px-3 py-1.5 text-center text-xs">{r.remarks}</td>
+              </tr>
+            ))}
+            {report.results.length === 0 && (
+              <tr><td colSpan={6} className="border border-gray-400 px-3 py-4 text-center text-gray-500">No results recorded for this term</td></tr>
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-100 font-bold">
+              <td className="border border-gray-400 px-3 py-2">Total / Average</td>
+              <td className="border border-gray-400 px-3 py-2 text-center" colSpan={2}></td>
+              <td className="border border-gray-400 px-3 py-2 text-center">{report.totalMarks}</td>
+              <td className="border border-gray-400 px-3 py-2 text-center">{report.overallGrade}</td>
+              <td className="border border-gray-400 px-3 py-2 text-center text-xs">Avg: {report.averageScore}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div className="grid grid-cols-2 gap-6 text-sm mb-6">
+          <div className="space-y-2">
+            <div className="flex gap-2"><span className="font-semibold">Position in Class:</span><span>{report.position} out of {report.classSize}</span></div>
+            <div className="flex gap-2"><span className="font-semibold">Attendance:</span><span>{report.attendance?.daysPresent ?? 0} / {report.attendance?.totalDays ?? 0} days</span></div>
+            <div className="flex gap-2"><span className="font-semibold">Conduct:</span><span>{report.conduct || "N/A"}</span></div>
+            <div className="flex gap-2"><span className="font-semibold">Interest:</span><span>{report.interest || "N/A"}</span></div>
+            <div className="flex gap-2"><span className="font-semibold">Attitude:</span><span>{report.attitude || "N/A"}</span></div>
+          </div>
+          <div>
+            <h3 className="font-bold mb-2 text-xs uppercase text-gray-500">Grading Scale</h3>
+            <table className="w-full border-collapse border border-gray-300 text-xs">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-300 px-2 py-1">Range</th>
+                  <th className="border border-gray-300 px-2 py-1">Grade</th>
+                  <th className="border border-gray-300 px-2 py-1">Remark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gradingScale.map((g) => (
+                  <tr key={g.grade}>
+                    <td className="border border-gray-300 px-2 py-0.5 text-center">{g.range}</td>
+                    <td className="border border-gray-300 px-2 py-0.5 text-center font-bold">{g.grade}</td>
+                    <td className="border border-gray-300 px-2 py-0.5">{g.remark}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="space-y-4 text-sm border-t pt-4">
+          <div>
+            <span className="font-semibold">Class Teacher's Remarks: </span>
+            <span className="italic">{report.teacherRemarks || "___________________________"}</span>
+          </div>
+          <div>
+            <span className="font-semibold">Headteacher's Remarks: </span>
+            <span className="italic">{report.headteacherRemarks || "___________________________"}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-8 pt-8">
+            <div className="border-t border-gray-400 pt-2 text-center">
+              <p className="font-semibold">Class Teacher's Signature</p>
+            </div>
+            <div className="border-t border-gray-400 pt-2 text-center">
+              <p className="font-semibold">Headteacher's Signature & Stamp</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

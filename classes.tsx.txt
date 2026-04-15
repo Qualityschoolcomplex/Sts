@@ -1,0 +1,182 @@
+import { useState } from "react";
+import { useListClasses, useCreateClass, useDeleteClass, useListClassStudents, getListClassesQueryKey, getListClassStudentsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Trash2, Users } from "lucide-react";
+
+const levels = [
+  { value: "basic_1", label: "Basic 1" }, { value: "basic_2", label: "Basic 2" },
+  { value: "basic_3", label: "Basic 3" }, { value: "basic_4", label: "Basic 4" },
+  { value: "basic_5", label: "Basic 5" }, { value: "basic_6", label: "Basic 6" },
+  { value: "jhs_1", label: "JHS 1" }, { value: "jhs_2", label: "JHS 2" },
+  { value: "jhs_3", label: "JHS 3" },
+];
+
+const levelLabels: Record<string, string> = Object.fromEntries(levels.map((l) => [l.value, l.label]));
+
+export default function ClassesPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: classes, isLoading } = useListClasses({ query: { queryKey: getListClassesQueryKey() } });
+  const createClass = useCreateClass();
+  const deleteClass = useDeleteClass();
+
+  const { data: classStudents } = useListClassStudents(selectedClass || 0, {
+    query: { enabled: !!selectedClass, queryKey: getListClassStudentsQueryKey(selectedClass || 0) },
+  });
+
+  const [form, setForm] = useState({ name: "", level: "", section: "", teacherName: "" });
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createClass.mutateAsync({
+        data: {
+          name: form.name,
+          level: form.level as any,
+          section: form.section || undefined,
+          teacherName: form.teacherName || undefined,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getListClassesQueryKey() });
+      setDialogOpen(false);
+      setForm({ name: "", level: "", section: "", teacherName: "" });
+      toast({ title: "Class created successfully" });
+    } catch {
+      toast({ title: "Failed to create class", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this class?")) return;
+    try {
+      await deleteClass.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListClassesQueryKey() });
+      toast({ title: "Class deleted" });
+    } catch {
+      toast({ title: "Failed to delete class", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="classes-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Classes</h1>
+          <p className="text-muted-foreground text-sm">Manage classes from Basic 1 to JHS 3</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-class"><Plus className="w-4 h-4 mr-2" /> Add Class</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Create New Class</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Class Name</Label>
+                <Input placeholder="e.g. Basic 1A" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required data-testid="input-class-name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Level</Label>
+                <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
+                  <SelectTrigger data-testid="select-level"><SelectValue placeholder="Select level" /></SelectTrigger>
+                  <SelectContent>
+                    {levels.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Section (optional)</Label>
+                  <Input placeholder="e.g. A" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} data-testid="input-section" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Teacher Name</Label>
+                  <Input placeholder="Class teacher" value={form.teacherName} onChange={(e) => setForm({ ...form, teacherName: e.target.value })} data-testid="input-teacher" />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={createClass.isPending} data-testid="button-submit-class">
+                {createClass.isPending ? "Creating..." : "Create Class"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Level</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead>Students</TableHead>
+                      <TableHead className="w-24">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {classes && classes.length > 0 ? classes.map((c) => (
+                      <TableRow key={c.id} className={selectedClass === c.id ? "bg-muted/50" : ""} data-testid={`row-class-${c.id}`}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{levelLabels[c.level] || c.level}</TableCell>
+                        <TableCell>{c.teacherName || "-"}</TableCell>
+                        <TableCell>{c.studentCount}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedClass(c.id)} data-testid={`button-view-students-${c.id}`}><Users className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(c.id)} data-testid={`button-delete-${c.id}`}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No classes found. Create one to get started.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                {selectedClass ? `Students in ${classes?.find((c) => c.id === selectedClass)?.name || "Class"}` : "Select a Class"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedClass && classStudents ? (
+                classStudents.length > 0 ? (
+                  <div className="space-y-2">
+                    {classStudents.map((s, i) => (
+                      <div key={s.id} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" data-testid={`row-class-student-${s.id}`}>
+                        <span className="text-muted-foreground w-6">{i + 1}.</span>
+                        <span className="font-medium">{s.lastName}, {s.firstName}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-muted-foreground">No students in this class</p>
+              ) : <p className="text-sm text-muted-foreground">Click the students icon on a class to view its students</p>}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,122 @@
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import {
+  LayoutDashboard,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Calendar,
+  ClipboardList,
+  FileText,
+  UserCog,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import type { ReactNode } from "react";
+
+const navItems = [
+  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/students", label: "Students", icon: Users },
+  { path: "/classes", label: "Classes", icon: GraduationCap },
+  { path: "/terms", label: "Terms", icon: Calendar },
+  { path: "/subjects", label: "Subjects", icon: BookOpen },
+  { path: "/results", label: "Results", icon: ClipboardList },
+  { path: "/users", label: "Staff", icon: UserCog, adminOnly: true },
+];
+
+export default function Layout({ children }: { children: ReactNode }) {
+  const { user, logout } = useAuth();
+  const [location] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const filteredNav = navItems.filter(
+    (item) => !item.adminOnly || user?.role === "admin"
+  );
+
+  return (
+    <div className="min-h-screen flex bg-background">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-200 lg:translate-x-0 lg:static ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-sidebar-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-bold text-sm leading-tight" data-testid="text-sidebar-title">QUALITY SCHOOL</h1>
+                <p className="text-xs text-sidebar-foreground/70">COMPLEX</p>
+              </div>
+            </div>
+            <button
+              className="lg:hidden absolute top-4 right-4 text-sidebar-foreground"
+              onClick={() => setSidebarOpen(false)}
+              data-testid="button-close-sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <nav className="flex-1 p-3 space-y-1">
+            {filteredNav.map((item) => {
+              const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
+              return (
+                <Link key={item.path} href={item.path}>
+                  <div
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                    }`}
+                    data-testid={`link-nav-${item.label.toLowerCase()}`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </div>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="p-3 border-t border-sidebar-border">
+            <div className="px-3 py-2 mb-2">
+              <p className="text-sm font-medium" data-testid="text-user-name">{user?.fullName}</p>
+              <p className="text-xs text-sidebar-foreground/60 capitalize" data-testid="text-user-role">{user?.role}</p>
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-sidebar-foreground/80 hover:bg-sidebar-accent/50 transition-colors"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 min-h-screen">
+        <header className="lg:hidden border-b bg-card p-4 flex items-center gap-3 no-print">
+          <button onClick={() => setSidebarOpen(true)} data-testid="button-open-sidebar">
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="font-bold text-sm">QUALITY SCHOOL COMPLEX</h1>
+        </header>
+        <div className="p-4 lg:p-6">{children}</div>
+      </main>
+    </div>
+  );
+}

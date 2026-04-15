@@ -1,0 +1,174 @@
+import { useState } from "react";
+import { useListTerms, useCreateTerm, useUpdateTerm, getListTermsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, CheckCircle } from "lucide-react";
+
+export default function TermsPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: terms, isLoading } = useListTerms({ query: { queryKey: getListTermsQueryKey() } });
+  const createTerm = useCreateTerm();
+  const updateTerm = useUpdateTerm();
+
+  const [form, setForm] = useState({
+    name: "", academicYear: "", termNumber: "1", startDate: "", endDate: "", isActive: false,
+  });
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createTerm.mutateAsync({
+        data: {
+          name: form.name,
+          academicYear: form.academicYear,
+          termNumber: parseInt(form.termNumber) as 1 | 2 | 3,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          isActive: form.isActive,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getListTermsQueryKey() });
+      setDialogOpen(false);
+      setForm({ name: "", academicYear: "", termNumber: "1", startDate: "", endDate: "", isActive: false });
+      toast({ title: "Term created successfully" });
+    } catch {
+      toast({ title: "Failed to create term", variant: "destructive" });
+    }
+  };
+
+  const handleSetActive = async (id: number) => {
+    try {
+      await updateTerm.mutateAsync({ id, data: { isActive: true } });
+      queryClient.invalidateQueries({ queryKey: getListTermsQueryKey() });
+      toast({ title: "Term set as active" });
+    } catch {
+      toast({ title: "Failed to update term", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="terms-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Academic Terms</h1>
+          <p className="text-muted-foreground text-sm">Manage terms and set the active term</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-term"><Plus className="w-4 h-4 mr-2" /> Add Term</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Create New Term</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Term Name</Label>
+                <Input placeholder="e.g. Term 1 2025/2026" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required data-testid="input-term-name" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Academic Year</Label>
+                  <Input placeholder="e.g. 2025/2026" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} required data-testid="input-academic-year" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Term Number</Label>
+                  <Select value={form.termNumber} onValueChange={(v) => setForm({ ...form, termNumber: v })}>
+                    <SelectTrigger data-testid="select-term-number"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Term 1</SelectItem>
+                      <SelectItem value="2">Term 2</SelectItem>
+                      <SelectItem value="3">Term 3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required data-testid="input-start-date" />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} required data-testid="input-end-date" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                  className="rounded"
+                  data-testid="checkbox-active"
+                />
+                <Label htmlFor="isActive">Set as active term</Label>
+              </div>
+              <Button type="submit" className="w-full" disabled={createTerm.isPending} data-testid="button-submit-term">
+                {createTerm.isPending ? "Creating..." : "Create Term"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Academic Year</TableHead>
+                  <TableHead>Term</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {terms && terms.length > 0 ? terms.map((t) => (
+                  <TableRow key={t.id} data-testid={`row-term-${t.id}`}>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell>{t.academicYear}</TableCell>
+                    <TableCell>Term {t.termNumber}</TableCell>
+                    <TableCell>{t.startDate}</TableCell>
+                    <TableCell>{t.endDate}</TableCell>
+                    <TableCell>
+                      {t.isActive ? (
+                        <Badge className="bg-primary/10 text-primary border-0">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary">Inactive</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {!t.isActive && (
+                        <Button variant="ghost" size="sm" onClick={() => handleSetActive(t.id)} data-testid={`button-activate-${t.id}`}>
+                          <CheckCircle className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No terms found. Create one to get started.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

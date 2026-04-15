@@ -1,0 +1,199 @@
+import { useState } from "react";
+import { useListStudents, useCreateStudent, useDeleteStudent, useListClasses, getListStudentsQueryKey, getListClassesQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Search, Trash2, Eye } from "lucide-react";
+import { Link } from "wouter";
+
+export default function StudentsPage() {
+  const [search, setSearch] = useState("");
+  const [classFilter, setClassFilter] = useState<string>("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const params: Record<string, unknown> = {};
+  if (search) params.search = search;
+  if (classFilter && classFilter !== "all") params.classId = parseInt(classFilter);
+
+  const { data: students, isLoading } = useListStudents(params, { query: { queryKey: getListStudentsQueryKey(params as any) } });
+  const { data: classes } = useListClasses({ query: { queryKey: getListClassesQueryKey() } });
+  const createStudent = useCreateStudent();
+  const deleteStudent = useDeleteStudent();
+
+  const [form, setForm] = useState({
+    firstName: "", lastName: "", dateOfBirth: "", gender: "male",
+    guardianName: "", guardianPhone: "", address: "", classId: "",
+  });
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createStudent.mutateAsync({
+        data: {
+          ...form,
+          classId: form.classId ? parseInt(form.classId) : undefined,
+        } as any,
+      });
+      queryClient.invalidateQueries({ queryKey: getListStudentsQueryKey() });
+      setDialogOpen(false);
+      setForm({ firstName: "", lastName: "", dateOfBirth: "", gender: "male", guardianName: "", guardianPhone: "", address: "", classId: "" });
+      toast({ title: "Student enrolled successfully" });
+    } catch {
+      toast({ title: "Failed to enroll student", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this student?")) return;
+    try {
+      await deleteStudent.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListStudentsQueryKey() });
+      toast({ title: "Student deleted" });
+    } catch {
+      toast({ title: "Failed to delete student", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="students-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Students</h1>
+          <p className="text-muted-foreground text-sm">Manage student enrollment and profiles</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-student"><Plus className="w-4 h-4 mr-2" /> Enroll Student</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Enroll New Student</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>First Name</Label>
+                  <Input data-testid="input-first-name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name</Label>
+                  <Input data-testid="input-last-name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date of Birth</Label>
+                  <Input type="date" data-testid="input-dob" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gender</Label>
+                  <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                    <SelectTrigger data-testid="select-gender"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Guardian Name</Label>
+                <Input data-testid="input-guardian-name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Guardian Phone</Label>
+                  <Input data-testid="input-guardian-phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Class</Label>
+                  <Select value={form.classId} onValueChange={(v) => setForm({ ...form, classId: v })}>
+                    <SelectTrigger data-testid="select-class"><SelectValue placeholder="Select class" /></SelectTrigger>
+                    <SelectContent>
+                      {classes?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input data-testid="input-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+              </div>
+              <Button type="submit" className="w-full" disabled={createStudent.isPending} data-testid="button-submit-student">
+                {createStudent.isPending ? "Enrolling..." : "Enroll Student"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search students..."
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            data-testid="input-search-students"
+          />
+        </div>
+        <Select value={classFilter} onValueChange={setClassFilter}>
+          <SelectTrigger className="w-48" data-testid="select-filter-class"><SelectValue placeholder="All Classes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Classes</SelectItem>
+            {classes?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Gender</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Guardian</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {students && students.length > 0 ? students.map((s) => (
+                  <TableRow key={s.id} data-testid={`row-student-${s.id}`}>
+                    <TableCell className="font-medium">{s.firstName} {s.lastName}</TableCell>
+                    <TableCell className="capitalize">{s.gender}</TableCell>
+                    <TableCell>{s.className || "Unassigned"}</TableCell>
+                    <TableCell>{s.guardianName}</TableCell>
+                    <TableCell>{s.guardianPhone}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Link href={`/students/${s.id}`}>
+                          <Button variant="ghost" size="sm" data-testid={`button-view-${s.id}`}><Eye className="w-4 h-4" /></Button>
+                        </Link>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(s.id)} data-testid={`button-delete-${s.id}`}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No students found</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

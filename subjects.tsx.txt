@@ -1,0 +1,106 @@
+import { useState } from "react";
+import { useListSubjects, useSeedSubjects, getListSubjectsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { BookOpen, Sparkles } from "lucide-react";
+
+const levels = [
+  { value: "basic_1", label: "Basic 1" }, { value: "basic_2", label: "Basic 2" },
+  { value: "basic_3", label: "Basic 3" }, { value: "basic_4", label: "Basic 4" },
+  { value: "basic_5", label: "Basic 5" }, { value: "basic_6", label: "Basic 6" },
+  { value: "jhs_1", label: "JHS 1" }, { value: "jhs_2", label: "JHS 2" },
+  { value: "jhs_3", label: "JHS 3" },
+];
+
+const levelLabels: Record<string, string> = Object.fromEntries(levels.map((l) => [l.value, l.label]));
+
+export default function SubjectsPage() {
+  const [levelFilter, setLevelFilter] = useState<string>("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const params: Record<string, string> = {};
+  if (levelFilter && levelFilter !== "all") params.classLevel = levelFilter;
+
+  const { data: subjects, isLoading } = useListSubjects(params, { query: { queryKey: getListSubjectsQueryKey(params as any) } });
+  const seedSubjects = useSeedSubjects();
+
+  const handleSeed = async () => {
+    try {
+      const result = await seedSubjects.mutateAsync();
+      queryClient.invalidateQueries({ queryKey: getListSubjectsQueryKey() });
+      toast({ title: `GES curriculum seeded: ${(result as any).count} subjects added` });
+    } catch {
+      toast({ title: "Failed to seed subjects", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="subjects-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Subjects</h1>
+          <p className="text-muted-foreground text-sm">GES Curriculum subjects by class level</p>
+        </div>
+        <Button onClick={handleSeed} disabled={seedSubjects.isPending} variant="secondary" data-testid="button-seed-subjects">
+          <Sparkles className="w-4 h-4 mr-2" /> {seedSubjects.isPending ? "Seeding..." : "Seed GES Subjects"}
+        </Button>
+      </div>
+
+      <div className="flex gap-3">
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-48" data-testid="select-filter-level"><SelectValue placeholder="All Levels" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {levels.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+          ) : subjects && subjects.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Class Level</TableHead>
+                  <TableHead>Type</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subjects.map((s) => (
+                  <TableRow key={s.id} data-testid={`row-subject-${s.id}`}>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-muted-foreground" /> {s.name}
+                    </TableCell>
+                    <TableCell>{levelLabels[s.classLevel] || s.classLevel}</TableCell>
+                    <TableCell>
+                      {s.isCore ? (
+                        <Badge className="bg-primary/10 text-primary border-0">Core</Badge>
+                      ) : (
+                        <Badge variant="secondary">Elective</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-12">
+              <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">No subjects found. Click "Seed GES Subjects" to auto-generate the curriculum.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

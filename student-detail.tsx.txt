@@ -1,0 +1,136 @@
+import { useState, useEffect } from "react";
+import { useGetStudent, useUpdateStudent, useListClasses, getGetStudentQueryKey, getListClassesQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Save } from "lucide-react";
+import { Link } from "wouter";
+
+export default function StudentDetailPage({ id }: { id: string }) {
+  const studentId = parseInt(id);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: student, isLoading } = useGetStudent(studentId, { query: { enabled: !!studentId, queryKey: getGetStudentQueryKey(studentId) } });
+  const { data: classes } = useListClasses({ query: { queryKey: getListClassesQueryKey() } });
+  const updateStudent = useUpdateStudent();
+
+  const [form, setForm] = useState({
+    firstName: "", lastName: "", dateOfBirth: "", gender: "male",
+    guardianName: "", guardianPhone: "", address: "", classId: "",
+  });
+
+  useEffect(() => {
+    if (student) {
+      setForm({
+        firstName: student.firstName,
+        lastName: student.lastName,
+        dateOfBirth: student.dateOfBirth,
+        gender: student.gender,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
+        address: student.address,
+        classId: student.classId ? String(student.classId) : "",
+      });
+    }
+  }, [student]);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateStudent.mutateAsync({
+        id: studentId,
+        data: {
+          ...form,
+          classId: form.classId ? parseInt(form.classId) : null,
+        } as any,
+      });
+      queryClient.invalidateQueries({ queryKey: getGetStudentQueryKey(studentId) });
+      toast({ title: "Student updated successfully" });
+    } catch {
+      toast({ title: "Failed to update student", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl" data-testid="student-detail-page">
+      <div className="flex items-center gap-4">
+        <Link href="/students">
+          <Button variant="ghost" size="sm" data-testid="button-back"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold">{student?.firstName} {student?.lastName}</h1>
+          <p className="text-muted-foreground text-sm">Student Profile</p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle>Edit Student Information</CardTitle></CardHeader>
+        <CardContent>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required data-testid="input-first-name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required data-testid="input-last-name" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date of Birth</Label>
+                <Input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} required data-testid="input-dob" />
+              </div>
+              <div className="space-y-2">
+                <Label>Gender</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                  <SelectTrigger data-testid="select-gender"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Guardian Name</Label>
+              <Input value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} required data-testid="input-guardian-name" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Guardian Phone</Label>
+                <Input value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} required data-testid="input-guardian-phone" />
+              </div>
+              <div className="space-y-2">
+                <Label>Class</Label>
+                <Select value={form.classId} onValueChange={(v) => setForm({ ...form, classId: v })}>
+                  <SelectTrigger data-testid="select-class"><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    {classes?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required data-testid="input-address" />
+            </div>
+            <Button type="submit" disabled={updateStudent.isPending} data-testid="button-save">
+              <Save className="w-4 h-4 mr-2" /> {updateStudent.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
