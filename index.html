@@ -2,317 +2,286 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quality School Complex — GES Management System</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --green:#16613a;--green-d:#0f4528;--green-l:#e6f4ec;--green-mid:#1e7d4b;
+  --green:#16613a;--green-d:#0f4528;--green-l:#e6f4ec;
   --gold:#b8760f;--gold-l:#fef5e4;--gold-d:#8a5a0a;
-  --red:#b52b2b;--red-l:#fdf0f0;
-  --blue:#1a5fa8;--blue-l:#eaf2fb;
+  --red:#a32d2d;--red-l:#fcebeb;
+  --blue:#185fa5;--blue-l:#e6f1fb;
   --bg:#f4f6f8;--bg2:#eef0f3;--white:#fff;
-  --border:#dde1e7;--border2:#c8cdd5;
-  --text:#1a1e26;--muted:#6b7280;--light:#9ca3af;
-  --radius:10px;--radius-lg:14px;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --border:#dde1e7;--text:#1a1e26;--muted:#6b7280;--light:#9ca3af;
+  --radius:8px;--rad-lg:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 14px rgba(0,0,0,.05);
   --shadow-lg:0 4px 24px rgba(0,0,0,.12);
 }
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
-h1,h2,h3,.display{font-family:'Playfair Display',Georgia,serif}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
 .hidden{display:none!important}
-button{cursor:pointer;font-family:'DM Sans',sans-serif}
-
-/* ─── TOAST ─── */
-#toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;min-width:240px;animation:slideIn .3s ease;pointer-events:auto}
-.toast-success{border-left:4px solid var(--green);color:var(--green)}
-.toast-error{border-left:4px solid var(--red);color:var(--red)}
-.toast-info{border-left:4px solid var(--blue);color:var(--blue)}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes fadeOut{to{opacity:0;transform:translateX(100%)}}
-
-/* ─── BUTTONS ─── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:none;border-radius:8px;font-size:13px;font-weight:500;transition:all .18s;white-space:nowrap}
-.btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:var(--green-d)}
-.btn-secondary{background:var(--white);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--bg)}
-.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.88}
-.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:var(--gold-d)}
-.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.88}
-.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px}
-.btn-xs{padding:3px 8px;font-size:11px;border-radius:5px}
-.btn-icon{padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--muted)}.btn-icon:hover{background:var(--bg2)}
-
-/* ─── FORMS ─── */
-input,select,textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text);transition:border .15s}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:13px;width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--white);color:var(--text);transition:border .15s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
-input[type=number]{-moz-appearance:textfield}
-label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
-.form-group{margin-bottom:14px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+label{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.fg{margin-bottom:12px}
+.gr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 
-/* ─── CARDS ─── */
-.card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:22px}
-.card-title{font-size:15px;font-weight:600;margin-bottom:4px}
-.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:500;background:var(--white);color:var(--text);transition:.15s;white-space:nowrap}
+.btn:hover{background:var(--bg2)}
+.btn-g{background:var(--green);color:#fff;border-color:var(--green)}.btn-g:hover{background:var(--green-d)}
+.btn-d{background:var(--red);color:#fff;border-color:var(--red)}.btn-d:hover{opacity:.88}
+.btn-o{background:var(--gold);color:#fff;border-color:var(--gold)}.btn-o:hover{background:var(--gold-d)}
+.btn-b{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-b:hover{opacity:.88}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+.btn-xs{padding:3px 8px;font-size:10px;border-radius:5px}
 
-/* ─── BADGES ─── */
-.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px}
-.badge-green{background:var(--green-l);color:var(--green)}
-.badge-red{background:var(--red-l);color:var(--red)}
-.badge-gold{background:var(--gold-l);color:var(--gold)}
-.badge-blue{background:var(--blue-l);color:var(--blue)}
-.badge-gray{background:var(--bg2);color:var(--muted)}
+/* BADGES */
+.bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.bg-g{background:var(--green-l);color:var(--green)}.bg-r{background:var(--red-l);color:var(--red)}
+.bg-o{background:var(--gold-l);color:var(--gold)}.bg-b{background:var(--blue-l);color:var(--blue)}
+.bg-grey{background:var(--bg2);color:var(--muted)}
 
-/* ─── TABLES ─── */
-.table-wrap{overflow-x:auto;border-radius:var(--radius-lg)}
-table{width:100%;border-collapse:collapse}
-th{background:var(--bg);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:11px 13px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
-td{padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tbody tr:hover td{background:#f9fafc}
-
-/* ─── MODAL ─── */
-.modal-overlay{position:fixed;inset:0;background:rgba(10,20,30,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
-.modal{background:var(--white);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
-.modal-lg{max-width:800px}
-.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
-.modal-title{font-size:17px;font-weight:700}
-.close-x{background:var(--bg);border:none;border-radius:7px;width:30px;height:30px;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--muted)}.close-x:hover{background:var(--bg2)}
-
-/* ─── STAT CARDS ─── */
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
-.stat-card{background:var(--white);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow)}
-.stat-num{font-size:26px;font-weight:700;line-height:1}
-.stat-lbl{font-size:11px;color:var(--muted);font-weight:600;margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
-.stat-icon{font-size:22px;margin-bottom:10px}
-
-/* ─── LAYOUT ─── */
+/* LAYOUT */
 #app{display:flex;min-height:100vh}
-.sidebar{width:230px;background:var(--green);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.sb-logo{padding:22px 18px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
-.sb-emblem{width:42px;height:42px;background:var(--gold);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;font-size:16px;color:#fff;margin-bottom:10px}
-.sb-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:#fff;line-height:1.3}
-.sb-role{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;text-transform:uppercase;letter-spacing:.8px}
-.sb-nav{flex:1;padding:10px 0;overflow-y:auto}
-.sb-section{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:13px;font-weight:500;color:rgba(255,255,255,.75);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
-.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
-.nav-item.active{background:rgba(255,255,255,.14);color:#fff;border-left-color:var(--gold)}
-.nav-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 26px;height:58px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-shrink:0}
-.topbar-left{display:flex;align-items:center;gap:10px}
-.page-title{font-size:16px;font-weight:600}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.term-badge{background:var(--gold-l);color:var(--gold);font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid #e8c87a}
-.user-chip{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 12px 5px 5px}
-.user-av{width:28px;height:28px;border-radius:7px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Playfair Display',serif}
-.user-name{font-size:12px;font-weight:500}
-.logout-btn{background:var(--red-l);color:var(--red);border:1px solid #f5b8b8;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600}.logout-btn:hover{background:var(--red);color:#fff}
-.content{flex:1;padding:26px;overflow-y:auto}
+.sb{width:212px;background:var(--green);flex-shrink:0;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh}
+.sb-top{padding:16px 14px 12px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sb-logo{width:38px;height:38px;background:var(--gold);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;margin-bottom:8px;overflow:hidden}
+.sb-logo img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+.sb-school{font-size:12px;font-weight:700;color:#fff;line-height:1.3}
+.sb-role{font-size:10px;color:rgba(255,255,255,.5);margin-top:2px;text-transform:uppercase;letter-spacing:.6px}
+.sb-nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-sec{font-size:9px;font-weight:700;color:rgba(255,255,255,.35);padding:10px 14px 3px;text-transform:uppercase;letter-spacing:1px}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12px;font-weight:500;color:rgba(255,255,255,.75);cursor:pointer;transition:.15s;border-left:3px solid transparent}
+.ni:hover{background:rgba(255,255,255,.08);color:#fff}
+.ni.active{background:rgba(255,255,255,.14);color:#fff;border-left-color:var(--gold)}
+.ni-ico{width:16px;text-align:center;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1.5px solid var(--border);padding:0 22px;height:52px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+.pg-title{font-size:14px;font-weight:700}
+.top-r{display:flex;align-items:center;gap:8px}
+.term-chip{background:var(--gold-l);color:var(--gold);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid #e8c87a}
+.usr-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:4px 10px 4px 5px;font-size:12px}
+.usr-av{width:26px;height:26px;border-radius:6px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.logout{background:var(--red-l);color:var(--red);border:1px solid #f5b8b8;border-radius:var(--radius);padding:5px 12px;font-size:11px;font-weight:600}
+.logout:hover{background:var(--red);color:#fff}
+.cnt{flex:1;padding:22px;overflow-y:auto}
 
-/* ─── SECTION HEADER ─── */
-.sec-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
-.sec-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text)}
-.sec-sub{font-size:13px;color:var(--muted);margin-top:2px}
+/* CARD */
+.card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--rad-lg);padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.ct{font-size:14px;font-weight:600;margin-bottom:3px}
+.cs{font-size:11px;color:var(--muted);margin-bottom:14px}
 
-/* ─── SEARCH BAR ─── */
-.search-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.search-row input,.search-row select{flex:0 0 auto;width:auto}
-.search-row input{min-width:200px}
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--white);border:1.5px solid var(--border);border-radius:var(--rad-lg);padding:14px 16px;box-shadow:var(--shadow)}
+.stat-n{font-size:24px;font-weight:700;line-height:1}
+.stat-l{font-size:10px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
 
-/* ─── TABS ─── */
-.tab-bar{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px}
-.tab{padding:9px 18px;border:none;background:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+/* TABLE */
+.tw{overflow-x:auto;border-radius:var(--rad-lg)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg);font-weight:600;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--bg)}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(10,20,30,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.mb{background:var(--white);border:1.5px solid var(--border);border-radius:var(--rad-lg);padding:22px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.mb.lg{max-width:780px}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.mt{font-size:15px;font-weight:700}
+.mx{background:var(--bg);border:1.5px solid var(--border);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--muted);line-height:1}
+.mx:hover{background:var(--bg2)}
+
+/* TOAST */
+#toasts{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px;min-width:220px;box-shadow:var(--shadow-lg);pointer-events:auto;animation:tin .25s ease}
+.t-ok{border-left:4px solid var(--green);color:var(--green)}
+.t-er{border-left:4px solid var(--red);color:var(--red)}
+.t-inf{border-left:4px solid var(--blue);color:var(--blue)}
+@keyframes tin{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
+@keyframes tout{to{transform:translateX(80px);opacity:0}}
+
+/* LOGIN */
+#login{min-height:100vh;background:linear-gradient(145deg,#0f4528,#16613a,#1e7d4b);display:flex;align-items:center;justify-content:center;padding:20px}
+.lb{background:var(--white);border-radius:16px;padding:36px;width:100%;max-width:380px;border:1.5px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.le{width:70px;height:70px;background:linear-gradient(135deg,var(--green),#1e7d4b);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:30px;overflow:hidden}
+.le img{width:100%;height:100%;object-fit:cover;border-radius:18px}
+.ls{font-size:14px;font-weight:700;color:var(--green);text-align:center;line-height:1.3}
+.lt{font-size:11px;color:var(--muted);text-align:center;margin-top:3px;margin-bottom:24px}
+
+/* TABS */
+.tab-bar{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab{padding:8px 16px;border:none;background:none;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
 .tab:hover{color:var(--text)}
-.tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:600}
+.tab.a{color:var(--green);border-bottom-color:var(--green);font-weight:600}
 
-/* ─── LOGIN ─── */
-#login-page{min-height:100vh;background:linear-gradient(145deg,var(--green-d) 0%,var(--green) 45%,var(--green-mid) 100%);display:flex;align-items:center;justify-content:center;padding:20px;position:relative;overflow:hidden}
-#login-page::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
-.login-box{background:var(--white);border-radius:18px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.35);position:relative;z-index:1}
-.login-emblem{width:76px;height:76px;background:linear-gradient(135deg,var(--green),var(--green-mid));border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;box-shadow:0 8px 24px rgba(22,97,58,.35)}
-.login-school-name{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--green);text-align:center;line-height:1.3}
-.login-tagline{font-size:11px;color:var(--muted);text-align:center;margin-top:3px;margin-bottom:28px}
-.login-divider{height:1px;background:var(--border);margin:16px 0}
+/* SECTION HEADER */
+.sh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.st{font-size:18px;font-weight:700;margin-bottom:2px}
+.ss{font-size:12px;color:var(--muted)}
 
-/* ─── GRADES ─── */
-.g-A{color:#16613a;font-weight:700}.g-B{color:#1a5fa8;font-weight:700}.g-C{color:#b8760f;font-weight:700}.g-D{color:#b52b2b;font-weight:700}.g-F{color:#7f1d1d;font-weight:700}
+/* GRADES */
+.gA{color:var(--green);font-weight:700}.gB{color:var(--blue);font-weight:700}.gC{color:var(--gold);font-weight:700}.gD{color:var(--red);font-weight:700}.gF{color:#7f1d1d;font-weight:700}
 
-/* ─── REPORT CARD PRINT ─── */
+/* PROGRESS BAR */
+.pbar{height:6px;background:var(--bg2);border-radius:10px;overflow:hidden;margin-top:3px}
+.pfill{height:100%;border-radius:10px;background:var(--green);transition:width .3s}
+
+/* ===== REPORT CARD PRINT STYLES ===== */
 @media print{
   body>*{display:none!important}
-  #print-area{display:block!important;margin:0;padding:0}
-  .rc-print-actions{display:none!important}
-  @page{margin:12mm;size:A4 portrait}
+  #pa{display:block!important;margin:0;padding:0}
+  @page{margin:10mm;size:A4 portrait}
 }
-#print-area{display:none}
-.rc-wrap{font-family:'DM Sans',sans-serif;background:#fff;max-width:720px;margin:0 auto;border:1px solid #ccc}
-.rc-hdr{background:#fff;padding:18px 20px 12px;border-bottom:3px solid var(--green);display:flex;align-items:center;gap:16px}
-.rc-crest{width:72px;height:72px;flex-shrink:0;border-radius:50%;border:3px solid var(--gold);background:var(--green);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
-.rc-crest-img{width:72px;height:72px;flex-shrink:0;border-radius:50%;border:3px solid var(--gold);object-fit:cover}
-.rc-school-name{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--green)}
-.rc-contact-info{font-size:11px;color:var(--muted);margin-top:3px}
-.rc-doc-title{background:var(--green);color:#fff;text-align:center;padding:7px;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
-.rc-info-bar{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #ddd;background:#f9f9f9}
-.rc-info-cell{padding:9px 12px;border-right:1px solid #ddd}
-.rc-info-cell:last-child{border-right:none}
-.rc-info-cell .lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.rc-info-cell .val{font-size:12px;font-weight:600;margin-top:2px}
-.rc-body{padding:0 16px 16px}
-.rc-sub-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
-.rc-sub-table th{background:var(--green);color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
-.rc-sub-table td{padding:7px 10px;border-bottom:1px solid #eee}
-.rc-sub-table tr:nth-child(even) td{background:#f7f9f7}
-.rc-summary-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
-.rc-box{border:1px solid #ddd;border-radius:8px;padding:12px;font-size:12px}
-.rc-box h4{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:8px;letter-spacing:.5px}
-.rc-box table{font-size:11px}
-.rc-box td{padding:3px 0;border:none}
-.rc-remarks-sec{margin:10px 0;padding:10px 12px;background:#f9f9f9;border-radius:8px;font-size:12px}
-.rc-remarks-sec h4{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:8px}
-.conduct-line{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px}
-.conduct-write-line{flex:1;border-bottom:1.5px solid #333;margin-left:12px;min-width:120px;height:18px}
-.rc-remark-text{font-style:italic;padding:8px 10px;background:#fff;border:1px solid #ddd;border-radius:6px;margin-top:6px;font-size:12px;line-height:1.6}
-.rc-sig-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:12px 0 4px}
-.rc-sig-item .sig-line{border-top:1.5px solid #333;margin-top:28px;padding-top:4px;font-size:10px;color:var(--muted);text-align:center}
-.rc-footer{background:var(--green);color:#fff;text-align:center;padding:7px;font-size:10px;letter-spacing:.3px}
-.rc-dates-section{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 0;font-size:12px}
-.rc-date-item{padding:8px 12px;background:#f9f9f9;border-radius:6px;border-left:3px solid var(--green)}
-.rc-date-item .lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--green)}
-.rc-date-item .val{font-size:13px;font-weight:600;margin-top:3px}
-.rc-fee-box{padding:8px 12px;background:var(--gold-l);border-radius:6px;border-left:3px solid var(--gold);font-size:12px;margin:8px 0}
-.rc-fee-box .lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gold)}
+#pa{display:none}
 
-/* ─── PROGRESS BAR ─── */
-.progress-bar{height:8px;background:var(--border);border-radius:20px;overflow:hidden}
-.progress-fill{height:100%;border-radius:20px;background:var(--green);transition:width .4s}
+/* Report card wrapper */
+.rcp{font-family:'Segoe UI',Arial,sans-serif;background:#fff;border:1px solid #bbb;max-width:740px;margin:0 auto}
+.rcp-hdr{display:flex;align-items:center;gap:14px;padding:14px 16px 10px;border-bottom:3px solid #16613a}
+.rcp-crest{width:68px;height:68px;flex-shrink:0;border-radius:50%;border:2px solid #b8760f;background:#16613a;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;overflow:hidden}
+.rcp-crest img{width:100%;height:100%;object-fit:cover}
+.rcp-sn{font-size:17px;font-weight:700;color:#16613a}
+.rcp-ci{font-size:10px;color:#666;margin-top:2px}
+.rcp-dtitle{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.rcp-ib{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #ddd;background:#f9f9f9}
+.rcp-ic{padding:8px 11px;border-right:1px solid #ddd}.rcp-ic:last-child{border-right:none}
+.rcp-ic .lb2{font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.4px}
+.rcp-ic .vl{font-size:11px;font-weight:600;margin-top:2px}
+.rcp-body{padding:0 14px 14px}
+.rcp-st{width:100%;border-collapse:collapse;margin:10px 0;font-size:11px}
+.rcp-st th{background:#16613a;color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+.rcp-st td{padding:6px 8px;border-bottom:1px solid #eee}
+.rcp-st tr:nth-child(even) td{background:#f7f9f7}
+.rc-sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.rc-bx{border:1px solid #ddd;border-radius:6px;padding:10px;font-size:11px}
+.rc-bx h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:7px;letter-spacing:.5px}
+.rc-bx table{width:100%;font-size:11px}
+.rc-bx td{padding:2px 0;border:none}
+.rc-fee{padding:7px 10px;background:#fef5e4;border-left:3px solid #b8760f;border-radius:5px;font-size:11px;margin:8px 0}
+.rc-fee .lb2{font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px}
+.cond-sec{background:#f9f9f9;border-radius:6px;padding:9px 11px;margin:8px 0;font-size:11px}
+.cond-sec h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:6px}
+.cond-line{display:flex;align-items:flex-end;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:11px}
+.cond-wr{flex:1;border-bottom:1.5px solid #333;margin-left:10px;height:16px}
+.rc-dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 0;font-size:11px}
+.rc-di{padding:7px 10px;background:#f9f9f9;border-radius:5px;border-left:3px solid #16613a}
+.rc-di .lb2{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a}
+.rc-di .vl{font-size:12px;font-weight:600;margin-top:2px}
+.rc-rem{background:#f9f9f9;border-radius:6px;padding:9px 11px;margin:8px 0;font-size:11px}
+.rc-rem h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:5px}
+.rm-txt{font-style:italic;padding:7px 9px;background:#fff;border:1px solid #ddd;border-radius:5px;font-size:11px;line-height:1.55;margin-top:5px}
+.rc-sig{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:10px 0 4px}
+.rc-sig .sl{border-top:1.5px solid #333;margin-top:24px;padding-top:4px;font-size:9px;color:#666;text-align:center}
+.rc-foot{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:9px;letter-spacing:.3px}
 
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
-::-webkit-scrollbar-track{background:transparent}
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:40px;color:var(--muted)}
+.spinner{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SAVED REPORTS list */
+.saved-rc-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px}
+.saved-rc-item:last-child{border-bottom:none}
+.saved-rc-item:hover{background:var(--bg)}
+.saved-rc-meta{font-size:11px;color:var(--muted);margin-top:2px}
 
 @media(max-width:768px){
-  .sidebar{width:200px}
+  .sb{width:190px}
   .stat-grid{grid-template-columns:1fr 1fr}
-  .form-row3{grid-template-columns:1fr 1fr}
+  .gr3{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
 <body>
+<div id="toasts"></div>
+<div id="pa"></div>
 
-<div id="toast-container"></div>
-<div id="print-area"></div>
-
-<!-- ═══════════════ LOGIN ═══════════════ -->
-<div id="login-page">
-  <div class="login-box">
-    <div class="login-emblem" id="login-logo-display">🎓</div>
-    <div class="login-school-name" id="login-school-display">QUALITY SCHOOL COMPLEX</div>
-    <div class="login-tagline">Academic Excellence & Character Development</div>
-    <div class="login-divider"></div>
-    <div id="login-alert"></div>
-    <div class="form-group"><label>Username</label><input type="text" id="login-u" placeholder="Enter your username" autocomplete="username"></div>
-    <div class="form-group"><label>Password</label><input type="password" id="login-p" placeholder="Enter your password" autocomplete="current-password"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:14px;border-radius:10px" onclick="doLogin()">Sign In →</button>
-    <p style="text-align:center;color:var(--light);font-size:11px;margin-top:14px">Quality School Complex — GES Management Portal</p>
+<!-- ═══ LOGIN ═══ -->
+<div id="login">
+  <div class="lb">
+    <div class="le" id="l-logo">🎓</div>
+    <div class="ls" id="l-sname">QUALITY SCHOOL COMPLEX</div>
+    <div class="lt">GES Academic Management Portal</div>
+    <div id="l-alert"></div>
+    <div class="fg"><label>Username</label><input id="lu" placeholder="Enter username" autocomplete="username"></div>
+    <div class="fg"><label>Password</label><input type="password" id="lp" placeholder="Enter password" autocomplete="current-password"></div>
+    <button class="btn btn-g" style="width:100%;justify-content:center;padding:10px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In →</button>
+    <p style="text-align:center;color:var(--light);font-size:10px;margin-top:12px">Quality School Complex · GES Management System</p>
   </div>
 </div>
 
-<!-- ═══════════════ APP ═══════════════ -->
+<!-- ═══ APP ═══ -->
 <div id="app" style="display:none">
-  <div class="sidebar" id="sidebar">
-    <div class="sb-logo">
-      <div class="sb-emblem" id="sb-emblem">QS</div>
-      <div class="sb-name" id="sb-name">Quality School Complex</div>
+  <div class="sb">
+    <div class="sb-top">
+      <div class="sb-logo" id="sb-logo-el">QS</div>
+      <div class="sb-school" id="sb-sname">Quality School Complex</div>
       <div class="sb-role" id="sb-role">Administrator</div>
     </div>
-    <nav class="sb-nav" id="nav-links"></nav>
+    <nav class="sb-nav" id="nav"></nav>
   </div>
   <div class="main">
     <div class="topbar">
-      <div class="topbar-left">
-        <div class="page-title" id="page-title">Dashboard</div>
-      </div>
-      <div class="topbar-right">
-        <span class="term-badge" id="term-badge">Term 1 · 2024/2025</span>
-        <div class="user-chip"><div class="user-av" id="user-av">A</div><span class="user-name" id="user-name-top">Admin</span></div>
-        <button class="logout-btn" onclick="doLogout()">⬅ Logout</button>
+      <div class="pg-title" id="pg-title">Dashboard</div>
+      <div class="top-r">
+        <span class="term-chip" id="tc">Term 1 · 2024/2025</span>
+        <div class="usr-chip"><div class="usr-av" id="ua">A</div><span id="un">Admin</span></div>
+        <button class="logout" onclick="doLogout()">⬅ Logout</button>
       </div>
     </div>
-    <div class="content" id="content"></div>
+    <div class="cnt" id="cnt"><div class="loading"><div class="spinner"></div><span>Loading...</span></div></div>
   </div>
 </div>
 
-<!-- ═══════════════ MODAL ═══════════════ -->
-<div id="modal-bg" class="modal-overlay hidden" onclick="closeModalBg(event)">
-  <div class="modal" id="modal-box"></div>
+<!-- ═══ MODAL ═══ -->
+<div id="mo-bg" style="display:none" class="mo" onclick="moBgClose(event)">
+  <div class="mb" id="mo-box"></div>
 </div>
 
 <script>
 // ══════════════════════════════════════════
-//  PERSISTENT STORAGE (localStorage)
+//  SHARED STORAGE — cross-device, all users
 // ══════════════════════════════════════════
-const STORE_KEY = 'qsc_db_v3';
+const DB_KEY = 'qsc_v5';
+let DB = null, CU = null;
 
-function loadDB(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return null;
-}
-function saveDB(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }catch(e){}
-}
-
-// ══════════════════════════════════════════
-//  DEFAULT DATA
-// ══════════════════════════════════════════
-const DEFAULT_DB = {
+const DEFAULTS = {
   school:{name:'QUALITY SCHOOL COMPLEX',email:'info@qualityschool.edu.gh',phone:'0302-123456',address:'P.O. Box 123, Accra, Ghana',logo:'',title:'Student Academic Report Card'},
   term:{year:'2024/2025',term:1},
-  termFees:{'2024/2025-1':{'Basic 1':400,'Basic 2':400,'Basic 3':450,'Basic 4':450,'Basic 5':450,'Basic 6':500,'JHS 1':550,'JHS 2':550,'JHS 3':600}},
+  termFees:{},
   users:[
-    {id:1,username:'admin',password:'admin123',role:'admin',name:'Dr. Kwame Asante',email:'admin@qualityschool.edu.gh',class:'',subject:''},
-    {id:2,username:'staff',password:'staff123',role:'staff',name:'Mrs. Abena Mensah',email:'amensah@qualityschool.edu.gh',class:'Basic 4',subject:'Mathematics'},
-    {id:3,username:'kboateng',password:'staff123',role:'staff',name:'Mr. Kofi Boateng',email:'kboateng@qualityschool.edu.gh',class:'JHS 2',subject:'English Language'},
+    {id:1,username:'admin',password:'admin123',role:'admin',name:'Dr. Kwame Asante',email:'admin@qualityschool.edu.gh',cls:'',subject:''},
+    {id:2,username:'staff',password:'staff123',role:'staff',name:'Mrs. Abena Mensah',email:'amensah@qualityschool.edu.gh',cls:'Basic 4',subject:'Mathematics'},
   ],
   students:[
-    {id:1,name:'Ama Owusu',dob:'2012-04-10',gender:'F',class:'Basic 4',guardian:'Mr. Owusu K.',phone:'0244123456',enrollDate:'2020-09-01',status:'active'},
-    {id:2,name:'Kofi Agyeman',dob:'2011-07-22',gender:'M',class:'Basic 4',guardian:'Mrs. Agyeman R.',phone:'0554321789',enrollDate:'2019-09-01',status:'active'},
-    {id:3,name:'Akosua Darko',dob:'2013-01-15',gender:'F',class:'Basic 4',guardian:'Mr. Darko B.',phone:'0200987654',enrollDate:'2021-09-01',status:'active'},
-    {id:4,name:'Yaw Asante',dob:'2010-09-30',gender:'M',class:'JHS 2',guardian:'Mrs. Asante P.',phone:'0277654321',enrollDate:'2018-09-01',status:'active'},
-    {id:5,name:'Efua Mensah',dob:'2014-03-05',gender:'F',class:'JHS 2',guardian:'Mr. Mensah A.',phone:'0201234567',enrollDate:'2022-09-01',status:'active'},
-    {id:6,name:'Kweku Frimpong',dob:'2009-11-11',gender:'M',class:'JHS 2',guardian:'Mrs. Frimpong',phone:'0247890123',enrollDate:'2017-09-01',status:'active'},
+    {id:1,name:'Ama Owusu',dob:'2012-04-10',gender:'F',cls:'Basic 4',guardian:'Mr. Owusu K.',phone:'0244123456',enrollDate:'2020-09-01',status:'active'},
+    {id:2,name:'Kofi Agyeman',dob:'2011-07-22',gender:'M',cls:'Basic 4',guardian:'Mrs. Agyeman R.',phone:'0554321789',enrollDate:'2019-09-01',status:'active'},
+    {id:3,name:'Yaw Asante',dob:'2010-09-30',gender:'M',cls:'JHS 2',guardian:'Mrs. Asante P.',phone:'0277654321',enrollDate:'2018-09-01',status:'active'},
+    {id:4,name:'Efua Mensah',dob:'2014-03-05',gender:'F',cls:'JHS 2',guardian:'Mr. Mensah A.',phone:'0201234567',enrollDate:'2022-09-01',status:'active'},
   ],
   fees:[
     {id:1,studentId:1,amount:450,paid:450,term:1,year:'2024/2025',date:'2024-09-05',status:'paid',method:'Cash'},
-    {id:2,studentId:2,amount:450,paid:300,term:1,year:'2024/2025',date:'2024-09-07',status:'partial',method:'MoMo'},
-    {id:3,studentId:3,amount:450,paid:0,term:1,year:'2024/2025',date:'',status:'unpaid',method:''},
-    {id:4,studentId:4,amount:550,paid:550,term:1,year:'2024/2025',date:'2024-09-02',status:'paid',method:'Cash'},
-    {id:5,studentId:5,amount:550,paid:550,term:1,year:'2024/2025',date:'2024-09-08',status:'paid',method:'MoMo'},
-    {id:6,studentId:6,amount:550,paid:200,term:1,year:'2024/2025',date:'2024-09-10',status:'partial',method:'Bank'},
+    {id:2,studentId:2,amount:450,paid:0,term:1,year:'2024/2025',date:'',status:'unpaid',method:''},
+    {id:3,studentId:3,amount:550,paid:550,term:1,year:'2024/2025',date:'2024-09-02',status:'paid',method:'Cash'},
+    {id:4,studentId:4,amount:550,paid:300,term:1,year:'2024/2025',date:'2024-09-10',status:'partial',method:'MoMo'},
   ],
   results:[],
   submissions:[],
-  nextStudentId:7,
-  nextFeeId:7,
-  nextResultId:1,
-  nextUserId:4,
+  savedReports:[],   // ← admin-saved report cards
+  nextSid:5,nextFid:5,nextUid:3,nextSubId:1,nextRid:1
 };
 
-let DB = loadDB() || JSON.parse(JSON.stringify(DEFAULT_DB));
-let CU = null; // current user
+const CLASSES=['Creche','Nursery','KG 1','KG 2','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','JHS 1','JHS 2','JHS 3'];
 
-// ══════════════════════════════════════════
-//  GES CURRICULUM
-// ══════════════════════════════════════════
-const GES = {
+const GES_BASE={
+  'Creche':['Play & Learn','Sensory Activities','Story Time','Music & Movement','Art & Craft','Physical Play'],
+  'Nursery':['Early Literacy','Early Numeracy','Story Time','Creative Arts','Physical Education','Environmental Studies'],
+  'KG 1':['English Language','Mathematics','Our World & Our People','Creative Arts','Physical Education','Religious & Moral Education','Ghanaian Language'],
+  'KG 2':['English Language','Mathematics','Our World & Our People','Creative Arts','Physical Education','Religious & Moral Education','Ghanaian Language'],
   'Basic 1':['English Language','Mathematics','Our World & Our People','Religious & Moral Education','Ghanaian Language','Creative Arts','Physical Education','French'],
   'Basic 2':['English Language','Mathematics','Our World & Our People','Religious & Moral Education','Ghanaian Language','Creative Arts','Physical Education','French'],
   'Basic 3':['English Language','Mathematics','Our World & Our People','Religious & Moral Education','Ghanaian Language','Creative Arts','Physical Education','French','ICT'],
@@ -323,1394 +292,1072 @@ const GES = {
   'JHS 2':['English Language','Mathematics','Integrated Science','Social Studies','Religious & Moral Education','Ghanaian Language','ICT','French','Creative Arts & Design','Career Technology','Physical Education'],
   'JHS 3':['English Language','Mathematics','Integrated Science','Social Studies','Religious & Moral Education','Ghanaian Language','ICT','French','Creative Arts & Design','Career Technology','Physical Education'],
 };
-const CLASSES = Object.keys(GES);
 
 // ══════════════════════════════════════════
-//  GRADING
+//  STORAGE
 // ══════════════════════════════════════════
-function grade(score){
-  if(score>=80)return{g:'A1',r:'Excellent',c:'g-A'};
-  if(score>=75)return{g:'B2',r:'Very Good',c:'g-B'};
-  if(score>=70)return{g:'B3',r:'Good',c:'g-B'};
-  if(score>=65)return{g:'C4',r:'Credit',c:'g-C'};
-  if(score>=60)return{g:'C5',r:'Credit',c:'g-C'};
-  if(score>=55)return{g:'C6',r:'Credit',c:'g-C'};
-  if(score>=50)return{g:'D7',r:'Pass',c:'g-D'};
-  if(score>=45)return{g:'E8',r:'Pass',c:'g-D'};
-  return{g:'F9',r:'Fail',c:'g-F'};
+async function dbLoad(){
+  try{
+    const r=await window.storage.get(DB_KEY,true);
+    DB=r?JSON.parse(r.value):JSON.parse(JSON.stringify(DEFAULTS));
+  }catch(e){DB=JSON.parse(JSON.stringify(DEFAULTS));}
+  if(!DB.users||!DB.students)DB=JSON.parse(JSON.stringify(DEFAULTS));
+  if(!DB.submissions)DB.submissions=[];
+  if(!DB.savedReports)DB.savedReports=[];
+  if(!DB.termFees)DB.termFees={};
+  if(!DB.customSubjects)DB.customSubjects={};
+  if(!DB.school.title)DB.school.title='Student Academic Report Card';
+  if(!DB.nextRid)DB.nextRid=1;
 }
-
-function autoRemark(avg){
-  if(avg>=80)return'This student has demonstrated outstanding academic performance this term. Excellent dedication, consistency, and intellectual curiosity. Keep it up!';
-  if(avg>=70)return'This student has shown very good academic performance. Continue to maintain this level of commitment and strive for greater heights.';
-  if(avg>=60)return'This student has performed well this term. With more focus and regular study habits, even better results can be achieved next term.';
-  if(avg>=50)return'This student shows potential and has performed satisfactorily. More effort and concentration in studies is encouraged for improved results.';
-  return'This student needs to put in more effort this term. Regular attendance, participation and dedicated study time will lead to significant improvement.';
-}
-function autoHeadRemark(avg){
-  if(avg>=80)return'Exceptional performance! This student is a credit to the school. We encourage sustained excellence and leadership in all endeavors.';
-  if(avg>=70)return'Commendable performance! The student has shown great promise. Continue to work hard and aim for the very best.';
-  if(avg>=60)return'Good performance overall. The student is making satisfactory progress. We encourage greater effort and consistency in the coming term.';
-  if(avg>=50)return'Fair performance recorded this term. The school encourages the student to be more focused and dedicated to academic work.';
-  return'The student must make a conscious effort to improve. Regular study, teacher engagement, and parental support are strongly encouraged.';
-}
-
-// ══════════════════════════════════════════
-//  TOAST
-// ══════════════════════════════════════════
-function toast(msg,type='success'){
-  const el=document.createElement('div');
-  el.className=`toast toast-${type}`;
-  const icons={success:'✅',error:'❌',info:'ℹ️'};
-  el.innerHTML=`<span style="font-size:16px">${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(()=>{el.style.animation='fadeOut .4s ease forwards';setTimeout(()=>el.remove(),400);},2800);
-}
-
-// ══════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════
-function doLogin(){
-  const u=document.getElementById('login-u').value.trim();
-  const p=document.getElementById('login-p').value;
-  const user=DB.users.find(x=>x.username===u&&x.password===p);
-  if(!user){document.getElementById('login-alert').innerHTML='<div style="background:var(--red-l);color:var(--red);border:1px solid #f5b8b8;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">❌ Invalid username or password.</div>';return;}
-  CU=user;
-  document.getElementById('login-alert').innerHTML='';
-  document.getElementById('login-page').style.display='none';
-  document.getElementById('app').style.display='flex';
-  document.getElementById('sb-name').textContent=DB.school.name;
-  document.getElementById('sb-role').textContent=user.role==='admin'?'Administrator':'Class Teacher';
-  document.getElementById('user-av').textContent=user.name[0];
-  document.getElementById('user-name-top').textContent=user.name.split(' ')[0];
-  updateTermBadge();
-  buildNav();
-  showSection('dashboard');
-}
-function doLogout(){
-  CU=null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-page').style.display='flex';
-  document.getElementById('login-u').value='';
-  document.getElementById('login-p').value='';
-}
-document.getElementById('login-p').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-
-// ══════════════════════════════════════════
-//  NAVIGATION
-// ══════════════════════════════════════════
-const NAV_ADMIN=[
-  {id:'dashboard',icon:'📊',label:'Dashboard'},
-  {section:'Students'},
-  {id:'students',icon:'👤',label:'Students'},
-  {id:'enrollment',icon:'📝',label:'Enrollment'},
-  {id:'fees',icon:'💰',label:'Fees & Payments'},
-  {section:'Reports & Results'},
-  {id:'reports',icon:'📂',label:'All Reports'},
-  {id:'curriculum',icon:'📚',label:'Curriculum'},
-  {section:'Administration'},
-  {id:'staff',icon:'👩‍🏫',label:'Staff Management'},
-  {id:'settings',icon:'⚙️',label:'School Settings'},
-];
-const NAV_STAFF=[
-  {id:'dashboard',icon:'📊',label:'Dashboard'},
-  {section:'My Students'},
-  {id:'students',icon:'👤',label:'My Students'},
-  {section:'Academics'},
-  {id:'results',icon:'📋',label:'Results Entry'},
-  {id:'reportcards',icon:'📄',label:'Report Cards'},
-];
-
-function buildNav(){
-  const items=CU.role==='admin'?NAV_ADMIN:NAV_STAFF;
-  const nav=document.getElementById('nav-links');
-  nav.innerHTML=items.map(it=>{
-    if(it.section)return`<div class="sb-section">${it.section}</div>`;
-    return`<div class="nav-item" id="nav-${it.id}" onclick="showSection('${it.id}')"><span class="nav-ico">${it.icon}</span>${it.label}</div>`;
-  }).join('');
-}
-function setActiveNav(id){
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  const el=document.getElementById('nav-'+id);
-  if(el)el.classList.add('active');
-}
-function showSection(id){
-  setActiveNav(id);
-  const titles={dashboard:'Dashboard',students:CU.role==='admin'?'Student Management':'My Students',enrollment:'New Enrollment',fees:'Fees & Payments',results:'Results Entry',reportcards:'Report Cards',reports:'Reports & Results',staff:'Staff Management',settings:'School Settings',curriculum:'GES Curriculum'};
-  document.getElementById('page-title').textContent=titles[id]||id;
-  const map={dashboard:renderDashboard,students:renderStudents,enrollment:renderEnrollment,fees:renderFees,results:renderResults,reportcards:renderReportCards,reports:renderReports,staff:renderStaff,settings:renderSettings,curriculum:renderCurriculum};
-  if(map[id])document.getElementById('content').innerHTML=map[id]();
-  if(id==='results')initResults();
-}
-function updateTermBadge(){
-  document.getElementById('term-badge').textContent=`Term ${DB.term.term} · ${DB.term.year}`;
+async function dbSave(){
+  try{await window.storage.set(DB_KEY,JSON.stringify(DB),true);}
+  catch(e){console.warn('Save failed',e);}
 }
 
 // ══════════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════════
-function termKey(year,term){return`${year}-${term}`;}
-function getTermFee(cls,year,term){
-  const tk=termKey(year,term);
-  return (DB.termFees[tk]&&DB.termFees[tk][cls])||500;
+function subjectsFor(cls){
+  return DB.customSubjects&&DB.customSubjects[cls]?[...DB.customSubjects[cls]]:[...(GES_BASE[cls]||[])];
 }
-function myStudents(){
-  if(CU.role==='admin')return DB.students;
-  return DB.students.filter(s=>s.class===CU.class);
+function setSubjectsFor(cls,list){
+  if(!DB.customSubjects)DB.customSubjects={};
+  DB.customSubjects[cls]=list;
 }
-function ordinal(n){
-  const s=['th','st','nd','rd'],v=n%100;
-  return n+(s[(v-20)%10]||s[v]||s[0]);
+function termKey(y,t){return`${y}-${t}`;}
+function getTermFee(cls,y,t){
+  const tk=termKey(y,t);
+  return(DB.termFees[tk]&&DB.termFees[tk][cls])||0;
 }
-function calcPositions(results,cls,year,term){
-  // For each subject across a class, rank students
-  const classStudents=DB.students.filter(s=>s.class===cls);
-  const positions={};
-  const subjects=GES[cls]||[];
-  subjects.forEach(sub=>{
-    const scored=[];
-    classStudents.forEach(st=>{
-      const r=results.find(x=>x.studentId===st.id&&x.year===year&&x.term===term);
-      if(r&&r.subjects&&r.subjects[sub]!==undefined){
-        scored.push({sid:st.id,total:r.subjects[sub].total||0});
-      }
-    });
-    scored.sort((a,b)=>b.total-a.total);
-    scored.forEach((x,i)=>{
-      if(!positions[x.sid])positions[x.sid]={};
-      positions[x.sid][sub]=i+1;
-    });
+function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function gradeOf(s){
+  if(s>=80)return{g:'A1',r:'Excellent',c:'gA'};
+  if(s>=75)return{g:'B2',r:'Very Good',c:'gB'};
+  if(s>=70)return{g:'B3',r:'Good',c:'gB'};
+  if(s>=65)return{g:'C4',r:'Credit',c:'gC'};
+  if(s>=60)return{g:'C5',r:'Credit',c:'gC'};
+  if(s>=55)return{g:'C6',r:'Credit',c:'gC'};
+  if(s>=50)return{g:'D7',r:'Pass',c:'gD'};
+  if(s>=45)return{g:'E8',r:'Pass',c:'gD'};
+  return{g:'F9',r:'Fail',c:'gF'};
+}
+function autoTRemark(avg){
+  if(avg>=80)return'This student has demonstrated outstanding academic performance. Excellent dedication, consistency, and intellectual curiosity. Keep it up!';
+  if(avg>=70)return'This student has shown very good academic performance. Continue to maintain this level of commitment and strive for greater heights.';
+  if(avg>=60)return'This student has performed well this term. With more focus and regular study habits, even better results can be achieved.';
+  if(avg>=50)return'This student shows potential. More effort and concentration in studies is encouraged for improved results.';
+  return'This student needs to put in more effort. Regular attendance and dedicated study time will lead to significant improvement.';
+}
+function autoHRemark(avg){
+  if(avg>=80)return'Exceptional performance! This student is a credit to the school. Sustained excellence and leadership are encouraged in all endeavors.';
+  if(avg>=70)return'Commendable performance! The student has shown great promise. Continue to work hard and aim for the very best.';
+  if(avg>=60)return'Good performance overall. The student is making satisfactory progress. Greater effort and consistency are encouraged.';
+  if(avg>=50)return'Fair performance recorded this term. The school encourages the student to be more focused and dedicated.';
+  return'The student must make a conscious effort to improve. Regular study, teacher engagement, and parental support are strongly encouraged.';
+}
+function mySts(){return CU.role==='admin'?DB.students:DB.students.filter(s=>s.cls===CU.cls);}
+function calcPositions(cls,year,term){
+  const cSts=DB.students.filter(s=>s.cls===cls);
+  const pos={};
+  subjectsFor(cls).forEach(sub=>{
+    const scored=cSts.map(st=>{
+      const r=DB.results.find(x=>x.studentId===st.id&&x.year===year&&x.term===term);
+      return{sid:st.id,total:(r&&r.subjects&&r.subjects[sub]&&r.subjects[sub].total!=null)?r.subjects[sub].total:0};
+    }).sort((a,b)=>b.total-a.total);
+    scored.forEach((x,i)=>{if(!pos[x.sid])pos[x.sid]={};pos[x.sid][sub]=i+1;});
   });
-  return positions;
+  return pos;
+}
+function updateTC(){document.getElementById('tc').textContent=`Term ${DB.term.term} · ${DB.term.year}`;}
+function setSbLogo(){
+  const el=document.getElementById('sb-logo-el');
+  if(!el)return;
+  if(DB.school.logo){el.innerHTML=`<img src="${DB.school.logo}" alt="Logo">`;}else{el.textContent='QS';}
+}
+function setLoginLogo(){
+  const el=document.getElementById('l-logo');
+  if(!el)return;
+  if(DB.school.logo){el.innerHTML=`<img src="${DB.school.logo}" alt="Logo">`;}else{el.textContent='🎓';}
 }
 
 // ══════════════════════════════════════════
-//  ADMIN DASHBOARD
+//  TOAST
 // ══════════════════════════════════════════
-function renderDashboard(){
-  if(CU.role==='admin')return renderAdminDashboard();
-  return renderStaffDashboard();
+function toast(msg,type='ok'){
+  const el=document.createElement('div');
+  el.className=`toast t-${type}`;
+  el.innerHTML=`<b>${{ok:'✓',er:'✕',inf:'i'}[type]||'i'}</b><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>{el.style.animation='tout .3s ease forwards';setTimeout(()=>el.remove(),300);},2700);
 }
 
-function renderAdminDashboard(){
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+async function initApp(){
+  await dbLoad();
+  document.getElementById('l-sname').textContent=DB.school.name;
+  setLoginLogo();
+}
+
+async function doLogin(){
+  await dbLoad();
+  const u=document.getElementById('lu').value.trim();
+  const p=document.getElementById('lp').value;
+  const user=DB.users.find(x=>x.username===u&&x.password===p);
+  const alertEl=document.getElementById('l-alert');
+  if(!user){
+    alertEl.innerHTML='<div style="background:var(--red-l);color:var(--red);border:1px solid #f5b8b8;border-radius:7px;padding:9px 12px;font-size:12px;margin-bottom:10px">Wrong username or password.</div>';
+    return;
+  }
+  alertEl.innerHTML='';
+  CU=user;
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('sb-sname').textContent=DB.school.name;
+  setSbLogo();
+  document.getElementById('sb-role').textContent=CU.role==='admin'?'Administrator':'Class Teacher';
+  document.getElementById('ua').textContent=CU.name[0];
+  document.getElementById('un').textContent=CU.name.split(' ')[0];
+  updateTC();buildNav();go('dashboard');
+}
+function doLogout(){
+  CU=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='flex';
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ══════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════
+const ADMIN_NAV=[
+  {id:'dashboard',ico:'📊',lbl:'Dashboard'},
+  {sec:'Students'},
+  {id:'students',ico:'👤',lbl:'Students'},
+  {id:'enrollment',ico:'📝',lbl:'Enrollment'},
+  {id:'fees',ico:'💰',lbl:'Fees & Payments'},
+  {sec:'Reports & Results'},
+  {id:'reports',ico:'📂',lbl:'All Reports'},
+  {id:'savedreports',ico:'💾',lbl:'Saved Reports'},
+  {sec:'Administration'},
+  {id:'staff',ico:'👩‍🏫',lbl:'Staff Management'},
+  {id:'settings',ico:'⚙️',lbl:'School Settings'},
+];
+const STAFF_NAV=[
+  {id:'dashboard',ico:'📊',lbl:'Dashboard'},
+  {sec:'My Students'},
+  {id:'students',ico:'👤',lbl:'My Students'},
+  {sec:'Academics'},
+  {id:'results',ico:'📋',lbl:'Results Entry'},
+];
+
+function buildNav(){
+  const items=CU.role==='admin'?ADMIN_NAV:STAFF_NAV;
+  document.getElementById('nav').innerHTML=items.map(x=>{
+    if(x.sec)return`<div class="nav-sec">${x.sec}</div>`;
+    return`<div class="ni" id="ni-${x.id}" onclick="go('${x.id}')"><span class="ni-ico">${x.ico}</span>${x.lbl}</div>`;
+  }).join('');
+}
+function setNav(id){
+  document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
+  const el=document.getElementById('ni-'+id);if(el)el.classList.add('active');
+}
+
+const TITLES={dashboard:'Dashboard',students:'Students',enrollment:'New Enrollment',fees:'Fees & Payments',results:'Results Entry',reports:'Reports & Results',savedreports:'Saved Reports',staff:'Staff Management',settings:'School Settings'};
+
+function go(id){
+  setNav(id);
+  document.getElementById('pg-title').textContent=TITLES[id]||id;
+  const renders={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,staff:pgStaff,settings:pgSettings};
+  const fn=renders[id];
+  document.getElementById('cnt').innerHTML=fn?fn():'';
+  if(id==='results')initResults();
+}
+
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+function pgDash(){return CU.role==='admin'?adminDash():staffDash();}
+
+function adminDash(){
   const paid=DB.fees.filter(f=>f.status==='paid').length;
   const partial=DB.fees.filter(f=>f.status==='partial').length;
-  const unpaid=DB.fees.filter(f=>f.status==='unpaid').length;
-  const totalCollected=DB.fees.reduce((s,f)=>s+f.paid,0);
-  const submissions=DB.submissions||[];
-  const pending=submissions.filter(s=>s.status==='submitted').length;
-
-  return`
-  <div class="sec-hdr">
-    <div><div class="sec-title">Welcome, ${CU.name.split(' ')[0]}!</div><div class="sec-sub">Academic Year ${DB.term.year} · Term ${DB.term.term} Overview</div></div>
-    <button class="btn btn-primary" onclick="openUpdateTerm()">🔄 Update Term</button>
-  </div>
-
-  <!-- SEARCH -->
-  <div class="card" style="margin-bottom:18px">
-    <div class="card-title">🔍 Search Students</div>
-    <div class="form-row3" style="margin-top:12px">
-      <div><label>Name</label><input type="text" id="dash-search-name" placeholder="Student name..." oninput="dashSearch()"></div>
-      <div><label>Class</label><select id="dash-search-class" onchange="dashSearch()"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-      <div><label>Term</label><select id="dash-search-term" onchange="dashSearch()"><option value="">Current Term</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
+  const tot=DB.fees.reduce((s,f)=>s+f.paid,0);
+  const pending=(DB.submissions||[]).filter(s=>s.status==='submitted').length;
+  const savedCount=(DB.savedReports||[]).length;
+  return`<div class="sh"><div><div class="st">Welcome, ${CU.name.split(' ')[0]}!</div><div class="ss">Academic Year ${DB.term.year} · Term ${DB.term.term}</div></div><button class="btn btn-g" onclick="moUpdateTerm()">🔄 Update Term</button></div>
+  <div class="card">
+    <div class="ct">Search Students</div>
+    <div class="gr3" style="margin-top:10px">
+      <div><label>Name</label><input id="ds-name" placeholder="Student name..." oninput="dsSearch()"></div>
+      <div><label>Class</label><select id="ds-cls" onchange="dsSearch()"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div><label>Term</label><select id="ds-term" onchange="dsSearch()"><option value="">Current</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
     </div>
-    <div id="dash-search-results" style="margin-top:12px"></div>
+    <div id="ds-res" style="margin-top:12px"></div>
   </div>
-
   <div class="stat-grid">
-    <div class="stat-card"><div class="stat-icon">👤</div><div class="stat-num" style="color:var(--green)">${DB.students.length}</div><div class="stat-lbl">Total Students</div></div>
-    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num" style="color:var(--green)">${paid}</div><div class="stat-lbl">Fees Fully Paid</div></div>
-    <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-num" style="color:var(--gold)">${partial}</div><div class="stat-lbl">Partial / Owing</div></div>
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" style="color:var(--blue);font-size:20px">GHS ${totalCollected.toLocaleString()}</div><div class="stat-lbl">Total Collected</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${DB.students.length}</div><div class="stat-l">Total Students</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${paid}</div><div class="stat-l">Fees Paid</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--gold)">${partial}</div><div class="stat-l">Partial/Owing</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--blue);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="stat-l">Total Collected</div></div>
   </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
-      <div class="card-title">Students by Class</div>
-      <div class="card-sub">Enrollment breakdown</div>
+      <div class="ct">Students by Class</div><div class="cs">Enrollment breakdown</div>
       ${CLASSES.map(c=>{
-        const n=DB.students.filter(s=>s.class===c).length;
+        const n=DB.students.filter(s=>s.cls===c).length;
+        if(!n)return'';
         const pct=DB.students.length?Math.round(n/DB.students.length*100):0;
-        return`<div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${c}</span><span style="font-weight:600">${n}</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-        </div>`;
+        return`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>${c}</span><b>${n}</b></div><div class="pbar"><div class="pfill" style="width:${pct}%"></div></div></div>`;
       }).join('')}
     </div>
     <div class="card">
-      <div class="card-title">Quick Actions</div>
-      <div class="card-sub">Common administrative tasks</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" onclick="showSection('enrollment')" style="justify-content:flex-start">📝 Enroll New Student</button>
-        <button class="btn btn-gold" onclick="showSection('fees')" style="justify-content:flex-start">💰 Record Fee Payment</button>
-        <button class="btn btn-blue" onclick="showSection('reports')" style="justify-content:flex-start">📂 View Submitted Reports ${pending>0?`<span class="badge badge-red" style="margin-left:auto">${pending} new</span>`:''}</button>
-        <button class="btn btn-secondary" onclick="showSection('staff')" style="justify-content:flex-start">👩‍🏫 Manage Staff</button>
-        <button class="btn btn-secondary" onclick="showSection('settings')" style="justify-content:flex-start">⚙️ School Settings</button>
+      <div class="ct">Quick Actions</div><div class="cs">Common tasks</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <button class="btn btn-g" onclick="go('enrollment')" style="justify-content:flex-start">📝 Enroll New Student</button>
+        <button class="btn btn-o" onclick="go('fees')" style="justify-content:flex-start">💰 Record Fee Payment</button>
+        <button class="btn btn-b" onclick="go('reports')" style="justify-content:flex-start">📂 View Reports ${pending>0?`<span class="bdg bg-r">${pending} new</span>`:''}</button>
+        <button class="btn" onclick="go('savedreports')" style="justify-content:flex-start">💾 Saved Reports <span class="bdg bg-b">${savedCount}</span></button>
+        <button class="btn" onclick="go('staff')" style="justify-content:flex-start">👩‍🏫 Manage Staff</button>
+        <button class="btn" onclick="go('settings')" style="justify-content:flex-start">⚙️ School Settings</button>
       </div>
     </div>
   </div>`;
 }
 
-function dashSearch(){
-  const name=document.getElementById('dash-search-name').value.toLowerCase();
-  const cls=document.getElementById('dash-search-class').value;
-  const term=document.getElementById('dash-search-term').value;
-  if(!name&&!cls&&!term){document.getElementById('dash-search-results').innerHTML='';return;}
-  let students=DB.students;
-  if(name)students=students.filter(s=>s.name.toLowerCase().includes(name));
-  if(cls)students=students.filter(s=>s.class===cls);
-  if(!students.length){document.getElementById('dash-search-results').innerHTML='<p style="color:var(--muted);font-size:13px">No students found.</p>';return;}
-  document.getElementById('dash-search-results').innerHTML=`<div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Class</th><th>Fee Status</th><th>Actions</th></tr></thead>
-    <tbody>${students.map(st=>{
-      const feeRec=DB.fees.find(f=>f.studentId===st.id&&f.term===(parseInt(term)||DB.term.term)&&f.year===DB.term.year);
-      const fs=feeRec?feeRec.status:'—';
-      return`<tr><td style="font-weight:500">${st.name}</td><td>${st.class}</td>
-        <td><span class="badge badge-${fs==='paid'?'green':fs==='partial'?'gold':fs==='unpaid'?'red':'gray'}">${fs}</span></td>
-        <td><button class="btn btn-xs btn-secondary" onclick="viewStudentModal(${st.id})">View</button></td></tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
+function dsSearch(){
+  const name=(document.getElementById('ds-name')||{}).value?.toLowerCase()||'';
+  const cls=(document.getElementById('ds-cls')||{}).value||'';
+  const termV=(document.getElementById('ds-term')||{}).value||'';
+  const term=termV?parseInt(termV):DB.term.term;
+  if(!name&&!cls){document.getElementById('ds-res').innerHTML='';return;}
+  let list=DB.students;
+  if(name)list=list.filter(s=>s.name.toLowerCase().includes(name));
+  if(cls)list=list.filter(s=>s.cls===cls);
+  if(!list.length){document.getElementById('ds-res').innerHTML='<p style="color:var(--muted);font-size:12px">No students found.</p>';return;}
+  document.getElementById('ds-res').innerHTML=`<div class="tw"><table><thead><tr><th>Name</th><th>Class</th><th>Fee Status</th><th></th></tr></thead><tbody>${list.map(st=>{
+    const f=DB.fees.find(x=>x.studentId===st.id&&x.term===term&&x.year===DB.term.year);
+    return`<tr><td style="font-weight:500">${st.name}</td><td>${st.cls}</td><td>${f?`<span class="bdg ${f.status==='paid'?'bg-g':f.status==='partial'?'bg-o':'bg-r'}">${f.status}</span>`:'—'}</td><td><button class="btn btn-sm" onclick="moViewSt(${st.id})">View</button></td></tr>`;
+  }).join('')}</tbody></table></div>`;
 }
 
-// ══════════════════════════════════════════
-//  STAFF DASHBOARD
-// ══════════════════════════════════════════
-function renderStaffDashboard(){
-  const mySts=myStudents();
-  const fees=DB.fees.filter(f=>mySts.find(s=>s.id===f.studentId)&&f.term===DB.term.term&&f.year===DB.term.year);
-  return`
-  <div class="sec-hdr">
-    <div><div class="sec-title">Hello, ${CU.name.split(' ')[0]}!</div><div class="sec-sub">${CU.class} · Term ${DB.term.term} · ${DB.term.year}</div></div>
-  </div>
+function staffDash(){
+  const sts=mySts();
+  const fees=DB.fees.filter(f=>sts.find(s=>s.id===f.studentId)&&f.term===DB.term.term&&f.year===DB.term.year);
+  return`<div class="sh"><div><div class="st">Hello, ${CU.name.split(' ')[0]}!</div><div class="ss">${CU.cls||'Staff'} · Term ${DB.term.term} · ${DB.term.year}</div></div></div>
   <div class="stat-grid">
-    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-num" style="color:var(--green)">${mySts.length}</div><div class="stat-lbl">My Students</div></div>
-    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num" style="color:var(--green)">${fees.filter(f=>f.status==='paid').length}</div><div class="stat-lbl">Fees Paid</div></div>
-    <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-num" style="color:var(--gold)">${fees.filter(f=>f.status==='partial').length}</div><div class="stat-lbl">Partial Payment</div></div>
-    <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-num" style="color:var(--red)">${fees.filter(f=>f.status==='unpaid').length+mySts.filter(s=>!fees.find(f=>f.studentId===s.id)).length}</div><div class="stat-lbl">Unpaid / No Record</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${sts.length}</div><div class="stat-l">My Students</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${fees.filter(f=>f.status==='paid').length}</div><div class="stat-l">Fees Paid</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--gold)">${fees.filter(f=>f.status==='partial').length}</div><div class="stat-l">Partial</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--red)">${fees.filter(f=>f.status==='unpaid').length+sts.filter(s=>!fees.find(f=>f.studentId===s.id)).length}</div><div class="stat-l">Unpaid</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
-      <div class="card-title">Student Fee Status — Term ${DB.term.term}</div>
-      <div class="card-sub">${DB.term.year}</div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Student</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
-        <tbody>${mySts.map(st=>{
-          const f=fees.find(x=>x.studentId===st.id);
-          const amt=f?f.amount:getTermFee(st.class,DB.term.year,DB.term.term);
-          const paid=f?f.paid:0;
-          const bal=amt-paid;
-          const status=f?f.status:'unpaid';
-          return`<tr><td style="font-weight:500">${st.name}</td><td>GHS ${amt}</td><td style="color:var(--green);font-weight:600">GHS ${paid}</td><td style="color:${bal>0?'var(--red)':'var(--green)'};font-weight:600">GHS ${bal}</td><td><span class="badge badge-${status==='paid'?'green':status==='partial'?'gold':'red'}">${status}</span></td></tr>`;
-        }).join('')}</tbody>
-      </table></div>
+      <div class="ct">Student Fee Status</div><div class="cs">Term ${DB.term.term} · ${DB.term.year}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn btn-sm" onclick="sfFilter('')">All</button>
+        <button class="btn btn-sm" style="background:var(--green-l);color:var(--green)" onclick="sfFilter('paid')">Fully Paid</button>
+        <button class="btn btn-sm" style="background:var(--gold-l);color:var(--gold)" onclick="sfFilter('partial')">Partial</button>
+        <button class="btn btn-sm" style="background:var(--red-l);color:var(--red)" onclick="sfFilter('unpaid')">Unpaid</button>
+      </div>
+      <div class="tw"><table id="sf-table"><thead><tr><th>Student</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+      <tbody>${sfRows(sts,fees,'')}</tbody></table></div>
     </div>
     <div class="card">
-      <div class="card-title">Quick Actions</div>
-      <div class="card-sub">What would you like to do?</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" onclick="showSection('results')" style="justify-content:flex-start">📋 Enter Results</button>
-        <button class="btn btn-gold" onclick="showSection('reportcards')" style="justify-content:flex-start">📄 Generate Report Cards</button>
-        <button class="btn btn-secondary" onclick="showSection('students')" style="justify-content:flex-start">👤 View My Students</button>
+      <div class="ct">Quick Actions</div><div class="cs">What would you like to do?</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <button class="btn btn-g" onclick="go('results')" style="justify-content:flex-start">📋 Enter Results</button>
+        <button class="btn" onclick="go('students')" style="justify-content:flex-start">👤 View My Students</button>
       </div>
     </div>
   </div>`;
+}
+function sfRows(sts,fees,filter){
+  return sts.map(st=>{
+    const f=fees.find(x=>x.studentId===st.id);
+    const amt=f?f.amount:getTermFee(st.cls,DB.term.year,DB.term.term)||0;
+    const paid=f?f.paid:0;const bal=amt-paid;const status=f?f.status:'unpaid';
+    if(filter&&status!==filter)return'';
+    return`<tr><td style="font-weight:500">${st.name}</td><td>GHS ${amt}</td><td style="color:var(--green);font-weight:600">GHS ${paid}</td><td style="color:${bal>0?'var(--red)':'var(--green)'};font-weight:600">GHS ${bal}</td><td><span class="bdg ${status==='paid'?'bg-g':status==='partial'?'bg-o':'bg-r'}">${status}</span></td></tr>`;
+  }).join('');
+}
+function sfFilter(status){
+  const sts=mySts();
+  const fees=DB.fees.filter(f=>sts.find(s=>s.id===f.studentId)&&f.term===DB.term.term&&f.year===DB.term.year);
+  const tb=document.querySelector('#sf-table tbody');if(tb)tb.innerHTML=sfRows(sts,fees,status);
 }
 
 // ══════════════════════════════════════════
 //  STUDENTS
 // ══════════════════════════════════════════
-function renderStudents(){
-  const list=myStudents();
-  return`
-  <div class="sec-hdr">
-    <div><div class="sec-title">${CU.role==='admin'?'All Students':'My Students'}</div><div class="sec-sub">${list.length} students${CU.role==='staff'?' in '+CU.class:''}</div></div>
-    ${CU.role==='admin'?`<button class="btn btn-primary" onclick="showSection('enrollment')">+ Enroll Student</button>`:''}
-  </div>
+function pgStudents(){
+  const list=mySts();
+  return`<div class="sh"><div><div class="st">${CU.role==='admin'?'All Students':'My Students'}</div><div class="ss">${list.length} students</div></div>${CU.role==='admin'?`<button class="btn btn-g" onclick="go('enrollment')">+ Enroll Student</button>`:''}</div>
   <div class="card" style="padding:0">
-    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
-      <input type="text" id="st-search" placeholder="Search by name..." oninput="filterStudents()" style="max-width:220px">
-      ${CU.role==='admin'?`<select id="st-cls" onchange="filterStudents()" style="max-width:150px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>`:''}
+    <div style="padding:12px 14px;border-bottom:1.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <input type="text" id="st-q" placeholder="Search by name..." oninput="filterSt()" style="max-width:200px">
+      ${CU.role==='admin'?`<select id="st-c" onchange="filterSt()" style="max-width:140px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>`:''}
     </div>
-    <div class="table-wrap">
-    <table id="st-table">
-      <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Class</th><th>Guardian</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>${studentsRows(list)}</tbody>
-    </table></div>
+    <div class="tw"><table id="st-tbl"><thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Class</th><th>Guardian</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${stRows(list)}</tbody></table></div>
   </div>`;
 }
-function studentsRows(list){
-  return list.map((st,i)=>`<tr>
-    <td>${i+1}</td><td style="font-weight:500">${st.name}</td>
-    <td>${st.gender==='M'?'Male':'Female'}</td>
-    <td><span class="badge badge-green">${st.class}</span></td>
-    <td>${st.guardian}</td><td>${st.phone}</td>
-    <td><span class="badge badge-${st.status==='active'?'green':'red'}">${st.status}</span></td>
-    <td style="display:flex;gap:4px">
-      <button class="btn btn-xs btn-secondary" onclick="viewStudentModal(${st.id})">View</button>
-      ${CU.role==='admin'?`<button class="btn btn-xs btn-secondary" onclick="editStudentModal(${st.id})">Edit</button><button class="btn btn-xs btn-danger" onclick="deleteStudent(${st.id})">Del</button>`:''}
-    </td></tr>`).join('');
+function stRows(list){
+  return list.map((s,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${s.name}</td><td>${s.gender==='M'?'Male':'Female'}</td><td><span class="bdg bg-g">${s.cls}</span></td><td>${s.guardian}</td><td>${s.phone}</td><td><span class="bdg ${s.status==='active'?'bg-g':'bg-r'}">${s.status}</span></td>
+  <td style="display:flex;gap:4px"><button class="btn btn-sm" onclick="moViewSt(${s.id})">View</button>${CU.role==='admin'?`<button class="btn btn-sm" onclick="moEditSt(${s.id})">Edit</button><button class="btn btn-sm btn-d" onclick="delSt(${s.id})">Del</button>`:''}</td></tr>`).join('');
 }
-function filterStudents(){
-  const q=(document.getElementById('st-search')||{}).value?.toLowerCase()||'';
-  const cls=CU.role==='admin'?((document.getElementById('st-cls')||{}).value||''):'';
-  const list=myStudents().filter(s=>(!q||s.name.toLowerCase().includes(q))&&(!cls||s.class===cls));
-  document.querySelector('#st-table tbody').innerHTML=studentsRows(list);
+function filterSt(){
+  const q=(document.getElementById('st-q')||{}).value?.toLowerCase()||'';
+  const cls=CU.role==='admin'?((document.getElementById('st-c')||{}).value||''):'';
+  const list=mySts().filter(s=>(!q||s.name.toLowerCase().includes(q))&&(!cls||s.cls===cls));
+  document.querySelector('#st-tbl tbody').innerHTML=stRows(list);
 }
-function viewStudentModal(id){
+function moViewSt(id){
   const s=DB.students.find(x=>x.id===id);
-  const fees=DB.fees.filter(f=>f.studentId===id&&f.term===DB.term.term&&f.year===DB.term.year);
-  const feeRec=fees[0];
-  openModal(`Student — ${s.name}`,`
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:14px;background:var(--green-l);border-radius:10px">
-      <div style="width:52px;height:52px;background:var(--green);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-family:'Playfair Display',serif;font-weight:700">${s.name[0]}</div>
-      <div><div style="font-size:17px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.class} · Enrolled: ${s.enrollDate}</div></div>
-    </div>
-    <div class="form-row"><div><label>Date of Birth</label><p>${s.dob}</p></div><div><label>Gender</label><p>${s.gender==='M'?'Male':'Female'}</p></div></div>
-    <div class="form-row"><div><label>Guardian</label><p>${s.guardian}</p></div><div><label>Phone</label><p>${s.phone}</p></div></div>
-    <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
-    <label>Fee Status — Term ${DB.term.term}</label>
-    ${feeRec?`<div style="background:var(--gold-l);border-radius:8px;padding:12px;font-size:13px">
-      <div>Term Fee: <strong>GHS ${feeRec.amount}</strong></div>
-      <div>Paid: <strong style="color:var(--green)">GHS ${feeRec.paid}</strong></div>
-      <div>Balance: <strong style="color:${feeRec.amount-feeRec.paid>0?'var(--red)':'var(--green)'}">GHS ${feeRec.amount-feeRec.paid}</strong></div>
-      <div>Status: <span class="badge badge-${feeRec.status==='paid'?'green':feeRec.status==='partial'?'gold':'red'}">${feeRec.status}</span></div>
-    </div>`:`<p style="color:var(--muted);font-size:13px">No fee record for current term.</p>`}
-  `);
+  const f=DB.fees.find(x=>x.studentId===id&&x.term===DB.term.term&&x.year===DB.term.year);
+  moOpen(`Student — ${s.name}`,`<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--green-l);border-radius:var(--radius);margin-bottom:14px"><div style="width:44px;height:44px;border-radius:10px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700">${s.name[0]}</div><div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:11px;color:var(--muted)">${s.cls} · Enrolled: ${s.enrollDate}</div></div></div>
+  <div class="gr2"><div><label>DOB</label><p>${s.dob}</p></div><div><label>Gender</label><p>${s.gender==='M'?'Male':'Female'}</p></div><div><label>Guardian</label><p>${s.guardian}</p></div><div><label>Phone</label><p>${s.phone}</p></div></div>
+  <hr style="margin:10px 0;border:none;border-top:1px solid var(--border)">
+  <label>Fee — Term ${DB.term.term}</label>
+  ${f?`<div style="background:var(--gold-l);border-radius:var(--radius);padding:10px;font-size:12px;margin-top:5px">Term Fee: <b>GHS ${f.amount}</b> | Paid: <b style="color:var(--green)">GHS ${f.paid}</b> | Balance: <b style="color:${f.amount-f.paid>0?'var(--red)':'var(--green)'}">GHS ${f.amount-f.paid}</b> | <span class="bdg ${f.status==='paid'?'bg-g':f.status==='partial'?'bg-o':'bg-r'}">${f.status}</span></div>`:`<p style="color:var(--muted);font-size:12px;margin-top:5px">No fee record for current term.</p>`}`);
 }
-function editStudentModal(id){
+function moEditSt(id){
   const s=DB.students.find(x=>x.id===id);
-  openModal(`Edit — ${s.name}`,`
-    <div class="form-group"><label>Full Name</label><input id="e-name" value="${s.name}"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Date of Birth</label><input type="date" id="e-dob" value="${s.dob}"></div>
-      <div class="form-group"><label>Gender</label><select id="e-gender"><option value="M" ${s.gender==='M'?'selected':''}>Male</option><option value="F" ${s.gender==='F'?'selected':''}>Female</option></select></div>
-    </div>
-    <div class="form-group"><label>Class</label><select id="e-class">${CLASSES.map(c=>`<option ${s.class===c?'selected':''}>${c}</option>`).join('')}</select></div>
-    <div class="form-row">
-      <div class="form-group"><label>Guardian Name</label><input id="e-guardian" value="${s.guardian}"></div>
-      <div class="form-group"><label>Phone</label><input id="e-phone" value="${s.phone}"></div>
-    </div>
-    <div class="form-group"><label>Status</label><select id="e-status"><option ${s.status==='active'?'selected':''} value="active">Active</option><option ${s.status==='inactive'?'selected':''} value="inactive">Inactive</option></select></div>
-    <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="saveEditStudent(${id})">Save Changes</button><button class="btn btn-secondary" onclick="closeModal()">Cancel</button></div>
-  `);
+  moOpen(`Edit — ${s.name}`,`<div class="fg"><label>Full Name</label><input id="e-nm" value="${s.name}"></div><div class="gr2"><div class="fg"><label>DOB</label><input type="date" id="e-dob" value="${s.dob}"></div><div class="fg"><label>Gender</label><select id="e-gd"><option value="M" ${s.gender==='M'?'selected':''}>Male</option><option value="F" ${s.gender==='F'?'selected':''}>Female</option></select></div></div><div class="fg"><label>Class</label><select id="e-cls">${CLASSES.map(c=>`<option ${s.cls===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="gr2"><div class="fg"><label>Guardian</label><input id="e-gua" value="${s.guardian}"></div><div class="fg"><label>Phone</label><input id="e-ph" value="${s.phone}"></div></div><div class="fg"><label>Status</label><select id="e-st"><option value="active" ${s.status==='active'?'selected':''}>Active</option><option value="inactive" ${s.status==='inactive'?'selected':''}>Inactive</option></select></div><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="saveEditSt(${id})">Save</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
 }
-function saveEditStudent(id){
+async function saveEditSt(id){
   const s=DB.students.find(x=>x.id===id);
-  s.name=document.getElementById('e-name').value;
-  s.dob=document.getElementById('e-dob').value;
-  s.gender=document.getElementById('e-gender').value;
-  s.class=document.getElementById('e-class').value;
-  s.guardian=document.getElementById('e-guardian').value;
-  s.phone=document.getElementById('e-phone').value;
-  s.status=document.getElementById('e-status').value;
-  saveDB();closeModal();toast('Student updated successfully');showSection('students');
+  s.name=document.getElementById('e-nm').value;s.dob=document.getElementById('e-dob').value;s.gender=document.getElementById('e-gd').value;s.cls=document.getElementById('e-cls').value;s.guardian=document.getElementById('e-gua').value;s.phone=document.getElementById('e-ph').value;s.status=document.getElementById('e-st').value;
+  await dbSave();moClose();toast('Student updated successfully');go('students');
 }
-function deleteStudent(id){
-  if(!confirm('Delete this student? This will also remove all associated records.'))return;
+async function delSt(id){
+  if(!confirm('Delete student? All their records will also be removed.'))return;
   DB.students=DB.students.filter(s=>s.id!==id);
   DB.fees=DB.fees.filter(f=>f.studentId!==id);
   DB.results=DB.results.filter(r=>r.studentId!==id);
-  DB.submissions=DB.submissions.filter(s=>s.studentId!==id);
-  saveDB();toast('Student deleted','error');showSection('students');
+  DB.submissions=(DB.submissions||[]).filter(s=>s.studentId!==id);
+  DB.savedReports=(DB.savedReports||[]).filter(r=>r.studentId!==id);
+  await dbSave();toast('Student deleted','er');go('students');
 }
 
 // ══════════════════════════════════════════
 //  ENROLLMENT
 // ══════════════════════════════════════════
-function renderEnrollment(){
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">New Enrollment</div><div class="sec-sub">Register a new student</div></div></div>
-  <div class="card" style="max-width:600px">
-    <div id="enroll-alert"></div>
-    <div class="form-group"><label>Full Name *</label><input id="en-name" placeholder="Student full name"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Date of Birth *</label><input type="date" id="en-dob"></div>
-      <div class="form-group"><label>Gender *</label><select id="en-gender"><option value="">Select...</option><option value="M">Male</option><option value="F">Female</option></select></div>
-    </div>
-    <div class="form-group"><label>Class *</label><select id="en-class"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-    <hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">
-    <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:10px">Guardian / Parent Information</div>
-    <div class="form-row">
-      <div class="form-group"><label>Guardian Name *</label><input id="en-guardian" placeholder="Full name"></div>
-      <div class="form-group"><label>Guardian Phone *</label><input id="en-phone" placeholder="0244..."></div>
-    </div>
-    <div class="form-group"><label>Enrollment Date</label><input type="date" id="en-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="submitEnrollment()">Enroll Student</button>
-      <button class="btn btn-secondary" onclick="showSection('students')">Cancel</button>
-    </div>
+function pgEnroll(){
+  return`<div class="sh"><div><div class="st">New Enrollment</div><div class="ss">Register a new student</div></div></div>
+  <div class="card" style="max-width:560px">
+    <div id="en-alert"></div>
+    <div class="fg"><label>Full Name *</label><input id="en-nm" placeholder="Student full name"></div>
+    <div class="gr2"><div class="fg"><label>Date of Birth *</label><input type="date" id="en-dob"></div><div class="fg"><label>Gender *</label><select id="en-gd"><option value="">Select...</option><option value="M">Male</option><option value="F">Female</option></select></div></div>
+    <div class="fg"><label>Class *</label><select id="en-cls"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+    <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:9px">Guardian / Parent Information</div>
+    <div class="gr2"><div class="fg"><label>Guardian Name *</label><input id="en-gua" placeholder="Full name"></div><div class="fg"><label>Phone *</label><input id="en-ph" placeholder="0244..."></div></div>
+    <div class="fg"><label>Enrollment Date</label><input type="date" id="en-dt" value="${new Date().toISOString().slice(0,10)}"></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+    <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:9px">Fees Paid at Enrollment</div>
+    <div class="gr2"><div class="fg"><label>Term Fee Amount (GHS)</label><input type="number" id="en-famt" placeholder="0" min="0"></div><div class="fg"><label>Amount Paid (GHS)</label><input type="number" id="en-fpd" placeholder="0" min="0"></div></div>
+    <div class="gr2"><div class="fg"><label>Payment Method</label><select id="en-fmeth"><option>Cash</option><option>MoMo</option><option>Bank</option><option>Cheque</option></select></div><div class="fg"><label>Payment Date</label><input type="date" id="en-fdt" value="${new Date().toISOString().slice(0,10)}"></div></div>
+    <div style="display:flex;gap:7px"><button class="btn btn-g" onclick="submitEnroll()">Enroll Student</button><button class="btn" onclick="go('students')">Cancel</button></div>
   </div>`;
 }
-function submitEnrollment(){
-  const name=document.getElementById('en-name').value.trim();
+async function submitEnroll(){
+  const name=document.getElementById('en-nm').value.trim();
   const dob=document.getElementById('en-dob').value;
-  const gender=document.getElementById('en-gender').value;
-  const cls=document.getElementById('en-class').value;
-  const guardian=document.getElementById('en-guardian').value.trim();
-  const phone=document.getElementById('en-phone').value.trim();
-  const date=document.getElementById('en-date').value;
-  if(!name||!dob||!gender||!cls||!guardian||!phone){toast('Please fill all required fields','error');return;}
-  DB.students.push({id:DB.nextStudentId++,name,dob,gender,class:cls,guardian,phone,enrollDate:date,status:'active'});
-  saveDB();toast('Student enrolled successfully!');setTimeout(()=>showSection('students'),800);
+  const gender=document.getElementById('en-gd').value;
+  const cls=document.getElementById('en-cls').value;
+  const guardian=document.getElementById('en-gua').value.trim();
+  const phone=document.getElementById('en-ph').value.trim();
+  const dt=document.getElementById('en-dt').value;
+  if(!name||!dob||!gender||!cls||!guardian||!phone){toast('Fill all required fields','er');return;}
+  const sid=DB.nextSid++;
+  DB.students.push({id:sid,name,dob,gender,cls,guardian,phone,enrollDate:dt,status:'active'});
+  const famt=parseInt(document.getElementById('en-famt').value)||0;
+  const fpd=parseInt(document.getElementById('en-fpd').value)||0;
+  if(famt>0||fpd>0){
+    const status=fpd>=famt&&famt>0?'paid':fpd>0?'partial':'unpaid';
+    DB.fees.push({id:DB.nextFid++,studentId:sid,amount:famt,paid:fpd,term:DB.term.term,year:DB.term.year,date:document.getElementById('en-fdt').value,status,method:document.getElementById('en-fmeth').value});
+  }
+  await dbSave();toast('Student enrolled successfully!');setTimeout(()=>go('students'),700);
 }
 
 // ══════════════════════════════════════════
 //  FEES & PAYMENTS
 // ══════════════════════════════════════════
-function renderFees(){
+function pgFees(){
   const paid=DB.fees.filter(f=>f.status==='paid').length;
   const partial=DB.fees.filter(f=>f.status==='partial').length;
   const unpaid=DB.fees.filter(f=>f.status==='unpaid').length;
-  const total=DB.fees.reduce((s,f)=>s+f.paid,0);
-  return`
-  <div class="sec-hdr">
-    <div><div class="sec-title">Fees & Payments</div><div class="sec-sub">Manage school fee payments</div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="openSetFeesModal()">⚙️ Set Term Fees</button>
-      <button class="btn btn-gold" onclick="openPaymentModal()">+ Record Payment</button>
-    </div>
+  const tot=DB.fees.reduce((s,f)=>s+f.paid,0);
+  return`<div class="sh"><div><div class="st">Fees & Payments</div><div class="ss">Manage school fee payments</div></div><div style="display:flex;gap:7px"><button class="btn" onclick="moSetFees()">⚙️ Set Term Fees</button><button class="btn btn-o" onclick="moAddPayment()">+ Record Payment</button></div></div>
+  <div class="stat-grid"><div class="stat"><div class="stat-n" style="color:var(--green)">${paid}</div><div class="stat-l">Fully Paid</div></div><div class="stat"><div class="stat-n" style="color:var(--gold)">${partial}</div><div class="stat-l">Partial</div></div><div class="stat"><div class="stat-n" style="color:var(--red)">${unpaid}</div><div class="stat-l">Unpaid</div></div><div class="stat"><div class="stat-n" style="color:var(--blue);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="stat-l">Collected</div></div></div>
+  <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="text" id="ff-name" placeholder="Search student..." oninput="filterFees()" style="max-width:190px">
+    <select id="ff-cls" onchange="filterFees()" style="max-width:140px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <select id="ff-term" onchange="filterFees()" style="max-width:110px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
+    <select id="ff-status" onchange="filterFees()" style="max-width:120px"><option value="">All Status</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="unpaid">Unpaid</option></select>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num" style="color:var(--green)">${paid}</div><div class="stat-lbl">Fully Paid</div></div>
-    <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-num" style="color:var(--gold)">${partial}</div><div class="stat-lbl">Partial</div></div>
-    <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-num" style="color:var(--red)">${unpaid}</div><div class="stat-lbl">Unpaid</div></div>
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" style="color:var(--blue);font-size:18px">GHS ${total.toLocaleString()}</div><div class="stat-lbl">Total Collected</div></div>
-  </div>
-  <!-- SEARCH FEES -->
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <input type="text" id="fee-search" placeholder="Search by student name..." oninput="filterFees()" style="max-width:220px">
-    <select id="fee-cls-f" onchange="filterFees()" style="max-width:150px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
-    <select id="fee-term-f" onchange="filterFees()" style="max-width:120px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
-  </div>
-  <div class="card" style="padding:0">
-    <div class="table-wrap"><table id="fees-table">
-      <thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Year</th><th>Fee Amount</th><th>Paid</th><th>Balance</th><th>Method</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>${feesRows(DB.fees)}</tbody>
-    </table></div>
-  </div>`;
+  <div class="card" style="padding:0"><div class="tw"><table id="fees-tbl"><thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Method</th><th>Date</th><th>Status</th><th></th></tr></thead>
+  <tbody>${feesRows(DB.fees)}</tbody></table></div></div>`;
 }
 function feesRows(list){
   return list.map(f=>{
-    const st=DB.students.find(s=>s.id===f.studentId)||{name:'Unknown',class:''};
+    const st=DB.students.find(s=>s.id===f.studentId)||{name:'Unknown',cls:''};
     const bal=f.amount-f.paid;
-    return`<tr>
-      <td style="font-weight:500">${st.name}</td><td>${st.class}</td>
-      <td>Term ${f.term}</td><td>${f.year}</td>
-      <td>GHS ${f.amount}</td>
-      <td style="color:var(--green);font-weight:600">GHS ${f.paid}</td>
-      <td style="color:${bal>0?'var(--red)':'var(--green)'};font-weight:600">GHS ${bal}</td>
-      <td>${f.method||'—'}</td><td>${f.date||'—'}</td>
-      <td><span class="badge badge-${f.status==='paid'?'green':f.status==='partial'?'gold':'red'}">${f.status}</span></td>
-      <td style="display:flex;gap:4px">
-        <button class="btn btn-xs btn-secondary" onclick="updateFeeModal(${f.id})">Update</button>
-        <button class="btn btn-xs btn-danger" onclick="deleteFee(${f.id})">Del</button>
-      </td></tr>`;
+    return`<tr><td style="font-weight:500">${st.name}</td><td>${st.cls}</td><td>T${f.term}</td><td>GHS ${f.amount}</td><td style="color:var(--green);font-weight:600">GHS ${f.paid}</td><td style="color:${bal>0?'var(--red)':'var(--green)'};font-weight:600">GHS ${bal}</td><td>${f.method||'—'}</td><td>${f.date||'—'}</td><td><span class="bdg ${f.status==='paid'?'bg-g':f.status==='partial'?'bg-o':'bg-r'}">${f.status}</span></td>
+    <td style="display:flex;gap:4px"><button class="btn btn-sm" onclick="moUpdateFee(${f.id})">Update</button><button class="btn btn-sm btn-d" onclick="delFee(${f.id})">Del</button></td></tr>`;
   }).join('');
 }
 function filterFees(){
-  const q=(document.getElementById('fee-search')||{}).value?.toLowerCase()||'';
-  const cls=(document.getElementById('fee-cls-f')||{}).value||'';
-  const term=(document.getElementById('fee-term-f')||{}).value||'';
+  const q=(document.getElementById('ff-name')||{}).value?.toLowerCase()||'';
+  const cls=(document.getElementById('ff-cls')||{}).value||'';
+  const term=(document.getElementById('ff-term')||{}).value||'';
+  const status=(document.getElementById('ff-status')||{}).value||'';
   let list=DB.fees;
   if(q)list=list.filter(f=>{const st=DB.students.find(s=>s.id===f.studentId);return st&&st.name.toLowerCase().includes(q);});
-  if(cls)list=list.filter(f=>{const st=DB.students.find(s=>s.id===f.studentId);return st&&st.class===cls;});
+  if(cls)list=list.filter(f=>{const st=DB.students.find(s=>s.id===f.studentId);return st&&st.cls===cls;});
   if(term)list=list.filter(f=>f.term===parseInt(term));
-  document.querySelector('#fees-table tbody').innerHTML=feesRows(list);
+  if(status)list=list.filter(f=>f.status===status);
+  document.querySelector('#fees-tbl tbody').innerHTML=feesRows(list);
 }
-function deleteFee(id){
-  if(!confirm('Delete this payment record?'))return;
-  DB.fees=DB.fees.filter(f=>f.id!==id);
-  saveDB();toast('Payment record deleted','error');showSection('fees');
+async function delFee(id){
+  if(!confirm('Delete payment record?'))return;
+  DB.fees=DB.fees.filter(f=>f.id!==id);await dbSave();toast('Record deleted','er');go('fees');
 }
-function openSetFeesModal(){
-  const tk=termKey(DB.term.year,DB.term.term);
-  const fees=DB.termFees[tk]||{};
-  openModal(`Set Term Fees — Term ${DB.term.term} · ${DB.term.year}`,`
-    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Set the fee amount for each class for the current term. This affects all fee records and report cards.</p>
-    ${CLASSES.map(c=>`<div class="form-row" style="margin-bottom:8px;align-items:center">
-      <div style="padding-top:4px;font-size:13px;font-weight:500">${c}</div>
-      <div><input type="number" id="fee-amt-${c.replace(/\s/g,'_')}" value="${fees[c]||500}" min="0" placeholder="GHS"></div>
-    </div>`).join('')}
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-primary" onclick="saveTermFees()">Save Fee Amounts</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `,'modal-lg');
+function moSetFees(){
+  const tk=termKey(DB.term.year,DB.term.term);const fees=DB.termFees[tk]||{};
+  moOpen(`Set Term Fees — Term ${DB.term.term} · ${DB.term.year}`,`<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Set the fee for each class. Reflects on report cards and all boards.</p>${CLASSES.map(c=>`<div class="gr2" style="margin-bottom:7px;align-items:center"><div style="font-size:12px;font-weight:500">${c}</div><div><input type="number" id="sf-${c.replace(/\s/g,'_')}" value="${fees[c]||''}" placeholder="GHS" min="0"></div></div>`).join('')}<div style="display:flex;gap:7px;margin-top:10px"><button class="btn btn-g" onclick="saveTermFees()">Save Fees</button><button class="btn" onclick="moClose()">Cancel</button></div>`,true);
 }
-function saveTermFees(){
-  const tk=termKey(DB.term.year,DB.term.term);
-  if(!DB.termFees[tk])DB.termFees[tk]={};
-  CLASSES.forEach(c=>{
-    const el=document.getElementById('fee-amt-'+c.replace(/\s/g,'_'));
-    if(el)DB.termFees[tk][c]=parseInt(el.value)||500;
-  });
-  saveDB();closeModal();toast('Term fees updated successfully!');
+async function saveTermFees(){
+  const tk=termKey(DB.term.year,DB.term.term);if(!DB.termFees[tk])DB.termFees[tk]={};
+  CLASSES.forEach(c=>{const el=document.getElementById('sf-'+c.replace(/\s/g,'_'));if(el&&el.value)DB.termFees[tk][c]=parseInt(el.value)||0;});
+  await dbSave();moClose();toast('Term fees saved!');
 }
-function openPaymentModal(){
-  openModal('Record Fee Payment',`
-    <div class="form-row">
-      <div class="form-group"><label>Select Class *</label>
-        <select id="pay-class" onchange="loadPayStudents()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
-      </div>
-      <div class="form-group"><label>Select Term *</label>
-        <select id="pay-term"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select>
-      </div>
-    </div>
-    <div class="form-group"><label>Select Student *</label>
-      <select id="pay-student"><option value="">Select student...</option></select>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Term Fee (GHS)</label><input type="number" id="pay-amount" placeholder="Auto-filled" readonly style="background:var(--bg)"></div>
-      <div class="form-group"><label>Amount Paid (GHS) *</label><input type="number" id="pay-paid" placeholder="Amount paid now"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Payment Method</label><select id="pay-method"><option>Cash</option><option>MoMo</option><option>Bank</option><option>Cheque</option></select></div>
-      <div class="form-group"><label>Payment Date</label><input type="date" id="pay-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-gold" onclick="savePayment()">Save Payment</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
+function moAddPayment(){
+  moOpen('Record Fee Payment',`<div class="gr2"><div class="fg"><label>Class *</label><select id="pycls" onchange="pyLoadSts()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div class="fg"><label>Term *</label><select id="pyterm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div></div>
+  <div class="fg"><label>Student *</label><select id="pysid"><option value="">Select student...</option></select></div>
+  <div class="gr2"><div class="fg"><label>Term Fee (GHS)</label><input type="number" id="py-amt" placeholder="Auto-fill" readonly style="background:var(--bg2)"></div><div class="fg"><label>Amount Paid *</label><input type="number" id="py-paid" placeholder="Amount paid"></div></div>
+  <div class="gr2"><div class="fg"><label>Method</label><select id="py-meth"><option>Cash</option><option>MoMo</option><option>Bank</option><option>Cheque</option></select></div><div class="fg"><label>Date</label><input type="date" id="py-dt" value="${new Date().toISOString().slice(0,10)}"></div></div>
+  <div style="display:flex;gap:7px"><button class="btn btn-o" onclick="savePayment()">Save Payment</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
 }
-function loadPayStudents(){
-  const cls=document.getElementById('pay-class').value;
-  const term=parseInt(document.getElementById('pay-term').value)||DB.term.term;
-  const sel=document.getElementById('pay-student');
-  sel.innerHTML='<option value="">Select student...</option>'+DB.students.filter(s=>s.class===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+function pyLoadSts(){
+  const cls=(document.getElementById('pycls')||{}).value||'';
+  const term=parseInt((document.getElementById('pyterm')||{}).value)||DB.term.term;
+  const sel=document.getElementById('pysid');
+  sel.innerHTML='<option value="">Select student...</option>'+DB.students.filter(s=>s.cls===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   const feeAmt=getTermFee(cls,DB.term.year,term);
-  document.getElementById('pay-amount').value=feeAmt;
-  sel.onchange=()=>{document.getElementById('pay-amount').value=feeAmt;};
+  const amtEl=document.getElementById('py-amt');if(amtEl)amtEl.value=feeAmt||'';
+  sel.onchange=()=>{if(amtEl)amtEl.value=getTermFee(cls,DB.term.year,term)||'';};
 }
-function savePayment(){
-  const sid=parseInt(document.getElementById('pay-student').value);
-  const term=parseInt(document.getElementById('pay-term').value)||DB.term.term;
-  const cls=(document.getElementById('pay-class')||{}).value||'';
-  const amt=parseInt(document.getElementById('pay-amount').value)||getTermFee(cls,DB.term.year,term);
-  const paid=parseInt(document.getElementById('pay-paid').value)||0;
-  const method=document.getElementById('pay-method').value;
-  const date=document.getElementById('pay-date').value;
-  if(!sid){toast('Please select a student','error');return;}
+async function savePayment(){
+  const sid=parseInt((document.getElementById('pysid')||{}).value)||0;
+  const term=parseInt((document.getElementById('pyterm')||{}).value)||DB.term.term;
+  const cls=(document.getElementById('pycls')||{}).value||'';
+  const amt=parseInt((document.getElementById('py-amt')||{}).value)||getTermFee(cls,DB.term.year,term)||0;
+  const paid=parseInt((document.getElementById('py-paid')||{}).value)||0;
+  if(!sid){toast('Select a student','er');return;}
+  const status=paid>=amt&&amt>0?'paid':paid>0?'partial':'unpaid';
   const existing=DB.fees.findIndex(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
-  const status=paid>=amt?'paid':paid>0?'partial':'unpaid';
-  const rec={id:DB.nextFeeId++,studentId:sid,amount:amt,paid,term,year:DB.term.year,date,status,method};
+  const rec={id:DB.nextFid++,studentId:sid,amount:amt,paid,term,year:DB.term.year,date:(document.getElementById('py-dt')||{}).value||'',status,method:(document.getElementById('py-meth')||{}).value||'Cash'};
   if(existing>=0)DB.fees[existing]=rec; else DB.fees.push(rec);
-  saveDB();closeModal();toast('Payment recorded successfully!');showSection('fees');
+  await dbSave();moClose();toast('Payment saved!');go('fees');
 }
-function updateFeeModal(feeId){
-  const f=DB.fees.find(x=>x.id===feeId);
-  const st=DB.students.find(s=>s.id===f.studentId);
-  openModal(`Update Payment — ${st?st.name:''}`,`
-    <div style="background:var(--gold-l);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px">
-      <strong>${st?st.name:''}</strong> · ${st?st.class:''}<br>
-      Term Fee: GHS ${f.amount} | Paid: GHS ${f.paid} | Balance: <strong style="color:var(--red)">GHS ${f.amount-f.paid}</strong>
-    </div>
-    <div class="form-group"><label>Additional Amount to Pay (GHS)</label><input type="number" id="upd-add" placeholder="Enter amount" min="0"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Payment Method</label><select id="upd-method"><option>Cash</option><option>MoMo</option><option>Bank</option></select></div>
-      <div class="form-group"><label>Date</label><input type="date" id="upd-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-gold" onclick="saveUpdateFee(${feeId})">Update Payment</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
+function moUpdateFee(fid){
+  const f=DB.fees.find(x=>x.id===fid);const st=DB.students.find(s=>s.id===f.studentId);
+  moOpen(`Update Payment — ${st?st.name:''}`,`<div style="background:var(--gold-l);border-radius:var(--radius);padding:10px;margin-bottom:12px;font-size:12px">Term Fee: <b>GHS ${f.amount}</b> | Paid: <b style="color:var(--green)">GHS ${f.paid}</b> | Balance: <b style="color:var(--red)">GHS ${f.amount-f.paid}</b></div>
+  <div class="fg"><label>Additional Amount (GHS)</label><input type="number" id="ua-add" placeholder="Amount paying now" min="0"></div>
+  <div class="gr2"><div class="fg"><label>Method</label><select id="ua-meth"><option>Cash</option><option>MoMo</option><option>Bank</option></select></div><div class="fg"><label>Date</label><input type="date" id="ua-dt" value="${new Date().toISOString().slice(0,10)}"></div></div>
+  <div style="display:flex;gap:7px"><button class="btn btn-o" onclick="saveUpdateFee(${fid})">Update</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
 }
-function saveUpdateFee(fid){
+async function saveUpdateFee(fid){
   const f=DB.fees.find(x=>x.id===fid);
-  const add=parseInt(document.getElementById('upd-add').value)||0;
-  f.paid=Math.min(f.amount,f.paid+add);
+  f.paid=Math.min(f.amount,f.paid+(parseInt((document.getElementById('ua-add')||{}).value)||0));
   f.status=f.paid>=f.amount?'paid':f.paid>0?'partial':'unpaid';
-  f.method=document.getElementById('upd-method').value;
-  f.date=document.getElementById('upd-date').value;
-  saveDB();closeModal();toast('Payment updated successfully!');showSection('fees');
+  f.method=(document.getElementById('ua-meth')||{}).value||f.method;
+  f.date=(document.getElementById('ua-dt')||{}).value||f.date;
+  await dbSave();moClose();toast('Payment updated!');go('fees');
 }
 
 // ══════════════════════════════════════════
-//  RESULTS ENTRY (STAFF)
+//  RESULTS ENTRY
 // ══════════════════════════════════════════
-let RS={cls:'',sid:null,term:DB.term.term,year:DB.term.year};
-
-function renderResults(){
-  const cls=CU.role==='staff'?CU.class:'';
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">Results Entry</div><div class="sec-sub">Enter class scores and exam scores per subject</div></div></div>
-  <div class="card" style="margin-bottom:16px">
-    <div class="form-row3">
-      <div class="form-group" style="margin:0"><label>Class</label>
-        <select id="r-cls" onchange="rsClassChange()" ${CU.role==='staff'?'disabled':''}>
-          <option value="">Select class...</option>${CLASSES.map(c=>`<option ${c===cls?'selected':''}>${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group" style="margin:0"><label>Student</label>
-        <select id="r-sid" onchange="rsStudentChange()"><option value="">Select student...</option></select>
-      </div>
-      <div class="form-group" style="margin:0"><label>Term</label>
-        <select id="r-term" onchange="rsTermChange()">
-          <option value="1" ${DB.term.term===1?'selected':''}>Term 1</option>
-          <option value="2" ${DB.term.term===2?'selected':''}>Term 2</option>
-          <option value="3" ${DB.term.term===3?'selected':''}>Term 3</option>
-        </select>
-      </div>
+let RS={cls:'',sid:null,term:1};
+function pgResults(){
+  const cls=CU.role==='staff'?CU.cls:'';
+  return`<div class="sh"><div><div class="st">Results Entry</div><div class="ss">Enter class scores and exam scores per subject</div></div></div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="gr3">
+      <div class="fg" style="margin:0"><label>Class</label><select id="r-cls" onchange="rClsChange()" ${CU.role==='staff'?'disabled':''}><option value="">Select...</option>${CLASSES.map(c=>`<option ${c===cls?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="fg" style="margin:0"><label>Student</label><select id="r-sid" onchange="rSidChange()"><option value="">Select student...</option></select></div>
+      <div class="fg" style="margin:0"><label>Term</label><select id="r-term" onchange="rTermChange()"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
     </div>
   </div>
-  <div id="results-form"></div>`;
+  <div id="r-form"></div>`;
 }
-
-function initResults(){
-  if(CU.role==='staff'&&CU.class){
-    RS.cls=CU.class;
-    setTimeout(()=>{rsClassChange();},60);
-  }
-}
-
-function rsClassChange(){
-  const cls=(document.getElementById('r-cls')||{}).value||RS.cls;
-  RS.cls=cls;
-  const sel=document.getElementById('r-sid');
-  const sts=myStudents().filter(s=>s.class===cls);
-  sel.innerHTML='<option value="">Select student...</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  document.getElementById('results-form').innerHTML='';
-}
-function rsTermChange(){
-  RS.term=parseInt(document.getElementById('r-term').value)||DB.term.term;
-  if(RS.sid)rsLoadScores();
-}
-function rsStudentChange(){
-  RS.sid=parseInt(document.getElementById('r-sid').value)||null;
-  if(RS.sid)rsLoadScores();
-}
-
-function rsLoadScores(){
-  const cls=RS.cls;
-  const sid=RS.sid;
-  const term=RS.term;
-  if(!cls||!sid)return;
-  const subjects=GES[cls]||[];
+function initResults(){RS.term=DB.term.term;if(CU.role==='staff'&&CU.cls){RS.cls=CU.cls;setTimeout(rClsChange,60);}}
+function rClsChange(){const cls=(document.getElementById('r-cls')||{}).value||RS.cls;RS.cls=cls;const sel=document.getElementById('r-sid');if(!sel)return;sel.innerHTML='<option value="">Select student...</option>'+mySts().filter(s=>s.cls===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');document.getElementById('r-form').innerHTML='';}
+function rTermChange(){RS.term=parseInt((document.getElementById('r-term')||{}).value)||DB.term.term;if(RS.sid)rLoadScores();}
+function rSidChange(){RS.sid=parseInt((document.getElementById('r-sid')||{}).value)||null;if(RS.sid)rLoadScores();}
+function rLoadScores(){
+  const{cls,sid,term}=RS;if(!cls||!sid)return;
+  const subs=subjectsFor(cls);
   const existing=DB.results.find(r=>r.studentId===sid&&r.term===term&&r.year===DB.term.year);
   const saved=existing?existing.subjects:{};
-  // Compute positions across class for each subject
-  const classStudents=DB.students.filter(s=>s.class===cls);
-  const positions=calcPositions(DB.results,cls,DB.term.year,term);
+  const positions=calcPositions(cls,DB.term.year,term);
   const st=DB.students.find(s=>s.id===sid);
-
-  const rows=subjects.map(sub=>{
-    const d=saved[sub]||{classScore:'',exam100:'',examScore70:'',total:''};
+  const rows=subs.map(sub=>{
+    const d=saved[sub]||{};
     const pos=positions[sid]&&positions[sid][sub]?ordinal(positions[sid][sub]):'—';
-    const g=d.total!==''&&d.total!==undefined?grade(d.total):{g:'—',r:'—',c:''};
-    return`<tr id="row-${sub.replace(/\W/g,'_')}">
-      <td style="font-weight:500;font-size:12px">${sub}</td>
-      <td><input type="number" class="cs-inp" data-sub="${sub}" min="0" max="30" placeholder="0-30" value="${d.classScore!==undefined&&d.classScore!==''?d.classScore:''}" style="width:70px;text-align:center" oninput="rsCalc('${sub.replace(/'/g,"\\'")}')"></td>
-      <td><input type="number" class="ex100-inp" data-sub="${sub}" min="0" max="100" placeholder="0-100" value="${d.exam100!==undefined&&d.exam100!==''?d.exam100:''}" style="width:75px;text-align:center" oninput="rsCalcExam('${sub.replace(/'/g,"\\'")}')"></td>
-      <td><input type="number" class="ex70-inp" data-sub="${sub}" min="0" max="70" placeholder="Auto" value="${d.examScore70!==undefined&&d.examScore70!==''?d.examScore70:''}" style="width:70px;text-align:center;background:var(--bg)" readonly></td>
-      <td><input type="number" class="tot-inp" data-sub="${sub}" placeholder="Auto" value="${d.total!==undefined&&d.total!==''?d.total:''}" style="width:70px;text-align:center;background:var(--bg);font-weight:700" readonly></td>
-      <td id="pos-${sub.replace(/\W/g,'_')}" style="font-weight:600">${pos}</td>
-      <td id="rem-${sub.replace(/\W/g,'_')}" class="${g.c}" style="font-size:12px">${g.r}</td>
+    const g=d.total!=null&&d.total!==''?gradeOf(d.total):{r:'—',c:''};
+    const key=sub.replace(/[^a-zA-Z0-9]/g,'_');
+    return`<tr><td style="font-weight:500;font-size:11px">${sub}</td>
+      <td><input type="number" class="ri-cs" data-sub="${sub}" min="0" max="30" value="${d.classScore??''}" style="width:65px;text-align:center" oninput="rCalc('${sub.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}')" ></td>
+      <td><input type="number" class="ri-ex" data-sub="${sub}" min="0" max="100" value="${d.exam100??''}" style="width:68px;text-align:center" oninput="rCalcEx('${sub.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}')"></td>
+      <td><input type="number" class="ri-e7" data-sub="${sub}" min="0" max="70" value="${d.examScore70??''}" style="width:65px;text-align:center;background:var(--bg2)" readonly></td>
+      <td><input type="number" class="ri-tot" data-sub="${sub}" value="${d.total??''}" style="width:65px;text-align:center;background:var(--bg2);font-weight:700" readonly></td>
+      <td id="rpos_${key}" style="font-weight:600;font-size:11px">${pos}</td>
+      <td id="rrm_${key}" class="${g.c}" style="font-size:11px">${g.r}</td>
+      <td><button class="btn btn-sm btn-d" onclick="rRemoveSub(this)" data-sub="${sub}">−</button></td>
     </tr>`;
   }).join('');
-
-  document.getElementById('results-form').innerHTML=`
-    <div class="card" style="padding:0">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--green-l);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:13px;font-weight:600;color:var(--green)">📚 ${cls} — ${st?st.name:''} · ${subjects.length} GES Subjects</div>
-        <div style="font-size:12px;color:var(--muted)">Class Score: /30 | Exam (100): full marks | Exam Score: /70 | Total: /100</div>
-      </div>
-      <div id="results-alert" style="padding:0 18px"></div>
-      <div class="table-wrap">
-      <table>
-        <thead><tr><th>Subject</th><th>Class Score (30%)</th><th>Exam (100%)</th><th>Exam Score (70%)</th><th>Total (100%)</th><th>Position</th><th>Remarks</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>
-      <div style="padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="rsSave()">💾 Save Results</button>
-        <button class="btn btn-gold" onclick="rsSubmit()">📤 Save & Submit to Admin</button>
-        <button class="btn btn-secondary" onclick="rsClear()">Clear</button>
-      </div>
-    </div>`;
+  document.getElementById('r-form').innerHTML=`<div class="card" style="padding:0">
+    <div style="padding:11px 14px;background:var(--green-l);border-radius:var(--rad-lg) var(--rad-lg) 0 0;display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;color:var(--green)">📚 ${cls} — ${st?st.name:''}</div>
+      <button class="btn btn-sm btn-g" onclick="rAddSubModal()">+ Add Subject</button>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Subject</th><th>Class Score (30)</th><th>Exam (100)</th><th>Exam Score (70)</th><th>Total (100)</th><th>Position</th><th>Remarks</th><th></th></tr></thead>
+      <tbody id="r-tbody">${rows}</tbody>
+    </table></div>
+    <div style="padding:12px 14px;border-top:1.5px solid var(--border);display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-g" onclick="rSave()">💾 Save Results</button>
+      <button class="btn btn-o" onclick="rSubmit()">📤 Submit to Admin</button>
+      <button class="btn" onclick="rClear()">Clear</button>
+    </div>
+  </div>`;
 }
-
-function rsCalc(sub){
-  const key=sub.replace(/\W/g,'_');
-  const csEl=document.querySelector(`.cs-inp[data-sub="${sub}"]`);
-  const ex70El=document.querySelector(`.ex70-inp[data-sub="${sub}"]`);
-  const totEl=document.querySelector(`.tot-inp[data-sub="${sub}"]`);
-  const cs=parseFloat(csEl.value)||0;
-  const ex70=parseFloat(ex70El.value)||0;
-  const tot=Math.min(100,Math.round((cs+ex70)*100)/100);
-  totEl.value=cs!==''||ex70!==''?tot:'';
-  if(cs!==''||ex70!==''){
-    const g=grade(tot);
-    document.getElementById('rem-'+key).textContent=g.r;
-    document.getElementById('rem-'+key).className=g.c;
-  }
+function rCalc(sub){
+  const cs=parseFloat(document.querySelector(`.ri-cs[data-sub="${sub}"]`)?.value)||0;
+  const e7=parseFloat(document.querySelector(`.ri-e7[data-sub="${sub}"]`)?.value)||0;
+  const tot=Math.round((cs+e7)*10)/10;
+  const totEl=document.querySelector(`.ri-tot[data-sub="${sub}"]`);
+  if(totEl)totEl.value=(cs!==0||e7!==0)?tot:'';
+  const key=sub.replace(/[^a-zA-Z0-9]/g,'_');
+  const rmEl=document.getElementById('rrm_'+key);
+  if(rmEl&&tot>0){const g=gradeOf(tot);rmEl.textContent=g.r;rmEl.className=g.c;}
 }
-
-function rsCalcExam(sub){
-  const key=sub.replace(/\W/g,'_');
-  const ex100El=document.querySelector(`.ex100-inp[data-sub="${sub}"]`);
-  const ex70El=document.querySelector(`.ex70-inp[data-sub="${sub}"]`);
-  const v=parseFloat(ex100El.value);
-  if(!isNaN(v)&&v>=0&&v<=100){
-    ex70El.value=(v*0.7).toFixed(1);
-  } else {
-    ex70El.value='';
-  }
-  rsCalc(sub);
+function rCalcEx(sub){
+  const v=parseFloat(document.querySelector(`.ri-ex[data-sub="${sub}"]`)?.value);
+  const e7El=document.querySelector(`.ri-e7[data-sub="${sub}"]`);
+  if(!isNaN(v)&&v>=0&&v<=100){if(e7El)e7El.value=Math.round(v*0.7*10)/10;}
+  else{if(e7El)e7El.value='';}
+  rCalc(sub);
 }
-
-function rsCollect(){
-  const subjects=GES[RS.cls]||[];
-  const subjectsData={};
-  subjects.forEach(sub=>{
-    const cs=document.querySelector(`.cs-inp[data-sub="${sub}"]`)?.value;
-    const ex100=document.querySelector(`.ex100-inp[data-sub="${sub}"]`)?.value;
-    const ex70=document.querySelector(`.ex70-inp[data-sub="${sub}"]`)?.value;
-    const tot=document.querySelector(`.tot-inp[data-sub="${sub}"]`)?.value;
-    if(cs!==''||ex100!==''||tot!==''){
-      subjectsData[sub]={
-        classScore:cs!==''?parseFloat(cs):'',
-        exam100:ex100!==''?parseFloat(ex100):'',
-        examScore70:ex70!==''?parseFloat(ex70):'',
-        total:tot!==''?parseFloat(tot):''
-      };
-    }
+function rCollect(){
+  const subs=subjectsFor(RS.cls);const data={};
+  subs.forEach(sub=>{
+    const cs=document.querySelector(`.ri-cs[data-sub="${sub}"]`)?.value;
+    const ex=document.querySelector(`.ri-ex[data-sub="${sub}"]`)?.value;
+    const e7=document.querySelector(`.ri-e7[data-sub="${sub}"]`)?.value;
+    const tot=document.querySelector(`.ri-tot[data-sub="${sub}"]`)?.value;
+    if(cs!==''||ex!==''||tot!==''){data[sub]={classScore:cs!==''?parseFloat(cs):null,exam100:ex!==''?parseFloat(ex):null,examScore70:e7!==''?parseFloat(e7):null,total:tot!==''?parseFloat(tot):null};}
   });
-  return subjectsData;
+  return data;
 }
-
-function rsSave(){
-  const data=rsCollect();
+async function rSave(){
+  const data=rCollect();
   const idx=DB.results.findIndex(r=>r.studentId===RS.sid&&r.term===RS.term&&r.year===DB.term.year);
-  const entry={id:DB.nextResultId++,studentId:RS.sid,class:RS.cls,term:RS.term,year:DB.term.year,subjects:data,submittedBy:CU.id,submitted:false};
-  if(idx>=0)DB.results[idx]={...DB.results[idx],...entry,id:DB.results[idx].id};
-  else DB.results.push(entry);
-  saveDB();toast('Results saved successfully!');
+  const entry={id:DB.nextSubId++,studentId:RS.sid,class:RS.cls,term:RS.term,year:DB.term.year,subjects:data,submitted:false};
+  if(idx>=0)DB.results[idx]={...DB.results[idx],...entry,id:DB.results[idx].id}; else DB.results.push(entry);
+  await dbSave();toast('Results saved successfully!');
 }
-
-function rsSubmit(){
-  rsSave();
+async function rSubmit(){
+  await rSave();
   const idx=DB.results.findIndex(r=>r.studentId===RS.sid&&r.term===RS.term&&r.year===DB.term.year);
   if(idx>=0)DB.results[idx].submitted=true;
-  // Add submission record
-  const already=DB.submissions.findIndex(s=>s.studentId===RS.sid&&s.term===RS.term&&s.year===DB.term.year&&s.type==='results');
-  const sub={id:Date.now(),studentId:RS.sid,class:RS.cls,term:RS.term,year:DB.term.year,type:'results',status:'submitted',submittedBy:CU.id,submittedByName:CU.name,submittedAt:new Date().toISOString()};
-  if(already>=0)DB.submissions[already]=sub; else DB.submissions.push(sub);
-  saveDB();toast('Results submitted to Admin! ✅');
+  const ai=DB.submissions.findIndex(s=>s.studentId===RS.sid&&s.term===RS.term&&s.year===DB.term.year&&s.type==='results');
+  const sub={id:Date.now(),studentId:RS.sid,class:RS.cls,term:RS.term,year:DB.term.year,type:'results',status:'submitted',submittedByName:CU.name,submittedAt:new Date().toISOString()};
+  if(ai>=0)DB.submissions[ai]=sub; else DB.submissions.push(sub);
+  await dbSave();toast('Submitted to Admin! ✓');
 }
-
-function rsClear(){
-  document.querySelectorAll('.cs-inp,.ex100-inp').forEach(el=>{el.value='';});
-  document.querySelectorAll('.ex70-inp,.tot-inp').forEach(el=>{el.value='';});
+function rClear(){document.querySelectorAll('.ri-cs,.ri-ex').forEach(e=>e.value='');document.querySelectorAll('.ri-e7,.ri-tot').forEach(e=>e.value='');}
+function rAddSubModal(){
+  moOpen('Add Subject',`<div class="fg"><label>Subject Name</label><input id="nsub" placeholder="e.g. Civic Education"></div><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="rAddSub()">Add</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+}
+async function rAddSub(){
+  const name=(document.getElementById('nsub')||{}).value?.trim()||'';
+  if(!name){toast('Enter subject name','er');return;}
+  const subs=subjectsFor(RS.cls);
+  if(subs.includes(name)){toast('Subject already exists','er');return;}
+  subs.push(name);setSubjectsFor(RS.cls,subs);await dbSave();moClose();toast('Subject added!');rLoadScores();
+}
+async function rRemoveSub(btn){
+  const sub=btn.getAttribute('data-sub');
+  if(!confirm(`Remove "${sub}" from ${RS.cls}?`))return;
+  const subs=subjectsFor(RS.cls).filter(s=>s!==sub);
+  setSubjectsFor(RS.cls,subs);await dbSave();toast('Subject removed');rLoadScores();
 }
 
 // ══════════════════════════════════════════
-//  REPORT CARDS (STAFF)
+//  REPORT CARD BUILDER
 // ══════════════════════════════════════════
-function renderReportCards(){
-  const cls=CU.role==='staff'?CU.class:'';
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">Report Cards</div><div class="sec-sub">Generate and submit student report cards</div></div></div>
-  <div class="card" style="max-width:700px;margin-bottom:18px">
-    <div class="form-row3">
-      <div class="form-group" style="margin:0"><label>Class</label>
-        <select id="rc-cls" onchange="rcLoadStudents()" ${CU.role==='staff'?'disabled':''}>
-          <option value="">Select...</option>${CLASSES.map(c=>`<option ${c===cls?'selected':''}>${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group" style="margin:0"><label>Student</label>
-        <select id="rc-sid"><option value="">Select student...</option></select>
-      </div>
-      <div class="form-group" style="margin:0"><label>Term</label>
-        <select id="rc-term">
-          <option value="1" ${DB.term.term===1?'selected':''}>Term 1</option>
-          <option value="2" ${DB.term.term===2?'selected':''}>Term 2</option>
-          <option value="3" ${DB.term.term===3?'selected':''}>Term 3</option>
-        </select>
-      </div>
-    </div>
-    <!-- Dates for report -->
-    <div class="form-row" style="margin-top:12px">
-      <div class="form-group" style="margin:0"><label>Date of Vacation</label><input type="date" id="rc-vacation"></div>
-      <div class="form-group" style="margin:0"><label>Date of Re-opening</label><input type="date" id="rc-reopen"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="previewRC()">👁 Preview</button>
-      <button class="btn btn-gold" onclick="submitRC()">📤 Save & Submit to Admin</button>
-      <button class="btn btn-secondary" onclick="printRC()">🖨 Print</button>
-    </div>
-  </div>
-  <div id="rc-preview"></div>`;
-}
-
-function rcLoadStudents(){
-  const cls=(document.getElementById('rc-cls')||{}).value||CU.class||'';
-  const sel=document.getElementById('rc-sid');
-  sel.innerHTML='<option value="">Select student...</option>'+myStudents().filter(s=>s.class===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-}
-
-function getVacationDates(){
-  return{
-    vacation:(document.getElementById('rc-vacation')||{}).value||'',
-    reopen:(document.getElementById('rc-reopen')||{}).value||''
-  };
-}
-
-function previewRC(){
-  const sid=parseInt((document.getElementById('rc-sid')||{}).value);
-  const term=parseInt((document.getElementById('rc-term')||{}).value)||DB.term.term;
-  if(!sid){toast('Please select a student','error');return;}
-  const dates=getVacationDates();
-  document.getElementById('rc-preview').innerHTML=`<div class="card" style="padding:0;overflow:hidden">${buildRC(sid,term,dates)}</div>`;
-  document.getElementById('rc-preview').scrollIntoView({behavior:'smooth'});
-}
-
-function submitRC(){
-  const sid=parseInt((document.getElementById('rc-sid')||{}).value);
-  const term=parseInt((document.getElementById('rc-term')||{}).value)||DB.term.term;
-  if(!sid){toast('Please select a student','error');return;}
-  const dates=getVacationDates();
-  // Store report card data
-  const st=DB.students.find(s=>s.id===sid);
-  const already=DB.submissions.findIndex(s=>s.studentId===sid&&s.term===term&&s.year===DB.term.year&&s.type==='reportcard');
-  const sub={id:Date.now(),studentId:sid,class:st?st.class:'',term,year:DB.term.year,type:'reportcard',status:'submitted',submittedBy:CU.id,submittedByName:CU.name,submittedAt:new Date().toISOString(),vacationDate:dates.vacation,reopenDate:dates.reopen};
-  if(already>=0)DB.submissions[already]=sub; else DB.submissions.push(sub);
-  saveDB();toast('Report card submitted to Admin! ✅');
-}
-
-function printRC(){
-  const sid=parseInt((document.getElementById('rc-sid')||{}).value);
-  const term=parseInt((document.getElementById('rc-term')||{}).value)||DB.term.term;
-  if(!sid){toast('Please select a student','error');return;}
-  const dates=getVacationDates();
-  const pa=document.getElementById('print-area');
-  pa.innerHTML=buildRC(sid,term,dates);
-  pa.style.display='block';
-  window.print();
-  setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},500);
-}
-
-function buildRC(sid,term,dates){
-  const s=DB.students.find(x=>x.id===sid);
-  if(!s)return'<p style="padding:20px;color:var(--red)">Student not found.</p>';
-  const result=DB.results.find(r=>r.studentId===sid&&r.term===term&&r.year===DB.term.year);
-  const subjects=GES[s.class]||[];
-  const subData=result?result.subjects:{};
-  const positions=calcPositions(DB.results,s.class,DB.term.year,term);
+function buildRC(sid,term,vac,rop){
+  const st=DB.students.find(x=>x.id===sid);
+  if(!st)return'<p style="padding:20px;color:red">Student not found.</p>';
+  const r=DB.results.find(x=>x.studentId===sid&&x.term===term&&x.year===DB.term.year);
+  const subs=subjectsFor(st.cls);
+  const subData=r?r.subjects:{};
+  const positions=calcPositions(st.cls,DB.term.year,term);
   const subPos=positions[sid]||{};
-  const totals=Object.values(subData).map(d=>d.total!==''&&d.total!==undefined?parseFloat(d.total):null).filter(v=>v!==null);
-  const avg=totals.length?(totals.reduce((a,b)=>a+b,0)/totals.length).toFixed(1):0;
-  const overallG=parseFloat(avg)>0?grade(parseFloat(avg)):null;
-  const classStudents=DB.students.filter(x=>x.class===s.class).length;
-  const allTotals=DB.students.filter(x=>x.class===s.class).map(st=>{
-    const r=DB.results.find(x=>x.studentId===st.id&&x.term===term&&x.year===DB.term.year);
-    if(!r)return{sid:st.id,avg:0};
-    const ts=Object.values(r.subjects).map(d=>d.total!==''&&d.total!==undefined?parseFloat(d.total):0);
-    return{sid:st.id,avg:ts.length?ts.reduce((a,b)=>a+b,0)/ts.length:0};
+  const totals=Object.values(subData).map(d=>d.total).filter(v=>v!=null);
+  const avg=totals.length?totals.reduce((a,b)=>a+b,0)/totals.length:0;
+  const avgStr=avg.toFixed(1);
+  const overallG=avg>0?gradeOf(avg):null;
+  const allSts=DB.students.filter(x=>x.cls===st.cls);
+  const allAvgs=allSts.map(s=>{
+    const sr=DB.results.find(x=>x.studentId===s.id&&x.term===term&&x.year===DB.term.year);
+    const ts=sr?Object.values(sr.subjects||{}).map(d=>d.total).filter(v=>v!=null):[];
+    return{sid:s.id,avg:ts.length?ts.reduce((a,b)=>a+b,0)/ts.length:0};
   }).sort((a,b)=>b.avg-a.avg);
-  const classPos=allTotals.findIndex(x=>x.sid===sid)+1;
+  const clsPos=allAvgs.findIndex(x=>x.sid===sid)+1;
+  const clsSize=allSts.length;
   const feeRec=DB.fees.find(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
-  const termFeeAmt=getTermFee(s.class,DB.term.year,term);
+  const termFeeAmt=getTermFee(st.cls,DB.term.year,term)||0;
   const feePaid=feeRec?feeRec.paid:0;
   const feeBal=termFeeAmt-feePaid;
+  const nextTerm=term<3?term+1:1;
+  const nyBase=parseInt(DB.term.year.split('/')[0]);
+  const nextYear=term<3?DB.term.year:`${nyBase+1}/${nyBase+2}`;
+  const nextFee=getTermFee(st.cls,nextYear,nextTerm)||0;
   const school=DB.school;
   const conducts=['Punctuality & Attendance','Neatness & Appearance','Cooperation with Peers','Participation in Class','General Behavior & Conduct','Respect for Authority'];
-  const teacherRemark=autoRemark(parseFloat(avg));
-  const headRemark=autoHeadRemark(parseFloat(avg));
-  const logoHtml=school.logo?`<img src="${school.logo}" class="rc-crest-img" alt="Logo">`:`<div class="rc-crest">🎓</div>`;
-
-  return`<div class="rc-wrap">
-    <div class="rc-hdr">
-      ${logoHtml}
-      <div style="flex:1">
-        <div class="rc-school-name">${school.name}</div>
-        <div class="rc-contact-info">${school.address} | Tel: ${school.phone} | ${school.email}</div>
-        <div class="rc-contact-info" style="margin-top:2px">Accredited by Ghana Education Service (GES)</div>
-      </div>
-      ${logoHtml}
+  const logoHtml=school.logo?`<div class="rcp-crest"><img src="${school.logo}" alt="Logo"></div>`:`<div class="rcp-crest">🎓</div>`;
+  return`<div class="rcp">
+    <div class="rcp-hdr">${logoHtml}<div style="flex:1;text-align:center"><div class="rcp-sn">${school.name}</div><div class="rcp-ci">${school.address}</div><div class="rcp-ci">Tel: ${school.phone} | Email: ${school.email}</div><div class="rcp-ci" style="margin-top:2px;font-weight:600;color:#16613a">Accredited by Ghana Education Service (GES)</div></div>${logoHtml}</div>
+    <div class="rcp-dtitle">${school.title||'Student Academic Report Card'}</div>
+    <div class="rcp-ib">
+      <div class="rcp-ic"><div class="lb2">Student Name</div><div class="vl">${st.name}</div></div>
+      <div class="rcp-ic"><div class="lb2">Class</div><div class="vl">${st.cls}</div></div>
+      <div class="rcp-ic"><div class="lb2">Term / Year</div><div class="vl">Term ${term} · ${DB.term.year}</div></div>
+      <div class="rcp-ic"><div class="lb2">Date of Birth</div><div class="vl">${st.dob}</div></div>
+      <div class="rcp-ic"><div class="lb2">Gender</div><div class="vl">${st.gender==='M'?'Male':'Female'}</div></div>
+      <div class="rcp-ic"><div class="lb2">Class Position</div><div class="vl">${clsPos>0?ordinal(clsPos)+' / '+clsSize+' students':'N/A'}</div></div>
     </div>
-    <div class="rc-doc-title">${school.title||'Student Academic Report Card'}</div>
-    <div class="rc-info-bar">
-      <div class="rc-info-cell"><div class="lbl">Student Name</div><div class="val">${s.name}</div></div>
-      <div class="rc-info-cell"><div class="lbl">Class</div><div class="val">${s.class}</div></div>
-      <div class="rc-info-cell"><div class="lbl">Term / Year</div><div class="val">Term ${term} · ${DB.term.year}</div></div>
-      <div class="rc-info-cell"><div class="lbl">Date of Birth</div><div class="val">${s.dob}</div></div>
-      <div class="rc-info-cell"><div class="lbl">Gender</div><div class="val">${s.gender==='M'?'Male':'Female'}</div></div>
-      <div class="rc-info-cell"><div class="lbl">Class Position</div><div class="val">${classPos>0?ordinal(classPos)+' / '+classStudents+' students':'N/A'}</div></div>
-    </div>
-    <div class="rc-body">
-      <table class="rc-sub-table">
+    <div class="rcp-body">
+      <table class="rcp-st">
         <thead><tr><th>#</th><th>Subject</th><th>Class Score (30%)</th><th>Exam Score (70%)</th><th>Total (100%)</th><th>Position</th><th>Grade</th><th>Remarks</th></tr></thead>
-        <tbody>${subjects.map((sub,i)=>{
-          const d=subData[sub]||{};
-          const t=d.total!==''&&d.total!==undefined?parseFloat(d.total):null;
-          const g=t!==null?grade(t):null;
-          const p=subPos[sub]?ordinal(subPos[sub]):'—';
-          return`<tr><td>${i+1}</td><td>${sub}</td>
-            <td style="text-align:center">${d.classScore!==undefined&&d.classScore!==''?d.classScore:'—'}</td>
-            <td style="text-align:center">${d.examScore70!==undefined&&d.examScore70!==''?d.examScore70:'—'}</td>
-            <td style="text-align:center;font-weight:700">${t!==null?t:'—'}</td>
-            <td style="text-align:center">${p}</td>
-            <td style="text-align:center;font-weight:700${g?' ':''}">${g?`<span class="${g.c}">${g.g}</span>`:'—'}</td>
-            <td>${g?g.r:'Not assessed'}</td></tr>`;
+        <tbody>${subs.map((sub,i)=>{
+          const d=subData[sub]||{};const t=d.total;const g=t!=null?gradeOf(t):null;const p=subPos[sub]?ordinal(subPos[sub]):'—';
+          return`<tr><td>${i+1}</td><td>${sub}</td><td style="text-align:center">${d.classScore??'—'}</td><td style="text-align:center">${d.examScore70!=null?d.examScore70:'—'}</td><td style="text-align:center;font-weight:700">${t!=null?t:'—'}</td><td style="text-align:center">${p}</td><td style="text-align:center;font-weight:700" class="${g?g.c:''}">${g?g.g:'—'}</td><td>${g?g.r:'Not assessed'}</td></tr>`;
         }).join('')}</tbody>
       </table>
-      <div class="rc-summary-row">
-        <div class="rc-box">
-          <h4>Performance Summary</h4>
-          <table style="width:100%">
-            <tr><td>Total Score:</td><td style="text-align:right;font-weight:700">${totals.reduce((a,b)=>a+b,0).toFixed(1)} / ${totals.length*100}</td></tr>
-            <tr><td>Average Score:</td><td style="text-align:right;font-weight:700">${avg}%</td></tr>
-            <tr><td>Overall Grade:</td><td style="text-align:right;font-weight:700" class="${overallG?overallG.c:''}">${overallG?overallG.g:'N/A'}</td></tr>
-            <tr><td>Class Position:</td><td style="text-align:right;font-weight:700">${classPos>0?ordinal(classPos)+' / '+classStudents:'N/A'}</td></tr>
-          </table>
-        </div>
-        <div class="rc-box">
-          <h4>Grading Scale (GES)</h4>
-          <table style="width:100%">
-            <tr><td><span class="g-A">A1</span> Excellent</td><td style="text-align:right">80–100</td></tr>
-            <tr><td><span class="g-B">B2</span> Very Good</td><td style="text-align:right">75–79</td></tr>
-            <tr><td><span class="g-B">B3</span> Good</td><td style="text-align:right">70–74</td></tr>
-            <tr><td><span class="g-C">C4–C6</span> Credit</td><td style="text-align:right">55–69</td></tr>
-            <tr><td><span class="g-D">D7–E8</span> Pass</td><td style="text-align:right">45–54</td></tr>
-            <tr><td><span class="g-F">F9</span> Fail</td><td style="text-align:right">0–44</td></tr>
-          </table>
+      <div class="rc-sg">
+        <div class="rc-bx"><h4>Performance Summary</h4><table><tr><td>Total Score</td><td style="text-align:right;font-weight:700">${totals.reduce((a,b)=>a+b,0).toFixed(1)} / ${totals.length*100}</td></tr><tr><td>Average</td><td style="text-align:right;font-weight:700">${avgStr}%</td></tr><tr><td>Overall Grade</td><td style="text-align:right;font-weight:700" class="${overallG?overallG.c:''}">${overallG?overallG.g:'N/A'}</td></tr><tr><td>Position</td><td style="text-align:right;font-weight:700">${clsPos>0?ordinal(clsPos)+' / '+clsSize:'N/A'}</td></tr></table></div>
+        <div class="rc-bx"><h4>Grading Scale (GES)</h4><table><tr><td class="gA">A1</td><td>Excellent</td><td style="text-align:right">80–100</td></tr><tr><td class="gB">B2</td><td>Very Good</td><td style="text-align:right">75–79</td></tr><tr><td class="gB">B3</td><td>Good</td><td style="text-align:right">70–74</td></tr><tr><td class="gC">C4–C6</td><td>Credit</td><td style="text-align:right">55–69</td></tr><tr><td class="gD">D7–E8</td><td>Pass</td><td style="text-align:right">45–54</td></tr><tr><td class="gF">F9</td><td>Fail</td><td style="text-align:right">0–44</td></tr></table></div>
+      </div>
+      <div class="rc-fee">
+        <div class="lb2">Fee Information — Term ${term} · ${DB.term.year}</div>
+        <div style="margin-top:5px;display:flex;gap:20px;flex-wrap:wrap">
+          <span>Term Fee: <b>GHS ${termFeeAmt}</b></span>
+          <span>Paid: <b style="color:#16613a">GHS ${feePaid}</b></span>
+          <span>Balance Owed: <b style="color:${feeBal>0?'#a32d2d':'#16613a'}">GHS ${feeBal}</b></span>
+          ${nextFee>0?`<span>Next Term Fee (T${nextTerm}): <b style="color:#185fa5">GHS ${nextFee}</b></span>`:''}
         </div>
       </div>
-
-      <!-- FEES -->
-      <div class="rc-fee-box">
-        <div class="lbl">Fee Information — Term ${term} · ${DB.term.year}</div>
-        <div style="margin-top:6px;display:flex;gap:24px;font-size:13px">
-          <span>Term Fee: <strong>GHS ${termFeeAmt}</strong></span>
-          <span>Paid: <strong style="color:var(--green)">GHS ${feePaid}</strong></span>
-          <span>Balance: <strong style="color:${feeBal>0?'var(--red)':'var(--green)'}">GHS ${feeBal}</strong></span>
-        </div>
+      <div class="cond-sec"><h4>Conduct &amp; Character Assessment</h4><p style="font-size:9px;color:#888;margin-bottom:7px;font-style:italic">To be completed by Class Teacher after printing</p>${conducts.map(c=>`<div class="cond-line"><span style="min-width:190px">${c}</span><div class="cond-wr"></div></div>`).join('')}</div>
+      <div class="rc-dt">
+        <div class="rc-di"><div class="lb2">Date of Vacation</div><div class="vl">${vac||'___________________________'}</div></div>
+        <div class="rc-di"><div class="lb2">Date of Re-opening</div><div class="vl">${rop||'___________________________'}</div></div>
       </div>
-
-      <!-- CONDUCT — lines for manual input after print -->
-      <div class="rc-remarks-sec">
-        <h4>Conduct & Character Assessment</h4>
-        <p style="font-size:10px;color:var(--muted);margin-bottom:8px;font-style:italic">To be completed by Class Teacher after printing</p>
-        ${conducts.map(c=>`<div class="conduct-line"><span style="min-width:200px">${c}</span><div class="conduct-write-line"></div></div>`).join('')}
-      </div>
-
-      <!-- DATES -->
-      <div class="rc-dates-section">
-        <div class="rc-date-item">
-          <div class="lbl">Date of Vacation</div>
-          <div class="val">${dates.vacation||'___________________________'}</div>
-        </div>
-        <div class="rc-date-item">
-          <div class="lbl">Date of Re-opening</div>
-          <div class="val">${dates.reopen||'___________________________'}</div>
-        </div>
-      </div>
-
-      <!-- REMARKS -->
-      <div class="rc-remarks-sec">
-        <h4>Class Teacher's Remarks</h4>
-        <div class="rc-remark-text">${teacherRemark}</div>
-      </div>
-      <div class="rc-remarks-sec">
-        <h4>Headmaster / Headmistress Remarks</h4>
-        <div class="rc-remark-text">${headRemark}</div>
-      </div>
-
-      <!-- SIGNATURES -->
-      <div class="rc-sig-row">
-        <div class="rc-sig-item"><div class="sig-line">Class Teacher's Signature & Date</div></div>
-        <div class="rc-sig-item"><div class="sig-line">Head Teacher's Signature & Date</div></div>
-      </div>
+      <div class="rc-rem"><h4>Class Teacher's Remarks</h4><div class="rm-txt">${autoTRemark(avg)}</div></div>
+      <div class="rc-rem"><h4>Headmaster / Headmistress Remarks</h4><div class="rm-txt">${autoHRemark(avg)}</div></div>
+      <div class="rc-sig"><div><div class="sl">Class Teacher's Signature &amp; Date</div></div><div><div class="sl">Head Teacher's Signature &amp; Date</div></div></div>
     </div>
-    <div class="rc-footer">Next Term Begins: ${dates.reopen||'TBA'} | School Fees Due on First Day | Quality School Complex — Excellence in Education</div>
+    <div class="rc-foot">Next Term Begins: ${rop||'TBA'} | School Fees Due on First Day | ${school.name} — Excellence in Education</div>
   </div>`;
 }
 
 // ══════════════════════════════════════════
-//  ADMIN: REPORTS & RESULTS
+//  ADMIN REPORTS
 // ══════════════════════════════════════════
-function renderReports(){
-  const subs=DB.submissions||[];
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">Reports & Results</div><div class="sec-sub">All submitted reports and results from staff</div></div></div>
-  <div class="tab-bar">
-    <div class="tab active" onclick="switchReportsTab('submitted',this)">Submitted Reports</div>
-    <div class="tab" onclick="switchReportsTab('search',this)">Search Results</div>
-    <div class="tab" onclick="switchReportsTab('printrc',this)">Generate & Print</div>
-  </div>
-  <div id="reports-tab-content">${renderSubmittedReports()}</div>`;
+function pgReports(){
+  return`<div class="sh"><div><div class="st">Reports & Results</div><div class="ss">All submitted reports and results from staff</div></div></div>
+  <div class="tab-bar"><button class="tab a" onclick="rSwitchTab('submitted',this)">Submitted Reports</button><button class="tab" onclick="rSwitchTab('search',this)">Search Results</button><button class="tab" onclick="rSwitchTab('print',this)">Generate & Print</button></div>
+  <div id="rt-cnt">${rTabSubmitted()}</div>`;
 }
-
-function switchReportsTab(tab,el){
-  document.querySelectorAll('.tab-bar .tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const map={submitted:renderSubmittedReports,search:renderSearchResults,printrc:renderAdminPrintRC};
-  document.getElementById('reports-tab-content').innerHTML=map[tab]();
+function rSwitchTab(id,el){
+  document.querySelectorAll('.tab-bar .tab').forEach(t=>t.classList.remove('a'));el.classList.add('a');
+  const m={submitted:rTabSubmitted,search:rTabSearch,print:rTabPrint};
+  document.getElementById('rt-cnt').innerHTML=m[id]();
 }
-
-function renderSubmittedReports(){
+function rTabSubmitted(){
   const subs=DB.submissions||[];
-  return`<div class="search-row" style="margin-bottom:14px">
-    <input type="text" id="sub-search" placeholder="Search by student..." oninput="filterSubs()" style="max-width:200px">
-    <select id="sub-cls" onchange="filterSubs()" style="max-width:140px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
-    <select id="sub-type" onchange="filterSubs()" style="max-width:140px"><option value="">All Types</option><option value="results">Results</option><option value="reportcard">Report Cards</option></select>
-    <select id="sub-term-f" onchange="filterSubs()" style="max-width:120px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
+  return`<div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="text" id="rs-q" placeholder="Search student..." oninput="filterSubs()" style="max-width:180px">
+    <select id="rs-cls" onchange="filterSubs()" style="max-width:130px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <select id="rs-type" onchange="filterSubs()" style="max-width:130px"><option value="">All Types</option><option value="results">Results</option><option value="reportcard">Report Cards</option></select>
+    <select id="rs-term" onchange="filterSubs()" style="max-width:110px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
   </div>
-  <div class="card" style="padding:0"><div class="table-wrap"><table id="subs-table">
-    <thead><tr><th>Student</th><th>Class</th><th>Type</th><th>Term</th><th>Year</th><th>Submitted By</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>${subsRows(subs)}</tbody>
-  </table></div></div>`;
+  <div class="card" style="padding:0"><div class="tw"><table id="subs-tbl"><thead><tr><th>Student</th><th>Class</th><th>Type</th><th>Term</th><th>Year</th><th>Submitted By</th><th>Date</th><th>Actions</th></tr></thead>
+  <tbody>${subsRows(subs)}</tbody></table></div></div>`;
 }
 function subsRows(list){
-  if(!list.length)return`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">No submissions yet.</td></tr>`;
-  return list.map(sub=>{
-    const st=DB.students.find(s=>s.id===sub.studentId)||{name:'Unknown'};
-    const dt=sub.submittedAt?new Date(sub.submittedAt).toLocaleDateString():'—';
-    return`<tr>
-      <td style="font-weight:500">${st.name}</td>
-      <td>${sub.class}</td>
-      <td><span class="badge badge-${sub.type==='reportcard'?'blue':'gold'}">${sub.type==='reportcard'?'Report Card':'Results'}</span></td>
-      <td>Term ${sub.term}</td><td>${sub.year}</td>
-      <td>${sub.submittedByName||'—'}</td><td>${dt}</td>
-      <td><span class="badge badge-green">${sub.status}</span></td>
-      <td style="display:flex;gap:4px">
-        ${sub.type==='results'?`<button class="btn btn-xs btn-secondary" onclick="adminViewResults(${sub.studentId},${sub.term})">View</button>`:''}
-        ${sub.type==='reportcard'?`<button class="btn btn-xs btn-blue" onclick="adminPrintOne(${sub.studentId},${sub.term})">Print</button>`:''}
-      </td></tr>`;
+  if(!list.length)return`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No submissions yet.</td></tr>`;
+  return list.map(s=>{
+    const st=DB.students.find(x=>x.id===s.studentId)||{name:'Unknown'};
+    const dt=s.submittedAt?new Date(s.submittedAt).toLocaleDateString():'—';
+    return`<tr><td style="font-weight:500">${st.name}</td><td>${s.class}</td>
+    <td><span class="bdg ${s.type==='reportcard'?'bg-b':'bg-o'}">${s.type==='reportcard'?'Report Card':'Results'}</span></td>
+    <td>T${s.term}</td><td>${s.year}</td><td>${s.submittedByName||'—'}</td><td>${dt}</td>
+    <td style="display:flex;gap:4px">
+      ${s.type==='results'?`<button class="btn btn-sm" onclick="moAdminViewRes(${s.studentId},${s.term})">View</button>`:''}
+      <button class="btn btn-sm btn-b" onclick="adPrint(${s.studentId},${s.term},'${s.vacationDate||''}','${s.reopenDate||''}')">Print RC</button>
+      <button class="btn btn-sm btn-g" onclick="adSaveReport(${s.studentId},${s.term},'${s.vacationDate||''}','${s.reopenDate||''}')">💾 Save</button>
+    </td></tr>`;
   }).join('');
 }
 function filterSubs(){
-  const q=(document.getElementById('sub-search')||{}).value?.toLowerCase()||'';
-  const cls=(document.getElementById('sub-cls')||{}).value||'';
-  const type=(document.getElementById('sub-type')||{}).value||'';
-  const term=(document.getElementById('sub-term-f')||{}).value||'';
+  const q=(document.getElementById('rs-q')||{}).value?.toLowerCase()||'';
+  const cls=(document.getElementById('rs-cls')||{}).value||'';
+  const type=(document.getElementById('rs-type')||{}).value||'';
+  const term=(document.getElementById('rs-term')||{}).value||'';
   let list=DB.submissions||[];
   if(q)list=list.filter(s=>{const st=DB.students.find(x=>x.id===s.studentId);return st&&st.name.toLowerCase().includes(q);});
   if(cls)list=list.filter(s=>s.class===cls);
   if(type)list=list.filter(s=>s.type===type);
   if(term)list=list.filter(s=>s.term===parseInt(term));
-  document.querySelector('#subs-table tbody').innerHTML=subsRows(list);
+  document.querySelector('#subs-tbl tbody').innerHTML=subsRows(list);
 }
-
-function adminViewResults(sid,term){
+function moAdminViewRes(sid,term){
   const st=DB.students.find(s=>s.id===sid);
-  const result=DB.results.find(r=>r.studentId===sid&&r.term===term&&r.year===DB.term.year);
-  if(!result){openModal('Results','<p style="color:var(--muted)">No results found for this student/term.</p>');return;}
-  const subjects=GES[st.class]||[];
-  const positions=calcPositions(DB.results,st.class,DB.term.year,term);
-  const subPos=positions[sid]||{};
-  openModal(`Results — ${st.name} · Term ${term}`,'<div class="table-wrap"><table><thead><tr><th>Subject</th><th>Class (30%)</th><th>Exam (70%)</th><th>Total</th><th>Position</th><th>Remarks</th></tr></thead><tbody>'+subjects.map(sub=>{const d=(result.subjects||{})[sub]||{};const t=d.total!==''&&d.total!==undefined?parseFloat(d.total):null;const g=t!==null?grade(t):null;const p=subPos[sub]?ordinal(subPos[sub]):'—';return`<tr><td>${sub}</td><td>${d.classScore!==undefined&&d.classScore!==''?d.classScore:'—'}</td><td>${d.examScore70!==undefined&&d.examScore70!==''?d.examScore70:'—'}</td><td style="font-weight:700">${t!==null?t:'—'}</td><td>${p}</td><td class="${g?g.c:''}">${g?g.r:'—'}</td></tr>`;}).join('')+'</tbody></table></div>','modal-lg');
+  const r=DB.results.find(x=>x.studentId===sid&&x.term===term&&x.year===DB.term.year);
+  if(!r){moOpen('Results','<p style="color:var(--muted)">No results found.</p>');return;}
+  const subs=subjectsFor(st.cls);
+  const positions=calcPositions(st.cls,DB.term.year,term);
+  const sPos=positions[sid]||{};
+  moOpen(`Results — ${st.name} · Term ${term}`,`<div class="tw"><table><thead><tr><th>Subject</th><th>Class (30)</th><th>Exam (70)</th><th>Total</th><th>Position</th><th>Remarks</th></tr></thead><tbody>${subs.map(sub=>{const d=(r.subjects||{})[sub]||{};const t=d.total;const g=t!=null?gradeOf(t):null;return`<tr><td>${sub}</td><td>${d.classScore??'—'}</td><td>${d.examScore70??'—'}</td><td style="font-weight:700">${t??'—'}</td><td>${sPos[sub]?ordinal(sPos[sub]):'—'}</td><td class="${g?g.c:''}">${g?g.r:'—'}</td></tr>`;}).join('')}</tbody></table></div>`,true);
 }
 
-function adminPrintOne(sid,term){
-  const sub=DB.submissions.find(s=>s.studentId===sid&&s.term===term&&s.type==='reportcard'&&s.year===DB.term.year);
-  const dates={vacation:sub?sub.vacationDate:'',reopen:sub?sub.reopenDate:''};
-  const pa=document.getElementById('print-area');
-  pa.innerHTML=buildRC(sid,term,dates);
-  pa.style.display='block';
-  window.print();
-  setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},500);
+// ══════════════ SAVE REPORT (ADMIN) ══════════════
+async function adSaveReport(sid,term,vac,rop){
+  const st=DB.students.find(x=>x.id===sid);
+  if(!st){toast('Student not found','er');return;}
+  // check if already saved
+  const already=DB.savedReports.findIndex(x=>x.studentId===sid&&x.term===term&&x.year===DB.term.year);
+  const html=buildRC(sid,term,vac,rop);
+  const rec={
+    id:DB.nextRid++,
+    studentId:sid,
+    studentName:st.name,
+    cls:st.cls,
+    term,
+    year:DB.term.year,
+    vacationDate:vac,
+    reopenDate:rop,
+    savedAt:new Date().toISOString(),
+    savedBy:CU.name,
+    html  // store the rendered HTML snapshot
+  };
+  if(already>=0)DB.savedReports[already]=rec; else DB.savedReports.push(rec);
+  await dbSave();
+  toast(`Report card for ${st.name} saved successfully! 💾`);
 }
 
-function renderSearchResults(){
-  return`<div style="margin-bottom:14px">
-    <div class="form-row3">
-      <div class="form-group"><label>Class</label><select id="sr-cls" style=""><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Student Name</label><input id="sr-name" placeholder="Search name..."></div>
-      <div class="form-group"><label>Term</label><select id="sr-term"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
-    </div>
-    <button class="btn btn-primary" onclick="doSearchResults()">Search Results</button>
-  </div>
-  <div id="sr-output"></div>`;
+// Save from Generate & Print tab
+async function adSaveReportFromForm(){
+  const sid=parseInt((document.getElementById('ap-sid')||{}).value)||0;
+  const term=parseInt((document.getElementById('ap-term')||{}).value)||DB.term.term;
+  const vac=(document.getElementById('ap-vac')||{}).value||'';
+  const rop=(document.getElementById('ap-rop')||{}).value||'';
+  if(!sid){toast('Select a student','er');return;}
+  await adSaveReport(sid,term,vac,rop);
 }
-function doSearchResults(){
+
+function rTabSearch(){
+  return`<div class="gr3" style="margin-bottom:12px"><div><label>Class</label><select id="sr-cls"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div><label>Student Name</label><input id="sr-nm" placeholder="Search..."></div><div><label>Term</label><select id="sr-term"><option value="">All</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div></div>
+  <button class="btn btn-g" onclick="doSrSearch()">Search</button><div id="sr-out" style="margin-top:14px"></div>`;
+}
+function doSrSearch(){
   const cls=(document.getElementById('sr-cls')||{}).value||'';
-  const name=(document.getElementById('sr-name')||{}).value.toLowerCase()||'';
+  const nm=(document.getElementById('sr-nm')||{}).value.toLowerCase()||'';
   const term=(document.getElementById('sr-term')||{}).value||'';
   let results=DB.results;
   if(cls)results=results.filter(r=>r.class===cls);
   if(term)results=results.filter(r=>r.term===parseInt(term));
-  if(name)results=results.filter(r=>{const st=DB.students.find(s=>s.id===r.studentId);return st&&st.name.toLowerCase().includes(name);});
-  if(!results.length){document.getElementById('sr-output').innerHTML='<p style="color:var(--muted);font-size:13px">No results found.</p>';return;}
-  document.getElementById('sr-output').innerHTML=`<div class="card" style="padding:0"><div class="table-wrap"><table>
-    <thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Year</th><th>Avg Score</th><th>Submitted</th><th>Actions</th></tr></thead>
-    <tbody>${results.map(r=>{
-      const st=DB.students.find(s=>s.id===r.studentId)||{name:'Unknown',class:''};
-      const totals=Object.values(r.subjects||{}).map(d=>d.total!==''&&d.total!==undefined?parseFloat(d.total):null).filter(v=>v!==null);
-      const avg=totals.length?(totals.reduce((a,b)=>a+b,0)/totals.length).toFixed(1):0;
-      return`<tr><td style="font-weight:500">${st.name}</td><td>${r.class}</td><td>Term ${r.term}</td><td>${r.year}</td>
-        <td><strong>${avg}%</strong></td>
-        <td><span class="badge badge-${r.submitted?'green':'gray'}">${r.submitted?'Yes':'No'}</span></td>
-        <td><button class="btn btn-xs btn-secondary" onclick="adminViewResults(${r.studentId},${r.term})">View</button>
-        <button class="btn btn-xs btn-blue" onclick="adminPrintOne(${r.studentId},${r.term})">Print RC</button></td></tr>`;
-    }).join('')}</tbody>
-  </table></div></div>`;
+  if(nm)results=results.filter(r=>{const st=DB.students.find(s=>s.id===r.studentId);return st&&st.name.toLowerCase().includes(nm);});
+  if(!results.length){document.getElementById('sr-out').innerHTML='<p style="color:var(--muted);font-size:12px">No results found.</p>';return;}
+  document.getElementById('sr-out').innerHTML=`<div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Avg Score</th><th>Submitted</th><th></th></tr></thead><tbody>${results.map(r=>{
+    const st=DB.students.find(s=>s.id===r.studentId)||{name:'Unknown',cls:''};
+    const totals=Object.values(r.subjects||{}).map(d=>d.total).filter(v=>v!=null);
+    const avg=totals.length?(totals.reduce((a,b)=>a+b,0)/totals.length).toFixed(1):0;
+    return`<tr><td style="font-weight:500">${st.name}</td><td>${r.class}</td><td>T${r.term}</td><td><b>${avg}%</b></td><td><span class="bdg ${r.submitted?'bg-g':'bg-grey'}">${r.submitted?'Yes':'No'}</span></td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-sm" onclick="moAdminViewRes(${r.studentId},${r.term})">View</button>
+      <button class="btn btn-sm btn-b" onclick="adPrint(${r.studentId},${r.term},'','')">Print RC</button>
+      <button class="btn btn-sm btn-g" onclick="adSaveReport(${r.studentId},${r.term},'','')">💾 Save RC</button>
+    </td></tr>`;
+  }).join('')}</tbody></table></div></div>`;
 }
 
-function renderAdminPrintRC(){
-  return`<div class="card" style="max-width:600px;margin-bottom:18px">
-    <div class="card-title">Generate Report Card</div>
-    <div class="form-row3" style="margin-top:12px">
-      <div class="form-group"><label>Class</label><select id="ap-cls" onchange="apLoadStudents()"><option value="">Select...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Student</label><select id="ap-sid"><option value="">Select student...</option></select></div>
-      <div class="form-group"><label>Term</label><select id="ap-term"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
+function rTabPrint(){
+  return`<div class="card" style="max-width:560px;margin-bottom:16px">
+    <div class="ct">Generate Report Card</div><div class="cs">Preview, save or print a report card for any student</div>
+    <div class="gr3" style="margin-top:10px">
+      <div class="fg"><label>Class</label><select id="ap-cls" onchange="apLoadSts()"><option value="">Select...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="fg"><label>Student</label><select id="ap-sid"><option value="">Select...</option></select></div>
+      <div class="fg"><label>Term</label><select id="ap-term"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
     </div>
-    <div class="form-row" style="margin-top:8px">
-      <div class="form-group"><label>Date of Vacation</label><input type="date" id="ap-vac"></div>
-      <div class="form-group"><label>Date of Re-opening</label><input type="date" id="ap-reop"></div>
+    <div class="gr2">
+      <div class="fg"><label>Date of Vacation</label><input type="date" id="ap-vac"></div>
+      <div class="fg"><label>Date of Re-opening</label><input type="date" id="ap-rop"></div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-primary" onclick="apPreview()">👁 Preview</button>
-      <button class="btn btn-secondary" onclick="apPrint()">🖨 Print</button>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-g" onclick="apPreview()">👁 Preview</button>
+      <button class="btn btn-g" onclick="adSaveReportFromForm()">💾 Save Report Card</button>
+      <button class="btn" onclick="apPrint()">🖨 Print</button>
     </div>
   </div>
-  <div id="ap-preview"></div>`;
+  <div id="ap-prev"></div>`;
 }
-function apLoadStudents(){
+function apLoadSts(){
   const cls=(document.getElementById('ap-cls')||{}).value||'';
-  const sel=document.getElementById('ap-sid');
-  sel.innerHTML='<option value="">Select student...</option>'+DB.students.filter(s=>s.class===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('ap-sid').innerHTML='<option value="">Select...</option>'+DB.students.filter(s=>s.cls===cls).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
 }
 function apPreview(){
-  const sid=parseInt((document.getElementById('ap-sid')||{}).value);
+  const sid=parseInt((document.getElementById('ap-sid')||{}).value)||0;
   const term=parseInt((document.getElementById('ap-term')||{}).value)||DB.term.term;
-  if(!sid){toast('Please select a student','error');return;}
-  const dates={vacation:(document.getElementById('ap-vac')||{}).value||'',reopen:(document.getElementById('ap-reop')||{}).value||''};
-  document.getElementById('ap-preview').innerHTML=`<div class="card" style="padding:0">${buildRC(sid,term,dates)}</div>`;
+  if(!sid){toast('Select a student','er');return;}
+  const vac=(document.getElementById('ap-vac')||{}).value||'';
+  const rop=(document.getElementById('ap-rop')||{}).value||'';
+  document.getElementById('ap-prev').innerHTML=`<div class="card" style="padding:0;overflow:hidden">${buildRC(sid,term,vac,rop)}</div>`;
+  document.getElementById('ap-prev').scrollIntoView({behavior:'smooth'});
 }
 function apPrint(){
-  const sid=parseInt((document.getElementById('ap-sid')||{}).value);
+  const sid=parseInt((document.getElementById('ap-sid')||{}).value)||0;
   const term=parseInt((document.getElementById('ap-term')||{}).value)||DB.term.term;
-  if(!sid){toast('Please select a student','error');return;}
-  const dates={vacation:(document.getElementById('ap-vac')||{}).value||'',reopen:(document.getElementById('ap-reop')||{}).value||''};
-  const pa=document.getElementById('print-area');
-  pa.innerHTML=buildRC(sid,term,dates);
-  pa.style.display='block';
+  if(!sid){toast('Select a student','er');return;}
+  adPrint(sid,term,(document.getElementById('ap-vac')||{}).value||'',(document.getElementById('ap-rop')||{}).value||'');
+}
+function adPrint(sid,term,vac,rop){
+  const pa=document.getElementById('pa');
+  pa.innerHTML=buildRC(sid,term,vac,rop);pa.style.display='block';
   window.print();
-  setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},500);
+  setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},600);
 }
 
 // ══════════════════════════════════════════
-//  STAFF MANAGEMENT (ADMIN)
+//  SAVED REPORTS PAGE
 // ══════════════════════════════════════════
-function renderStaff(){
-  return`
-  <div class="sec-hdr">
-    <div><div class="sec-title">Staff Management</div><div class="sec-sub">${DB.users.length} users registered</div></div>
-    <button class="btn btn-primary" onclick="openAddStaffModal()">+ Add User</button>
+function pgSavedReports(){
+  const saved=DB.savedReports||[];
+  return`<div class="sh"><div><div class="st">Saved Reports</div><div class="ss">${saved.length} report card${saved.length===1?'':'s'} saved</div></div></div>
+  ${saved.length===0?`<div class="card" style="text-align:center;padding:40px;color:var(--muted)">
+    <div style="font-size:40px;margin-bottom:12px">💾</div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">No Saved Reports Yet</div>
+    <div style="font-size:12px">Save report cards from the <b>Reports & Results</b> section using the Save button.</div>
+  </div>`:`
+  <!-- FILTER ROW -->
+  <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+    <input type="text" id="sv-q" placeholder="Search student..." oninput="filterSaved()" style="max-width:190px">
+    <select id="sv-cls" onchange="filterSaved()" style="max-width:140px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <select id="sv-term" onchange="filterSaved()" style="max-width:120px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
   </div>
-  <div class="card" style="padding:0"><div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Username</th><th>Assigned Class</th><th>Subject</th><th>Email</th><th>Actions</th></tr></thead>
-    <tbody>${DB.users.map((u,i)=>`<tr>
-      <td>${i+1}</td><td style="font-weight:500">${u.name}</td>
-      <td><span class="badge badge-${u.role==='admin'?'red':'blue'}">${u.role}</span></td>
-      <td><code style="font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px">${u.username}</code></td>
-      <td>${u.class||'—'}</td><td>${u.subject||'—'}</td>
-      <td style="color:var(--muted);font-size:12px">${u.email||'—'}</td>
-      <td style="display:flex;gap:4px">
-        <button class="btn btn-xs btn-secondary" onclick="editStaffModal(${u.id})">Edit</button>
-        ${u.id!==CU.id?`<button class="btn btn-xs btn-danger" onclick="deleteUser(${u.id})">Del</button>`:''}
-      </td></tr>`).join('')}</tbody>
-  </table></div></div>`;
-}
-function openAddStaffModal(){
-  openModal('Add New User',`
-    <div class="form-group"><label>Full Name *</label><input id="au-name" placeholder="Full name"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Username *</label><input id="au-uname" placeholder="login username"></div>
-      <div class="form-group"><label>Password *</label><input type="password" id="au-pass" placeholder="Set password"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Role *</label><select id="au-role"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
-      <div class="form-group"><label>Assigned Class</label><select id="au-class"><option value="">None</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Subject</label><input id="au-subject" placeholder="e.g. Mathematics"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="au-email" placeholder="email@school.edu.gh"></div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="saveNewStaff()">Add User</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
-}
-function saveNewStaff(){
-  const name=document.getElementById('au-name').value.trim();
-  const username=document.getElementById('au-uname').value.trim();
-  const password=document.getElementById('au-pass').value;
-  if(!name||!username||!password){toast('Name, username and password are required','error');return;}
-  if(DB.users.find(u=>u.username===username)){toast('Username already exists','error');return;}
-  DB.users.push({id:DB.nextUserId++,username,password,role:document.getElementById('au-role').value,name,email:document.getElementById('au-email').value,class:document.getElementById('au-class').value,subject:document.getElementById('au-subject').value});
-  saveDB();closeModal();toast('User added successfully!');showSection('staff');
-}
-function editStaffModal(id){
-  const u=DB.users.find(x=>x.id===id);
-  openModal(`Edit User — ${u.name}`,`
-    <div class="form-group"><label>Full Name</label><input id="eu-name" value="${u.name}"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Username</label><input id="eu-uname" value="${u.username}"></div>
-      <div class="form-group"><label>New Password</label><input type="password" id="eu-pass" placeholder="Leave blank to keep"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Role</label><select id="eu-role"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option></select></div>
-      <div class="form-group"><label>Assigned Class</label><select id="eu-class"><option value="">None</option>${CLASSES.map(c=>`<option ${u.class===c?'selected':''}>${c}</option>`).join('')}</select></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Subject</label><input id="eu-subject" value="${u.subject||''}"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="eu-email" value="${u.email||''}"></div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="saveEditStaff(${id})">Save Changes</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
-}
-function saveEditStaff(id){
-  const u=DB.users.find(x=>x.id===id);
-  const newUname=document.getElementById('eu-uname').value.trim();
-  const newPass=document.getElementById('eu-pass').value;
-  if(DB.users.find(x=>x.username===newUname&&x.id!==id)){toast('Username already taken','error');return;}
-  u.name=document.getElementById('eu-name').value;
-  u.username=newUname||u.username;
-  if(newPass)u.password=newPass;
-  u.role=document.getElementById('eu-role').value;
-  u.class=document.getElementById('eu-class').value;
-  u.subject=document.getElementById('eu-subject').value;
-  u.email=document.getElementById('eu-email').value;
-  saveDB();closeModal();toast('User updated successfully!');showSection('staff');
-}
-function deleteUser(id){
-  if(!confirm('Delete this user?'))return;
-  DB.users=DB.users.filter(u=>u.id!==id);
-  saveDB();toast('User deleted','error');showSection('staff');
+  <div class="card" style="padding:0">
+    <div id="saved-list">${savedRows(saved)}</div>
+  </div>`}`;
 }
 
-// ══════════════════════════════════════════
-//  SETTINGS (ADMIN)
-// ══════════════════════════════════════════
-function renderSettings(){
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">School Settings</div><div class="sec-sub">Customize school information and report card details</div></div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-    <div class="card">
-      <div class="card-title">School Information</div>
-      <div class="card-sub">Appears on all report cards</div>
-      <div id="settings-alert"></div>
-      <div class="form-group"><label>School Name</label><input id="s-sname" value="${DB.school.name}"></div>
-      <div class="form-group"><label>Report Card Title</label><input id="s-title" value="${DB.school.title||'Student Academic Report Card'}"></div>
-      <div class="form-group"><label>Email Address</label><input type="email" id="s-email" value="${DB.school.email}"></div>
-      <div class="form-group"><label>Phone Number</label><input id="s-phone" value="${DB.school.phone}"></div>
-      <div class="form-group"><label>School Address</label><textarea id="s-address" rows="2">${DB.school.address}</textarea></div>
-      <div class="form-group"><label>School Logo (Image URL or Base64)</label><input id="s-logo" placeholder="https://... or leave blank for emoji" value="${DB.school.logo||''}"></div>
-      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
-    </div>
-    <div class="card">
-      <div class="card-title">Term Management</div>
-      <div class="card-sub">Update the current academic term</div>
-      <div class="form-group"><label>Academic Year</label><input id="t-year" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
-      <div class="form-group"><label>Current Term</label><select id="t-term">
-        <option value="1" ${DB.term.term===1?'selected':''}>Term 1</option>
-        <option value="2" ${DB.term.term===2?'selected':''}>Term 2</option>
-        <option value="3" ${DB.term.term===3?'selected':''}>Term 3</option>
-      </select></div>
-      <button class="btn btn-primary" onclick="doUpdateTerm()">🔄 Update Term</button>
-      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">
-        <div class="card-title">Term Fee Amounts</div>
-        <div class="card-sub">Current term: Term ${DB.term.term} · ${DB.term.year}</div>
-        <button class="btn btn-secondary" onclick="openSetFeesModal()">⚙️ Set Term Fees</button>
-      </div>
-      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">
-        <div class="card-title" style="color:var(--red)">⚠️ Danger Zone</div>
-        <div class="card-sub">Irreversible actions</div>
-        <button class="btn btn-danger" onclick="if(confirm('Reset ALL data to defaults? This cannot be undone!')){localStorage.removeItem('qsc_db_v3');location.reload();}">Reset All Data</button>
-      </div>
-    </div>
-  </div>`;
-}
-function saveSettings(){
-  DB.school.name=document.getElementById('s-sname').value.trim();
-  DB.school.title=document.getElementById('s-title').value.trim();
-  DB.school.email=document.getElementById('s-email').value.trim();
-  DB.school.phone=document.getElementById('s-phone').value.trim();
-  DB.school.address=document.getElementById('s-address').value.trim();
-  DB.school.logo=document.getElementById('s-logo').value.trim();
-  document.getElementById('sb-name').textContent=DB.school.name;
-  // Update login page display
-  document.getElementById('login-school-display').textContent=DB.school.name;
-  saveDB();toast('School settings saved successfully!');
-}
-function doUpdateTerm(){
-  DB.term.year=(document.getElementById('t-year')||{}).value||DB.term.year;
-  DB.term.term=parseInt((document.getElementById('t-term')||{}).value)||DB.term.term;
-  updateTermBadge();
-  saveDB();toast('Term updated! All boards now reflect Term '+DB.term.term+' · '+DB.term.year);
-  showSection('settings');
-}
-function openUpdateTerm(){
-  openModal('Update Current Term',`
-    <div class="form-group"><label>Academic Year</label><input id="ut-year" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
-    <div class="form-group"><label>Current Term</label><select id="ut-term">
-      <option value="1" ${DB.term.term===1?'selected':''}>Term 1</option>
-      <option value="2" ${DB.term.term===2?'selected':''}>Term 2</option>
-      <option value="3" ${DB.term.term===3?'selected':''}>Term 3</option>
-    </select></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="quickUpdateTerm()">Update Term</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
-}
-function quickUpdateTerm(){
-  DB.term.year=document.getElementById('ut-year').value||DB.term.year;
-  DB.term.term=parseInt(document.getElementById('ut-term').value)||DB.term.term;
-  updateTermBadge();
-  saveDB();closeModal();toast('Term updated to Term '+DB.term.term+' · '+DB.term.year+'!');
-  showSection('dashboard');
-}
-
-// ══════════════════════════════════════════
-//  CURRICULUM
-// ══════════════════════════════════════════
-function renderCurriculum(){
-  return`
-  <div class="sec-hdr"><div><div class="sec-title">GES Curriculum</div><div class="sec-sub">Ghana Education Service prescribed subjects — Basic 1 to JHS 3</div></div></div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-    ${CLASSES.map(cls=>{
-      const subs=GES[cls]||[];
-      const isJHS=cls.startsWith('JHS');
-      return`<div class="card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <div style="width:36px;height:36px;border-radius:10px;background:${isJHS?'var(--blue-l)':'var(--green-l)'};display:flex;align-items:center;justify-content:center;font-size:18px">${isJHS?'🏫':'📖'}</div>
-          <div><div style="font-weight:700">${cls}</div><div style="font-size:11px;color:var(--muted)">${subs.length} subjects</div></div>
-          <span class="badge badge-${isJHS?'blue':'green'}" style="margin-left:auto">${isJHS?'JHS':'Basic'}</span>
+function savedRows(list){
+  if(!list.length)return`<div style="text-align:center;padding:24px;color:var(--muted);font-size:12px">No results match your search.</div>`;
+  return list.map(rc=>{
+    const dt=rc.savedAt?new Date(rc.savedAt).toLocaleString():'—';
+    return`<div class="saved-rc-item">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:9px;background:var(--green-l);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📄</div>
+        <div>
+          <div style="font-weight:600">${rc.studentName} <span class="bdg bg-g">${rc.cls}</span></div>
+          <div class="saved-rc-meta">Term ${rc.term} · ${rc.year} &nbsp;|&nbsp; Saved by: ${rc.savedBy} &nbsp;|&nbsp; ${dt}</div>
+          ${rc.vacationDate?`<div class="saved-rc-meta">Vacation: ${rc.vacationDate} | Re-opens: ${rc.reopenDate||'—'}</div>`:''}
         </div>
-        ${subs.map((s,i)=>`<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--bg);font-size:12px"><span style="color:var(--light);width:16px">${i+1}.</span>${s}</div>`).join('')}
-      </div>`;
-    }).join('')}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-sm btn-b" onclick="viewSavedReport(${rc.id})">👁 View</button>
+        <button class="btn btn-sm" onclick="printSavedReport(${rc.id})">🖨 Print</button>
+        <button class="btn btn-sm btn-d" onclick="deleteSavedReport(${rc.id})">Del</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterSaved(){
+  const q=(document.getElementById('sv-q')||{}).value?.toLowerCase()||'';
+  const cls=(document.getElementById('sv-cls')||{}).value||'';
+  const term=(document.getElementById('sv-term')||{}).value||'';
+  let list=DB.savedReports||[];
+  if(q)list=list.filter(r=>r.studentName.toLowerCase().includes(q));
+  if(cls)list=list.filter(r=>r.cls===cls);
+  if(term)list=list.filter(r=>r.term===parseInt(term));
+  document.getElementById('saved-list').innerHTML=savedRows(list);
+}
+
+function viewSavedReport(id){
+  const rc=DB.savedReports.find(x=>x.id===id);
+  if(!rc){toast('Report not found','er');return;}
+  // Regenerate fresh (in case student data changed) or show stored HTML
+  moOpen(`Report Card — ${rc.studentName}`,`<div style="overflow-x:auto">${rc.html}</div>`,'lg');
+}
+
+function printSavedReport(id){
+  const rc=DB.savedReports.find(x=>x.id===id);
+  if(!rc){toast('Report not found','er');return;}
+  const pa=document.getElementById('pa');
+  pa.innerHTML=rc.html;pa.style.display='block';
+  window.print();
+  setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},600);
+}
+
+async function deleteSavedReport(id){
+  if(!confirm('Delete this saved report card?'))return;
+  DB.savedReports=DB.savedReports.filter(r=>r.id!==id);
+  await dbSave();toast('Saved report deleted','er');go('savedreports');
+}
+
+// ══════════════════════════════════════════
+//  STAFF MANAGEMENT
+// ══════════════════════════════════════════
+function pgStaff(){
+  return`<div class="sh"><div><div class="st">Staff Management</div><div class="ss">${DB.users.length} users</div></div><button class="btn btn-g" onclick="moAddUser()">+ Add User</button></div>
+  <div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>#</th><th>Name</th><th>Role</th><th>Username</th><th>Class</th><th>Subject</th><th>Email</th><th></th></tr></thead>
+  <tbody>${DB.users.map((u,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${u.name}</td><td><span class="bdg ${u.role==='admin'?'bg-r':'bg-b'}">${u.role}</span></td>
+  <td><code style="font-size:10px;background:var(--bg2);padding:2px 5px;border-radius:4px">${u.username}</code></td>
+  <td>${u.cls||'—'}</td><td>${u.subject||'—'}</td><td style="color:var(--muted);font-size:11px">${u.email||'—'}</td>
+  <td style="display:flex;gap:4px"><button class="btn btn-sm" onclick="moEditUser(${u.id})">Edit</button>${u.id!==CU.id?`<button class="btn btn-sm btn-d" onclick="delUser(${u.id})">Del</button>`:''}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function moAddUser(){
+  moOpen('Add New User',`<div class="fg"><label>Full Name *</label><input id="au-nm" placeholder="Full name"></div><div class="gr2"><div class="fg"><label>Username *</label><input id="au-un" placeholder="Username"></div><div class="fg"><label>Password *</label><input type="password" id="au-pw" placeholder="Password"></div></div><div class="gr2"><div class="fg"><label>Role *</label><select id="au-rl"><option value="staff">Staff</option><option value="admin">Admin</option></select></div><div class="fg"><label>Assigned Class</label><select id="au-cls"><option value="">None</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div></div><div class="gr2"><div class="fg"><label>Subject</label><input id="au-sub" placeholder="e.g. Mathematics"></div><div class="fg"><label>Email</label><input type="email" id="au-em" placeholder="email@school.edu.gh"></div></div><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="saveNewUser()">Add User</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+}
+async function saveNewUser(){
+  const name=(document.getElementById('au-nm')||{}).value?.trim()||'';
+  const username=(document.getElementById('au-un')||{}).value?.trim()||'';
+  const password=(document.getElementById('au-pw')||{}).value||'';
+  if(!name||!username||!password){toast('Name, username and password required','er');return;}
+  if(DB.users.find(u=>u.username===username)){toast('Username already exists','er');return;}
+  DB.users.push({id:DB.nextUid++,username,password,role:(document.getElementById('au-rl')||{}).value||'staff',name,email:(document.getElementById('au-em')||{}).value||'',cls:(document.getElementById('au-cls')||{}).value||'',subject:(document.getElementById('au-sub')||{}).value||''});
+  await dbSave();moClose();toast('User added successfully!');go('staff');
+}
+function moEditUser(id){
+  const u=DB.users.find(x=>x.id===id);
+  moOpen(`Edit — ${u.name}`,`<div class="fg"><label>Full Name</label><input id="eu-nm" value="${u.name}"></div><div class="gr2"><div class="fg"><label>Username</label><input id="eu-un" value="${u.username}"></div><div class="fg"><label>New Password</label><input type="password" id="eu-pw" placeholder="Leave blank to keep"></div></div><div class="gr2"><div class="fg"><label>Role</label><select id="eu-rl"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option></select></div><div class="fg"><label>Assigned Class</label><select id="eu-cls"><option value="">None</option>${CLASSES.map(c=>`<option ${u.cls===c?'selected':''}>${c}</option>`).join('')}</select></div></div><div class="gr2"><div class="fg"><label>Subject</label><input id="eu-sub" value="${u.subject||''}"></div><div class="fg"><label>Email</label><input type="email" id="eu-em" value="${u.email||''}"></div></div><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="saveEditUser(${id})">Save Changes</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+}
+async function saveEditUser(id){
+  const u=DB.users.find(x=>x.id===id);
+  const newUn=(document.getElementById('eu-un')||{}).value?.trim()||u.username;
+  if(DB.users.find(x=>x.username===newUn&&x.id!==id)){toast('Username already taken','er');return;}
+  const newPw=(document.getElementById('eu-pw')||{}).value||'';
+  u.name=(document.getElementById('eu-nm')||{}).value||u.name;
+  u.username=newUn;if(newPw)u.password=newPw;
+  u.role=(document.getElementById('eu-rl')||{}).value||u.role;
+  u.cls=(document.getElementById('eu-cls')||{}).value||'';
+  u.subject=(document.getElementById('eu-sub')||{}).value||'';
+  u.email=(document.getElementById('eu-em')||{}).value||'';
+  await dbSave();moClose();toast('User updated successfully!');go('staff');
+}
+async function delUser(id){
+  if(!confirm('Delete this user?'))return;
+  DB.users=DB.users.filter(u=>u.id!==id);await dbSave();toast('User deleted','er');go('staff');
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function pgSettings(){
+  return`<div class="sh"><div><div class="st">School Settings</div><div class="ss">Customize school info and report card appearance</div></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="ct">School Information</div><div class="cs">Appears on all report cards</div>
+      <div class="fg"><label>School Name</label><input id="ss-nm" value="${DB.school.name}"></div>
+      <div class="fg"><label>Report Card Title</label><input id="ss-ti" value="${DB.school.title||'Student Academic Report Card'}"></div>
+      <div class="fg"><label>Email Address</label><input type="email" id="ss-em" value="${DB.school.email}"></div>
+      <div class="fg"><label>Phone Number</label><input id="ss-ph" value="${DB.school.phone}"></div>
+      <div class="fg"><label>School Address</label><textarea id="ss-ad" rows="2">${DB.school.address}</textarea></div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+      <div class="fg"><label>School Logo</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn btn-sm" onclick="document.getElementById('logo-file').click()">📁 Upload from Device</button>
+          <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+          <input id="ss-logo" placeholder="Or paste image URL" value="${DB.school.logo||''}" style="flex:1;min-width:140px">
+        </div>
+        ${DB.school.logo?`<div style="display:flex;align-items:center;gap:10px;margin-top:6px"><img src="${DB.school.logo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--green)"><button class="btn btn-sm btn-d" onclick="clearLogo()">Remove Logo</button></div>`:`<p style="font-size:11px;color:var(--muted)">No logo set — default emoji used on login and sidebar.</p>`}
+      </div>
+      <button class="btn btn-g" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="card">
+      <div class="ct">Term Management</div><div class="cs">Update the current academic term globally</div>
+      <div class="fg"><label>Academic Year</label><input id="st-yr" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
+      <div class="fg"><label>Current Term</label><select id="st-tm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
+      <button class="btn btn-g" onclick="doUpdateTerm()">🔄 Update Term</button>
+      <hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">
+      <div class="ct">Term Fee Amounts</div><div class="cs">Current: Term ${DB.term.term} · ${DB.term.year}</div>
+      <button class="btn" onclick="moSetFees()">⚙️ Set Term Fees</button>
+      <hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">
+      <div class="ct" style="color:var(--red)">Danger Zone</div><div class="cs">This cannot be undone</div>
+      <button class="btn btn-d" onclick="if(confirm('Reset ALL data to factory defaults?')){window.storage&&window.storage.delete('${DB_KEY}',true).then(()=>location.reload());}">Reset All Data</button>
+    </div>
   </div>`;
 }
-
-// ══════════════════════════════════════════
-//  MODAL UTILS
-// ══════════════════════════════════════════
-function openModal(title,body,extraCls=''){
-  const box=document.getElementById('modal-box');
-  box.className='modal '+(extraCls||'');
-  box.innerHTML=`<div class="modal-hdr"><div class="modal-title">${title}</div><button class="close-x" onclick="closeModal()">×</button></div>${body}`;
-  document.getElementById('modal-bg').classList.remove('hidden');
+function handleLogoUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=evt=>{DB.school.logo=evt.target.result;go('settings');toast('Logo uploaded!');};
+  reader.readAsDataURL(file);
 }
-function closeModal(){document.getElementById('modal-bg').classList.add('hidden');}
-function closeModalBg(e){if(e.target===document.getElementById('modal-bg'))closeModal();}
+async function clearLogo(){DB.school.logo='';await dbSave();go('settings');toast('Logo removed');}
+async function saveSettings(){
+  DB.school.name=(document.getElementById('ss-nm')||{}).value?.trim()||DB.school.name;
+  DB.school.title=(document.getElementById('ss-ti')||{}).value?.trim()||DB.school.title;
+  DB.school.email=(document.getElementById('ss-em')||{}).value?.trim()||DB.school.email;
+  DB.school.phone=(document.getElementById('ss-ph')||{}).value?.trim()||DB.school.phone;
+  DB.school.address=(document.getElementById('ss-ad')||{}).value?.trim()||DB.school.address;
+  const logoUrl=(document.getElementById('ss-logo')||{}).value?.trim()||'';
+  if(logoUrl)DB.school.logo=logoUrl;
+  document.getElementById('sb-sname').textContent=DB.school.name;
+  document.getElementById('l-sname').textContent=DB.school.name;
+  setSbLogo();setLoginLogo();
+  await dbSave();toast('Settings saved successfully!');go('settings');
+}
+async function doUpdateTerm(){
+  DB.term.year=(document.getElementById('st-yr')||{}).value||DB.term.year;
+  DB.term.term=parseInt((document.getElementById('st-tm')||{}).value)||DB.term.term;
+  updateTC();await dbSave();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);go('settings');
+}
+function moUpdateTerm(){
+  moOpen('Update Current Term',`<div class="fg"><label>Academic Year</label><input id="ut-yr" value="${DB.term.year}"></div><div class="fg"><label>Term</label><select id="ut-tm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div><div style="display:flex;gap:7px"><button class="btn btn-g" onclick="quickUpdateTerm()">Update</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+}
+async function quickUpdateTerm(){
+  DB.term.year=(document.getElementById('ut-yr')||{}).value||DB.term.year;
+  DB.term.term=parseInt((document.getElementById('ut-tm')||{}).value)||DB.term.term;
+  updateTC();await dbSave();moClose();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);go('dashboard');
+}
 
-// ── Init login logo from DB
-(function(){
-  try{
-    const d=loadDB();
-    if(d&&d.school){
-      document.getElementById('login-school-display').textContent=d.school.name;
-    }
-  }catch(e){}
-})();
+// ══════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════
+function moOpen(title,body,large=false){
+  const box=document.getElementById('mo-box');
+  box.className='mb'+(large?' lg':'');
+  box.innerHTML=`<div class="mh"><div class="mt">${title}</div><button class="mx" onclick="moClose()">×</button></div>${body}`;
+  document.getElementById('mo-bg').style.display='flex';
+}
+function moClose(){document.getElementById('mo-bg').style.display='none';}
+function moBgClose(e){if(e.target===document.getElementById('mo-bg'))moClose();}
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+initApp();
 </script>
 </body>
 </html>
