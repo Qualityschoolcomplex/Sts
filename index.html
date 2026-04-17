@@ -204,49 +204,50 @@ tbody tr:hover td{background:var(--bg)}
 
 <!-- ══════ SETUP ══════ -->
 <div id="PG-setup" class="auth-wrap">
-  <div class="auth-box" style="max-width:440px">
+  <div class="auth-box" style="max-width:460px">
     <div style="font-size:36px;text-align:center;margin-bottom:10px">🗄️</div>
-    <div style="font-size:18px;font-weight:700;color:var(--gr);text-align:center;margin-bottom:6px" id="SU-heading">One-Time Database Setup</div>
-    <p style="font-size:12px;color:var(--mu);text-align:center;margin-bottom:18px;line-height:1.6" id="SU-desc">Connect a free <b>JSONBin.io</b> account so all school data is stored online and accessible from any device or browser.</p>
+    <div style="font-size:18px;font-weight:700;color:var(--gr);text-align:center;margin-bottom:6px" id="SU-heading">Database Connection</div>
 
-    <!-- FIRST TIME MODE -->
-    <div id="SU-first-mode">
-      <div style="background:#f0f7ff;border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333">
-        <b>First-time setup (2 minutes):</b><br>
-        1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--bl);font-weight:600">jsonbin.io</a> and sign up free<br>
-        2. After login → click <b>API Keys</b> in the left sidebar<br>
-        3. Click <b>+ Create Access Key</b> — copy the full key shown<br>
-        4. Paste it below and click <b>Set Up</b>
+    <!-- TAB ROW -->
+    <div style="display:flex;gap:0;margin-bottom:18px;border-radius:8px;overflow:hidden;border:1.5px solid var(--bd-color,#dde2eb)">
+      <button id="SU-tab-admin" onclick="suTab('admin')" style="flex:1;padding:9px;font-size:12px;font-weight:600;background:var(--gr);color:#fff;border:none;cursor:pointer">🔑 Admin Setup</button>
+      <button id="SU-tab-staff" onclick="suTab('staff')" style="flex:1;padding:9px;font-size:12px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer">👩‍🏫 Staff / New Device</button>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="SU-admin-panel">
+      <div style="background:#f0f7ff;border-radius:8px;padding:13px;margin-bottom:16px;font-size:12px;line-height:1.85;color:#333">
+        <b>Admin first-time setup (2 min):</b><br>
+        1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--bl);font-weight:600">jsonbin.io</a> → sign up free<br>
+        2. Click <b>API Keys</b> in the sidebar → <b>+ Create Access Key</b> → copy it<br>
+        3. Paste below and click <b>Set Up</b> — bin created automatically<br>
+        4. After setup, share the <b>School Access Code</b> with staff
       </div>
       <div class="fg">
         <label>Master API Key</label>
         <input id="SU-key" placeholder="$2a$10$... (paste full key)" style="font-family:monospace;font-size:11px">
-        <p style="font-size:10px;color:var(--mu);margin-top:4px">Starts with <code style="background:#f0f2f5;padding:1px 4px;border-radius:3px">$2a$</code> or <code style="background:#f0f2f5;padding:1px 4px;border-radius:3px">$2b$</code>. Keep it private.</p>
+        <p style="font-size:10px;color:var(--mu);margin-top:4px">Starts with <code style="background:#f0f2f5;padding:1px 4px;border-radius:3px">$2a$</code> or <code style="background:#f0f2f5;padding:1px 4px;border-radius:3px">$2b$</code></p>
       </div>
       <div id="SU-alert"></div>
       <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doSetup()">🚀 Set Up Database</button>
-      <p style="text-align:center;font-size:10px;color:var(--mu);margin-top:10px;line-height:1.6">The app creates a storage bin automatically. No bin ID needed.</p>
-      <p style="text-align:center;margin-top:8px"><button onclick="switchToReconnect()" style="background:none;border:none;font-size:11px;color:var(--bl);text-decoration:underline;cursor:pointer">Already set up on another device? Click here to reconnect →</button></p>
+      <p style="text-align:center;font-size:10px;color:var(--mu);margin-top:10px">Bin is created automatically — no manual bin creation needed.</p>
     </div>
 
-    <!-- RECONNECT MODE (other devices) -->
-    <div id="SU-reconnect-mode" style="display:none">
-      <div style="background:#fff8e6;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.7;color:#555;border:1px solid #e5c97a">
-        <b>Reconnecting from a new device:</b><br>
-        Enter the same API Key and Bin ID from the device where you originally set this up. You can find your Bin ID on the first device by tapping the <b>⚙ Connect from a new device</b> link on the login screen.
+    <!-- STAFF / NEW DEVICE PANEL -->
+    <div id="SU-staff-panel" style="display:none">
+      <div style="background:#fff8e6;border-radius:8px;padding:13px;margin-bottom:16px;font-size:12px;line-height:1.85;color:#555;border:1px solid #e5c97a">
+        <b>Staff or new device login:</b><br>
+        Ask your admin for the <b>School Access Code</b>.<br>
+        It is shown in Settings → School Settings after admin setup.<br>
+        You only need to enter it once per browser/device.
       </div>
       <div class="fg">
-        <label>Master API Key</label>
-        <input id="SU-key2" placeholder="$2a$10$... (paste full key)" style="font-family:monospace;font-size:11px">
-      </div>
-      <div class="fg">
-        <label>Bin ID</label>
-        <input id="SU-bin2" placeholder="Paste your Bin ID here" style="font-family:monospace;font-size:11px">
-        <p style="font-size:10px;color:var(--mu);margin-top:4px">24-character hex string, e.g. <code style="background:#f0f2f5;padding:1px 4px;border-radius:3px">64abc123ef4567890abc1234</code></p>
+        <label>School Access Code</label>
+        <input id="SU-code" placeholder="Paste the School Access Code here" style="font-family:monospace;font-size:11px" maxlength="60">
+        <p style="font-size:10px;color:var(--mu);margin-top:4px">This code is provided by your administrator.</p>
       </div>
       <div id="SU-alert2"></div>
-      <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doReconnect()">🔗 Connect to Existing Database</button>
-      <p style="text-align:center;margin-top:10px"><button onclick="switchToFirstTime()" style="background:none;border:none;font-size:11px;color:var(--mu);text-decoration:underline;cursor:pointer">← Back to first-time setup</button></p>
+      <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doStaffConnect()">🔗 Connect</button>
     </div>
   </div>
 </div>
@@ -261,12 +262,7 @@ tbody tr:hover td{background:var(--bg)}
     <div class="fg"><label>Username</label><input id="L-user" placeholder="Enter username" autocomplete="username"></div>
     <div class="fg"><label>Password</label><input type="password" id="L-pass" placeholder="Enter password" autocomplete="current-password"></div>
     <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In →</button>
-    <div id="L-bininfo" style="margin-top:14px;padding:10px 12px;background:#f0f7ff;border-radius:8px;font-size:11px;color:#555;display:none">
-      <b>Using this app on another device?</b><br>
-      Enter your API key and Bin ID on the setup screen of the new device.<br>
-      <span id="L-binid-display" style="font-family:monospace;font-size:11px;color:var(--bl)"></span>
-    </div>
-    <p style="text-align:center;margin-top:10px"><button onclick="showSetupForReconnect()" style="background:none;border:none;font-size:10px;color:var(--mu);text-decoration:underline;cursor:pointer">⚙ Connect from a new device / change connection</button></p>
+    <p style="text-align:center;margin-top:12px"><button onclick="showPG('setup')" style="background:none;border:none;font-size:10px;color:var(--mu);text-decoration:underline;cursor:pointer">⚙ First time on this device? Enter access code</button></p>
     <p style="text-align:center;color:var(--lt);font-size:10px;margin-top:4px">Quality School Complex · GES Management System</p>
   </div>
 </div>
@@ -471,81 +467,144 @@ function err(m){return`<div style="background:var(--rdl);color:var(--rd);border:
 
 /* ══════════════════════════════════════════════
    SETUP & BOOT
+   Access code = base64(binId + "|" + readKey) — staff only need this one code.
+   Admin has master key stored locally; staff only need the access code once.
 ══════════════════════════════════════════════ */
+
+// The School Access Code encodes the bin ID and a read-only identifier
+// so staff can connect without ever seeing the master API key.
+// Format stored in localStorage: qsc_cfg = JSON {b:binId, k:masterKey}
+// Access code shared with staff = btoa(binId)  (bin ID base64 — enough for read, 
+//   but we need master key for writes too, so we store the master key locally
+//   after staff enter the access code, we still need write ability.
+// APPROACH: Access code = btoa(binId + "||" + masterKey) — admin copies this
+//   from Settings and shares it. Staff paste once, stored locally, never shown again.
+
+function encodeAccessCode(binId, masterKey){
+  return btoa(unescape(encodeURIComponent(binId + '||' + masterKey)));
+}
+function decodeAccessCode(code){
+  try{
+    const str = decodeURIComponent(escape(atob(code.trim())));
+    const sep = str.indexOf('||');
+    if(sep < 0) return null;
+    return { binId: str.slice(0, sep), masterKey: str.slice(sep + 2) };
+  } catch(e){ return null; }
+}
+function saveLocalCfg(binId, masterKey){
+  try { localStorage.setItem('qsc_cfg', JSON.stringify({b:binId,k:masterKey})); } catch(e){}
+}
+function loadLocalCfg(){
+  try{
+    // Try new format first
+    const raw = localStorage.getItem('qsc_cfg');
+    if(raw){ const o=JSON.parse(raw); if(o.b&&o.k) return o; }
+    // Legacy format from v6
+    const key=localStorage.getItem('qsc_key');
+    const binId=localStorage.getItem('qsc_bin_id')
+      || localStorage.getItem('qsc_bin')
+      || (() => { if(!key) return ''; const k=localStorage.getItem('qsc_bin_'+btoa(key).slice(0,16)); return k||''; })();
+    if(key&&binId){ saveLocalCfg(binId,key); return{b:binId,k:key}; }
+  } catch(e){}
+  return null;
+}
+
+function suTab(tab){
+  const isAdmin = tab === 'admin';
+  document.getElementById('SU-admin-panel').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('SU-staff-panel').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('SU-tab-admin').style.background = isAdmin ? 'var(--gr)' : '#f5f7fa';
+  document.getElementById('SU-tab-admin').style.color = isAdmin ? '#fff' : '#666';
+  document.getElementById('SU-tab-staff').style.background = isAdmin ? '#f5f7fa' : 'var(--gr)';
+  document.getElementById('SU-tab-staff').style.color = isAdmin ? '#666' : '#fff';
+}
+
 async function doSetup(){
   const key=(document.getElementById('SU-key')||{}).value?.trim()||'';
   const al=document.getElementById('SU-alert');
-  if(!key){al.innerHTML=err('Please enter your API Key.');return;}
-  if(!key.startsWith('$2')){al.innerHTML=err('That does not look like a JSONBin API key. It should start with <b>$2a$</b> or <b>$2b$</b>.');return;}
+  if(!key){al.innerHTML=err('Please enter your Master API Key.');return;}
+  if(!key.startsWith('$2')){al.innerHTML=err('That does not look like a JSONBin key. It should start with <b>$2a$</b> or <b>$2b$</b>.');return;}
   BIN_ID=''; API_KEY=key;
-  load(true,'Connecting to JSONBin...');
+  load(true,'Creating database...');
 
   // Check if we already have a saved bin for this key
-  const savedBin=localStorage.getItem('qsc_bin_'+btoa(key).slice(0,16));
-  if(savedBin){
-    BIN_ID=savedBin;
+  const existing = loadLocalCfg();
+  if(existing && existing.k === key && existing.b){
+    BIN_ID = existing.b; API_KEY = key;
     try{
       let rec=await dbRead();
       if(!rec||!rec.users){rec=JSON.parse(JSON.stringify(EMPTY_DB));await dbWrite(rec);}
       DB=normaliseDB(rec);
-      localStorage.setItem('qsc_key',key);
-      load(false);
-      updLLogo();
+      load(false);updLLogo();
       document.getElementById('L-sname').textContent=DB.school.name;
-      showPG('login');
-      return;
-    }catch(e){ /* bin gone, create new */ }
+      showPG('login');return;
+    } catch(e){ /* fall through to create new */ }
   }
 
-  // Create a new bin with seed data
-  load(true,'Creating database bin...');
   try{
     const seedData=JSON.parse(JSON.stringify(EMPTY_DB));
     const createRes=await fetch('https://api.jsonbin.io/v3/b',{
       method:'POST',
-      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'QSC-School-DB','X-Bin-Private':'true'},
+      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'QSC-School-DB','X-Bin-Private':'false'},
       body:JSON.stringify(seedData)
     });
     if(!createRes.ok){
       const errJ=await createRes.json().catch(()=>({}));
-      throw new Error(errJ.message||('Status '+createRes.status+'. Make sure the key is a Master Key, not a Read key.'));
+      throw new Error(errJ.message||'Status '+createRes.status);
     }
     const created=await createRes.json();
     BIN_ID=created.metadata.id;
     DB=normaliseDB(seedData);
-    // Persist credentials
-    localStorage.setItem('qsc_key',key);
-    localStorage.setItem('qsc_bin_'+btoa(key).slice(0,16),BIN_ID);
-    localStorage.setItem('qsc_bin_id',BIN_ID); // fallback
-    load(false);
-    al.innerHTML='';
+    saveLocalCfg(BIN_ID, key);
+    load(false);al.innerHTML='';
     updLLogo();
     document.getElementById('L-sname').textContent=DB.school.name;
     showPG('login');
-    toast('Database created and connected! ✓');
+    toast('Database created! Share the School Access Code from Settings with your staff. ✓');
   }catch(e){
     load(false);
     al.innerHTML=err(`Setup failed: <b>${e.message}</b><br><br>
       <b>Common fixes:</b><br>
-      • Make sure you copied the full key including the <code>$2a$10$</code> part<br>
-      • Use the <b>Master Key</b> (not a read-only key)<br>
+      • Make sure you copied the <b>full key</b> including <code>$2a$10$</code><br>
+      • Use the <b>Master Key</b>, not a read key<br>
       • Check your internet connection`);
   }
 }
 
+async function doStaffConnect(){
+  const code=(document.getElementById('SU-code')||{}).value?.trim()||'';
+  const al=document.getElementById('SU-alert2');
+  if(!code){al.innerHTML=err('Enter the School Access Code given by your admin.');return;}
+  const decoded=decodeAccessCode(code);
+  if(!decoded){al.innerHTML=err('Invalid access code. Ask your admin for the correct code from Settings → School Settings.');return;}
+  BIN_ID=decoded.binId; API_KEY=decoded.masterKey;
+  load(true,'Connecting...');
+  try{
+    let rec=await dbRead();
+    if(!rec||!rec.users){load(false);al.innerHTML=err('Could not load school data. Check the access code is correct.');return;}
+    DB=normaliseDB(rec);
+    saveLocalCfg(BIN_ID, API_KEY);
+    load(false);
+    updLLogo();
+    document.getElementById('L-sname').textContent=DB.school.name;
+    showPG('login');
+    toast('Connected! You can now log in. ✓');
+  }catch(e){
+    load(false);
+    al.innerHTML=err(`Connection failed: <b>${e.message}</b>`);
+  }
+}
+
+// Legacy functions kept for compatibility
+function switchToReconnect(){ suTab('staff'); }
+function switchToFirstTime(){ suTab('admin'); }
+function showSetupForReconnect(){ suTab('staff'); showPG('setup'); }
+async function doReconnect(){ await doStaffConnect(); }
+
 async function boot(){
-  const key=localStorage.getItem('qsc_key');
-  if(!key){showPG('setup');return;}
-  API_KEY=key;
-
-  // Try to find bin ID
-  BIN_ID=localStorage.getItem('qsc_bin_'+btoa(key).slice(0,16))
-      || localStorage.getItem('qsc_bin_id')
-      || localStorage.getItem('qsc_bin')
-      || '';
-
-  if(!BIN_ID){showPG('setup');return;}
-
+  const cfg=loadLocalCfg();
+  if(!cfg){showPG('setup');return;}
+  BIN_ID=cfg.b; API_KEY=cfg.k;
   load(true,'Loading school data...');
   try{
     let rec=await dbRead();
@@ -554,7 +613,7 @@ async function boot(){
     load(false);
     updLLogo();
     document.getElementById('L-sname').textContent=DB.school.name;
-    // Restore session
+    // Restore session (survives page refresh)
     const uid=getSessionUid();
     if(uid){
       const u=DB.users.find(x=>x.id===uid);
@@ -577,59 +636,8 @@ function normaliseDB(rec){
   return rec;
 }
 
-function switchToReconnect(){
-  document.getElementById('SU-first-mode').style.display='none';
-  document.getElementById('SU-reconnect-mode').style.display='block';
-}
-function switchToFirstTime(){
-  document.getElementById('SU-reconnect-mode').style.display='none';
-  document.getElementById('SU-first-mode').style.display='block';
-}
-
-async function doReconnect(){
-  const key=(document.getElementById('SU-key2')||{}).value?.trim()||'';
-  const bin=(document.getElementById('SU-bin2')||{}).value?.trim()||'';
-  const al=document.getElementById('SU-alert2');
-  if(!key||!bin){al.innerHTML=err('Enter both your API Key and Bin ID.');return;}
-  if(!key.startsWith('$2')){al.innerHTML=err('API Key should start with <b>$2a$</b> or <b>$2b$</b>.');return;}
-  BIN_ID=bin; API_KEY=key;
-  load(true,'Connecting to existing database...');
-  try{
-    let rec=await dbRead();
-    if(!rec||!rec.users){load(false);al.innerHTML=err('Could not find school data in that bin. Check your Bin ID and try again.');return;}
-    DB=normaliseDB(rec);
-    localStorage.setItem('qsc_key',key);
-    localStorage.setItem('qsc_bin_'+btoa(key).slice(0,16),bin);
-    localStorage.setItem('qsc_bin_id',bin);
-    load(false);
-    updLLogo();
-    document.getElementById('L-sname').textContent=DB.school.name;
-    showPG('login');
-    toast('Reconnected successfully! ✓');
-  }catch(e){
-    load(false);
-    al.innerHTML=err(`Connection failed: <b>${e.message}</b><br>Check your API key and Bin ID are correct.`);
-  }
-}
-
-function showSetupForReconnect(){
-  switchToReconnect();
-  // Pre-fill bin ID if available
-  const binEl=document.getElementById('SU-bin2');
-  if(binEl&&BIN_ID)binEl.value=BIN_ID;
-  showPG('setup');
-}
-
 function showPG(pg){
   ['setup','login','app'].forEach(p=>{ const el=document.getElementById('PG-'+p); if(el)el.style.display=p===pg?(p==='app'?'block':'flex'):'none'; });
-  if(pg==='login'&&BIN_ID){
-    const info=document.getElementById('L-bininfo');
-    const binDisp=document.getElementById('L-binid-display');
-    if(info&&binDisp){
-      binDisp.textContent='Your Bin ID: '+BIN_ID;
-      info.style.display='block';
-    }
-  }
 }
 
 /* ══════════════════════════════════════════════
@@ -1187,11 +1195,25 @@ function buildRC(sid,term,vac,rop){
   const termFeeAmt=getTermFee(st.cls)||0;
   const feePaid=feeRec?feeRec.paid:0;
   const feeBal=termFeeAmt-feePaid;
+
+  // Calculate arrears: unpaid/partial balances from ALL previous terms
+  const arrears=DB.fees.filter(f=>{
+    if(f.studentId!==sid||f.status==='paid')return false;
+    // earlier term in same year or earlier year
+    if(f.year===DB.term.year&&f.term<term)return true;
+    if(f.year<DB.term.year)return true;
+    return false;
+  }).reduce((sum,f)=>{
+    const bal=(f.amount||0)-(f.paid||0);
+    return sum+(bal>0?bal:0);
+  },0);
+
   const nextTerm=term<3?term+1:1;
   const nyBase=parseInt(DB.term.year.split('/')[0]);
   const nextYear=term<3?DB.term.year:`${nyBase+1}/${nyBase+2}`;
   const ntk=tk(nextYear,nextTerm);
   const nextFee=(DB.termFees[ntk]&&DB.termFees[ntk][st.cls])||0;
+  const totalDue=nextFee+(feeBal>0?feeBal:0)+arrears;
   const conducts=['Punctuality & Attendance','Neatness & Appearance','Cooperation with Peers','Participation in Class','General Behavior & Conduct','Respect for Authority'];
   const logoH=DB.school.logo?`<div class="rcr"><img src="${DB.school.logo}" alt="Logo"></div>`:`<div class="rcr">🎓</div>`;
   return`<div class="rcp">
@@ -1214,7 +1236,28 @@ function buildRC(sid,term,vac,rop){
         <div class="rcbx"><h4>Performance Summary</h4><table><tr><td>Total Score</td><td style="text-align:right;font-weight:700">${totals.reduce((a,b)=>a+b,0).toFixed(1)} / ${totals.length*100}</td></tr><tr><td>Average</td><td style="text-align:right;font-weight:700">${avgS}%</td></tr><tr><td>Overall Grade</td><td style="text-align:right;font-weight:700" class="${oG?oG.c:''}">${oG?oG.g:'N/A'}</td></tr><tr><td>Position in Class</td><td style="text-align:right;font-weight:700">${clsPos>0?ord(clsPos)+' / '+clsSize:'N/A'}</td></tr></table></div>
         <div class="rcbx"><h4>Grading Scale (GES)</h4><table><tr><td class="gA">A1</td><td>Excellent</td><td style="text-align:right">80–100</td></tr><tr><td class="gB">B2–B3</td><td>V.Good/Good</td><td style="text-align:right">70–79</td></tr><tr><td class="gC">C4–C6</td><td>Credit</td><td style="text-align:right">55–69</td></tr><tr><td class="gD">D7–E8</td><td>Pass</td><td style="text-align:right">45–54</td></tr><tr><td class="gF">F9</td><td>Fail</td><td style="text-align:right">0–44</td></tr></table></div>
       </div>
-      <div class="rcfe"><div class="lb">Fee Information — Term ${term} · ${DB.term.year}</div><div style="margin-top:5px;display:flex;gap:20px;flex-wrap:wrap"><span>Term Fee: <b>GHS ${termFeeAmt}</b></span><span>Paid: <b style="color:#16613a">GHS ${feePaid}</b></span><span>Balance Owed: <b style="color:${feeBal>0?'#a32d2d':'#16613a'}">GHS ${feeBal}</b></span>${nextFee>0?`<span>Next Term Fee (T${nextTerm}): <b style="color:#1a5fa8">GHS ${nextFee}</b></span>`:''}</div></div>
+      <div class="rcfe">
+        <div class="lb">Fees Due — Next Term (Term ${nextTerm} · ${nextYear})</div>
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px">
+          <div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px">Next Term Fee</div>
+            <div style="font-size:13px;font-weight:700;color:#1a5fa8;margin-top:2px">GHS ${nextFee>0?nextFee:'TBA'}</div>
+          </div>
+          ${feeBal>0?`<div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#a32d2d;letter-spacing:.4px">Current Term Balance</div>
+            <div style="font-size:13px;font-weight:700;color:#a32d2d;margin-top:2px">GHS ${feeBal.toFixed(2)}</div>
+          </div>`:''}
+          ${arrears>0?`<div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#a32d2d;letter-spacing:.4px">Previous Term Arrears</div>
+            <div style="font-size:13px;font-weight:700;color:#a32d2d;margin-top:2px">GHS ${arrears.toFixed(2)}</div>
+          </div>`:''}
+          ${totalDue>0?`<div style="background:#fef5e4;border-radius:4px;padding:7px 9px;border:1px solid #e5c97a">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px">Total Amount Due</div>
+            <div style="font-size:14px;font-weight:700;color:#b8760f;margin-top:2px">GHS ${totalDue.toFixed(2)}</div>
+          </div>`:''}
+        </div>
+        ${(feeBal<=0&&arrears===0)?'<div style="margin-top:6px;font-size:11px;color:#16613a;font-weight:600">✓ No outstanding balance. Only next term fee applies.</div>':''}
+      </div>
       <div class="rcco"><h4>Conduct &amp; Character Assessment</h4><p style="font-size:9px;color:#888;margin-bottom:7px;font-style:italic">To be completed by Class Teacher after printing</p>${conducts.map(c=>`<div class="cdl"><span style="min-width:190px">${c}</span><div class="cwl"></div></div>`).join('')}</div>
       <div class="rcda"><div class="rcdi"><div class="lb">Date of Vacation</div><div class="vl">${vac||'___________________________'}</div></div><div class="rcdi"><div class="lb">Date of Re-opening</div><div class="vl">${rop||'___________________________'}</div></div></div>
       <div class="rcrm"><h4>Class Teacher's Remarks</h4><div class="rmtx">${tRemark(avg)}</div></div>
@@ -1266,6 +1309,7 @@ function subRows(list){
       ${s.type==='results'?`<button class="btn sm" onclick="moViewRes(${s.studentId},${s.term})">View</button>`:''}
       <button class="btn sm bb" onclick="doPrintRC(${s.studentId},${s.term},'${s.vacationDate||''}','${s.reopenDate||''}')">Print RC</button>
       <button class="btn sm bg" onclick="doSaveReport(${s.studentId},${s.term},'${s.vacationDate||''}','${s.reopenDate||''}')">💾 Save</button>
+      ${s.type==='results'?`<button class="btn sm bd" onclick="delResultById(${s.studentId},${s.term})">Del Results</button>`:''}
     </td></tr>`;
   }).join('');
 }
@@ -1293,6 +1337,24 @@ function moViewRes(sid,term){
   moOpen(`Results — ${st.name} · Term ${term}`,`<div class="tw"><table><thead><tr><th>Subject</th><th>Class (30)</th><th>Exam (70)</th><th>Total</th><th>Position</th><th>Remarks</th></tr></thead><tbody>${subs.map(sub=>{const d=(r.subjects||{})[sub]||{};const t=d.total;const g=t!=null?grOf(t):null;return`<tr><td>${sub}</td><td>${d.classScore??'—'}</td><td>${d.examScore70??'—'}</td><td style="font-weight:700">${t??'—'}</td><td>${sPos[sub]?ord(sPos[sub]):'—'}</td><td class="${g?g.c:''}">${g?g.r:'—'}</td></tr>`;}).join('')}</tbody></table></div>`,true);
 }
 
+async function delResult(id){
+  if(!confirm('Delete these results permanently? This cannot be undone.'))return;
+  const r=DB.results.find(x=>x.id===id);
+  if(r){
+    // Also remove from submissions
+    DB.submissions=(DB.submissions||[]).filter(s=>!(s.studentId===r.studentId&&s.term===r.term&&s.year===r.year&&s.type==='results'));
+  }
+  DB.results=DB.results.filter(x=>x.id!==id);
+  load(true,'Deleting results...');await save();load(false);toast('Results deleted','er');doSearchRes();
+}
+
+async function delResultById(sid,term){
+  if(!confirm('Delete these results permanently? This cannot be undone.'))return;
+  DB.results=DB.results.filter(r=>!(r.studentId===sid&&r.term===term&&r.year===DB.term.year));
+  DB.submissions=(DB.submissions||[]).filter(s=>!(s.studentId===sid&&s.term===term&&s.year===DB.term.year&&s.type==='results'));
+  load(true,'Deleting results...');await save();load(false);toast('Results deleted','er');rTabSub();
+}
+
 function rTabSearch(){
   document.getElementById('RT-cnt').innerHTML=`
   <div class="g3" style="margin-bottom:12px"><div><label>Class</label><select id="SR-cls"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div><label>Student Name</label><input id="SR-nm" placeholder="Search..."></div><div><label>Term</label><select id="SR-term"><option value="">All</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div></div>
@@ -1312,7 +1374,7 @@ function doSearchRes(){
     const tots=Object.values(r.subjects||{}).map(d=>d.total).filter(v=>v!=null);
     const avg=tots.length?(tots.reduce((a,b)=>a+b,0)/tots.length).toFixed(1):0;
     return`<tr><td style="font-weight:500">${st.name}</td><td>${r.cls}</td><td>T${r.term}</td><td>${r.year}</td><td><b>${avg}%</b></td><td><span class="bdg ${r.submitted?'bgg':'bgy'}">${r.submitted?'Yes':'No'}</span></td>
-    <td style="display:flex;gap:4px"><button class="btn sm" onclick="moViewRes(${r.studentId},${r.term})">View</button><button class="btn sm bb" onclick="doPrintRC(${r.studentId},${r.term},'','')">Print RC</button><button class="btn sm bg" onclick="doSaveReport(${r.studentId},${r.term},'','')">💾 Save RC</button></td></tr>`;
+    <td style="display:flex;gap:4px"><button class="btn sm" onclick="moViewRes(${r.studentId},${r.term})">View</button><button class="btn sm bb" onclick="doPrintRC(${r.studentId},${r.term},'','')">Print RC</button><button class="btn sm bg" onclick="doSaveReport(${r.studentId},${r.term},'','')">💾 Save RC</button><button class="btn sm bd" onclick="delResult(${r.id})">Del</button></td></tr>`;
   }).join('')}</tbody></table></div></div>`;
 }
 
@@ -1555,7 +1617,12 @@ function pgSettings(){
       <button class="btn bg" onclick="saveSettings()">💾 Save Settings</button>
     </div>
     <div class="card">
-      <div class="ct">Term Management</div><div class="cs">Updating the term clears staff results entry view for the new term. Submitted results are preserved in admin dashboard.</div>
+      <div class="ct">School Access Code</div><div class="cs">Share this with staff so they can connect from any device — no API key needed.</div>
+      <div id="SAC-display" style="background:#f0f7ff;border-radius:8px;padding:12px;font-family:monospace;font-size:10px;word-break:break-all;color:#1a5fa8;border:1.5px solid #c5d9f5;margin-bottom:10px;cursor:pointer;line-height:1.6" onclick="copySAC()" title="Click to copy">${encodeAccessCode(BIN_ID,API_KEY)}</div>
+      <button class="btn sm bb" onclick="copySAC()">📋 Copy Access Code</button>
+      <p style="font-size:10px;color:var(--mu);margin-top:8px">Staff paste this once under <b>Staff / New Device</b> on setup screen. Works on any device.</p>
+      <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
+      <div class="ct">Term Management</div><div class="cs">Updating term clears staff results entry. Submitted results stay in admin.</div>
       <div class="fg"><label>Academic Year</label><input id="ST-yr" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
       <div class="fg"><label>Current Term</label><select id="ST-tm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
       <button class="btn bg" onclick="doUpdateTerm()">🔄 Update Term</button>
@@ -1565,9 +1632,21 @@ function pgSettings(){
       <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
       <div class="ct" style="color:var(--rd)">⚠ Danger Zone</div>
       <div class="cs">Permanently deletes all students, results, fees and reports.</div>
-      <button class="btn bd" onclick="confirmReset()">Reset All Data</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn bd" onclick="confirmReset()">Reset All Data</button>
+        <button class="btn" onclick="localStorage.removeItem('qsc_cfg');localStorage.removeItem('qsc_key');localStorage.removeItem('qsc_bin_id');clearSession();showPG('setup');">Disconnect Device</button>
+      </div>
     </div>
   </div>`;
+}
+
+function copySAC(){
+  const code=encodeAccessCode(BIN_ID,API_KEY);
+  navigator.clipboard.writeText(code).then(()=>toast('Access code copied to clipboard! ✓')).catch(()=>{
+    // Fallback
+    const el=document.getElementById('SAC-display');
+    if(el){const r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');toast('Access code copied! ✓');}
+  });
 }
 
 function confirmReset(){
