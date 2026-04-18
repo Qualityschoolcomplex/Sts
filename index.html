@@ -222,7 +222,7 @@ tbody tr:hover td{background:var(--bg)}
 .rcft{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:9px;letter-spacing:.3px}
 </style>
 </head>
-<body onload="document.getElementById('LOAD').style.display='flex'">
+<body>
 
 <div id="toasts"></div>
 <div id="PA"></div>
@@ -356,12 +356,22 @@ async function dbWrite(data) {
 }
 
 async function dbRead() {
-  const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, {
-    headers: { 'X-Master-Key': API_KEY }
-  });
-  if (!res.ok) throw new Error('Read failed: ' + res.status);
-  const j = await res.json();
-  return j.record;
+  // Abort fetch after 8 seconds so boot() never hangs indefinitely
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('Read failed: ' + res.status);
+    const j = await res.json();
+    return j.record;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -672,57 +682,113 @@ function decodeAccessCode(code){
 }
 
 async function boot(){
-  const cfg=loadLocalCfg();
-  // If credentials are embedded, cfg is always found — setup screen never shown
-  if(!cfg){
-    // Extremely rare: non-embedded file with no localStorage — show setup
-    showPG('setup');return;
-  }
-  BIN_ID=cfg.b; API_KEY=cfg.k;
+  // Safety net: never stay stuck on loading screen more than 12 seconds
+  const safetyTimer = setTimeout(()=>{ /* 6s max wait */
+    load(false);
+    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY){ showPG('login'); }
+    else { showPG('setup'); }
+  }, 6000);
 
-  // Fast path: use cached DB (users + settings) for instant login screen
-  // Then sync fresh data from JSONBin in the background
-  const cachedUsers=getCachedUsers();
-  if(cachedUsers){
-    // Build minimal DB from cache so login works instantly
-    if(!DB){DB=normaliseDB({...JSON.parse(JSON.stringify(EMPTY_DB)),users:cachedUsers});}
-    updLLogo();
-    document.getElementById('L-sname').textContent=DB.school.name;
-    // Check session
-    const uid=getSessionUid();
-    if(uid){
-      const u=cachedUsers.find(x=>x.id===uid);
-      if(u){ CU=u; showPG('app'); updAppUI(); buildNav(); go('dashboard');
-        // Refresh full DB silently
-        dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
-        return;
-      }
-    }
-    showPG('login');
-    // Load full DB in background so it's ready when user hits Sign In
-    dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);updLLogo();document.getElementById('L-sname').textContent=DB.school.name;}}).catch(()=>{});
-    return;
-  }
-
-  // No cache — full load
-  load(true,'Loading...');
   try{
-    let rec=await dbRead();
-    if(!rec||!rec.users){rec=JSON.parse(JSON.stringify(EMPTY_DB));await dbWrite(rec);}
-    DB=normaliseDB(rec);
-    cacheUsers(DB.users);
+    const cfg=loadLocalCfg();
+    if(!cfg){
+      clearTimeout(safetyTimer);
+      load(false);
+      showPG('setup');
+      return;
+    }
+    BIN_ID=cfg.b; API_KEY=cfg.k;
+
+    // FAST PATH: cached users → show login instantly, sync DB in background
+    const cachedUsers=getCachedUsers();
+    if(cachedUsers && cachedUsers.length > 0){
+      if(!DB) DB=normaliseDB({...JSON.parse(JSON.stringify(EMPTY_DB)),users:cachedUsers});
+
+      // Check for existing session
+      const uid=getSessionUid();
+      if(uid){
+        const u=cachedUsers.find(x=>x.id===uid);
+        if(u){
+          CU=u;
+          clearTimeout(safetyTimer);
+          load(false);
+          showPG('app'); updAppUI(); buildNav(); go('dashboard');
+          // Silent background sync
+          dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
+          return;
+        }
+      }
+
+      // Show login immediately — no network wait
+      clearTimeout(safetyTimer);
+      load(false);
+      updLLogo();
+      const snEl=document.getElementById('L-sname');
+      if(snEl) snEl.textContent=DB.school&&DB.school.name?DB.school.name:'QUALITY SCHOOL COMPLEX';
+      showPG('login');
+
+      // Sync DB silently in background so login has fresh user list
+      dbRead().then(rec=>{
+        if(rec&&rec.users){
+          DB=normaliseDB(rec); cacheUsers(DB.users);
+          updLLogo();
+          const sn=document.getElementById('L-sname');
+          if(sn) sn.textContent=DB.school.name;
+        }
+      }).catch(()=>{});
+      return;
+    }
+
+    // FIRST VISIT — no localStorage cache
+    // Show login immediately using EMPTY_DB as placeholder while we fetch in background
+    // This means login appears instantly even on slow connections
+    DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+    clearTimeout(safetyTimer);
     load(false);
     updLLogo();
-    document.getElementById('L-sname').textContent=DB.school.name;
-    const uid=getSessionUid();
-    if(uid){
-      const u=DB.users.find(x=>x.id===uid);
-      if(u){CU=u;showPG('app');updAppUI();buildNav();go('dashboard');return;}
-    }
+    const snEl=document.getElementById('L-sname');
+    if(snEl) snEl.textContent='QUALITY SCHOOL COMPLEX';
     showPG('login');
-  }catch(e){
+
+    // Now fetch real data in background — updates login screen name + caches users
+    const ltxt=document.getElementById('LTXT');
+    dbRead().then(rec=>{
+      if(rec&&rec.users){
+        DB=normaliseDB(rec);
+        cacheUsers(DB.users);
+        saveLocalCfg(BIN_ID, API_KEY);
+        updLLogo();
+        const sn=document.getElementById('L-sname');
+        if(sn) sn.textContent=DB.school.name;
+      }
+    }).catch(async e=>{
+      // Bin might be empty (brand new bin), write seed data
+      try{
+        DB=normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+        await dbWrite(DB);
+        cacheUsers(DB.users);
+        saveLocalCfg(BIN_ID, API_KEY);
+      }catch(e2){ /* offline — user can still attempt login */ }
+    });
+
+  } catch(e){
+    clearTimeout(safetyTimer);
     load(false);
-    showPG('setup');
+    // If credentials are embedded, go straight to login even on network error
+    // User can still log in — data will sync when connection resumes
+    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY){
+      // Try to show login with whatever DB state we have
+      if(!DB) DB=normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+      const cachedFallback=getCachedUsers();
+      if(cachedFallback) DB.users=cachedFallback;
+      updLLogo();
+      const snEl=document.getElementById('L-sname');
+      if(snEl) snEl.textContent=DB.school&&DB.school.name?DB.school.name:'QUALITY SCHOOL COMPLEX';
+      showPG('login');
+      toast('Offline mode — login works, data will sync when online.','inf');
+    } else {
+      showPG('setup');
+    }
   }
 }
 
@@ -1960,7 +2026,30 @@ function moBgClick(e){if(e.target===document.getElementById('MO-bg'))moClose();}
 /* ══════════════════════════════════════════════
    BOOT
 ══════════════════════════════════════════════ */
-boot();
+(function startApp(){
+  // Show splash immediately as first thing
+  const loadEl = document.getElementById('LOAD');
+  if(loadEl) loadEl.style.display = 'flex';
+
+  // Safety net: if login page never appears within 12s, force-show it
+  const safetyTimer = setTimeout(()=>{
+    console.warn('QSC: boot safety timeout triggered');
+    const l = document.getElementById('LOAD');
+    if(l) l.style.display = 'none';
+    const login = document.getElementById('PG-login');
+    if(login && login.style.display === 'none') login.style.display = 'flex';
+  }, 12000);
+
+  boot().then(()=>{
+    clearTimeout(safetyTimer);
+  }).catch(e=>{
+    clearTimeout(safetyTimer);
+    console.error('QSC boot error:', e);
+    const l = document.getElementById('LOAD');
+    if(l) l.style.display = 'none';
+    showPG('login');
+  });
+})();
 </script>
 </body>
 </html>
