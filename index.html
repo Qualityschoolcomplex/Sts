@@ -262,7 +262,6 @@ tbody tr:hover td{background:var(--bg)}
     <div class="fg"><label>Username</label><input id="L-user" placeholder="Enter username" autocomplete="username"></div>
     <div class="fg"><label>Password</label><input type="password" id="L-pass" placeholder="Enter password" autocomplete="current-password"></div>
     <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In →</button>
-    <p style="text-align:center;margin-top:12px"><button onclick="showPG('setup')" style="background:none;border:none;font-size:10px;color:var(--mu);text-decoration:underline;cursor:pointer">⚙ First time on this device? Enter access code</button></p>
     <p style="text-align:center;color:var(--lt);font-size:10px;margin-top:4px">Quality School Complex · GES Management System</p>
   </div>
 </div>
@@ -305,11 +304,9 @@ tbody tr:hover td{background:var(--bg)}
    Staff/any device: just open the file — no setup needed.
 ══════════════════════════════════════════════ */
 
-// EMBEDDED CREDENTIALS — set to '' initially, filled by admin setup download
-// After admin runs setup, a pre-configured HTML file is downloaded.
-// Anyone who opens THAT file has credentials baked in and goes straight to login.
-const EMBEDDED_BIN_ID = '';
-const EMBEDDED_API_KEY = '';
+// EMBEDDED CREDENTIALS — hardcoded so any device opens straight to login, no setup needed
+const EMBEDDED_BIN_ID = '69e18176856a682189416392';
+const EMBEDDED_API_KEY = '$2a$10$rux2O9LTYRuXWBRKsJlCveFWz66mj4J6vbrDXDDlURVTFEsBxGgW2';
 
 let BIN_ID = EMBEDDED_BIN_ID;
 let API_KEY = EMBEDDED_API_KEY;
@@ -643,7 +640,11 @@ function decodeAccessCode(code){
 
 async function boot(){
   const cfg=loadLocalCfg();
-  if(!cfg){showPG('setup');return;}
+  // If credentials are embedded, cfg is always found — setup screen never shown
+  if(!cfg){
+    // Extremely rare: non-embedded file with no localStorage — show setup
+    showPG('setup');return;
+  }
   BIN_ID=cfg.b; API_KEY=cfg.k;
 
   // Fast path: use cached DB (users + settings) for instant login screen
