@@ -118,11 +118,37 @@ tbody tr:hover td{background:var(--bg)}
 @keyframes ti{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
 @keyframes to2{to{transform:translateX(80px);opacity:0}}
 
-/* ===== LOADING ===== */
-#LOAD{position:fixed;inset:0;background:rgba(255,255,255,.88);z-index:9000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
-.spin{width:30px;height:30px;border:3px solid var(--bg);border-top-color:var(--gr);border-radius:50%;animation:sp .6s linear infinite}
+/* ===== LOADING SPLASH ===== */
+#LOAD{
+  position:fixed;inset:0;
+  background:linear-gradient(145deg,#0c3d22,#16613a,#1c7545);
+  z-index:9999;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:20px;
+}
+/* Big decorative spinner ring */
+.spin{
+  width:64px;height:64px;
+  border:5px solid rgba(255,255,255,.15);
+  border-top-color:#fff;
+  border-right-color:rgba(255,255,255,.5);
+  border-radius:50%;
+  animation:sp .8s cubic-bezier(.4,0,.2,1) infinite;
+  box-shadow:0 0 30px rgba(255,255,255,.1);
+}
 @keyframes sp{to{transform:rotate(360deg)}}
-.ltx{font-size:13px;font-weight:500;color:var(--mu)}
+/* Inner logo pulse */
+.spin-inner{
+  position:absolute;
+  width:36px;height:36px;
+  background:rgba(255,255,255,.12);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.12);opacity:1}}
+.ltx{font-size:13px;font-weight:500;color:rgba(255,255,255,.8);letter-spacing:.3px}
+.ltx-school{font-size:15px;font-weight:700;color:#fff;letter-spacing:.5px;margin-top:4px}
 
 /* ===== SETUP/LOGIN ===== */
 .auth-wrap{min-height:100vh;background:linear-gradient(145deg,#0c3d22,#16613a,#1c7545);display:flex;align-items:center;justify-content:center;padding:20px;position:relative}
@@ -196,14 +222,21 @@ tbody tr:hover td{background:var(--bg)}
 .rcft{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:9px;letter-spacing:.3px}
 </style>
 </head>
-<body>
+<body onload="document.getElementById('LOAD').style.display='flex'">
 
 <div id="toasts"></div>
 <div id="PA"></div>
-<div id="LOAD"><div class="spin"></div><div class="ltx" id="LTXT">Loading...</div></div>
+<div id="LOAD">
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;width:64px;height:64px">
+    <div class="spin"></div>
+    <div class="spin-inner">🎓</div>
+  </div>
+  <div class="ltx-school">QUALITY SCHOOL COMPLEX</div>
+  <div class="ltx" id="LTXT">Loading...</div>
+</div>
 
 <!-- ══════ SETUP ══════ -->
-<div id="PG-setup" class="auth-wrap">
+<div id="PG-setup" class="auth-wrap" style="display:none">
   <div class="auth-box" style="max-width:460px">
     <div style="font-size:36px;text-align:center;margin-bottom:10px">🗄️</div>
     <div style="font-size:18px;font-weight:700;color:var(--gr);text-align:center;margin-bottom:6px" id="SU-heading">Database Connection</div>
@@ -1698,10 +1731,39 @@ async function saveNewUser(){
   const name=(document.getElementById('AU-nm')||{}).value?.trim()||'';
   const username=(document.getElementById('AU-un')||{}).value?.trim()||'';
   const password=(document.getElementById('AU-pw')||{}).value||'';
+  const role=(document.getElementById('AU-rl')||{}).value||'staff';
+  const cls=(document.getElementById('AU-cls')||{}).value||'';
+  const subject=(document.getElementById('AU-sub')||{}).value?.trim()||'';
+
   if(!name||!username||!password){toast('Name, username & password required','er');return;}
   if(DB.users.find(u=>u.username===username)){toast('Username already exists','er');return;}
-  DB.users.push({id:DB.nextUid++,username,password,role:(document.getElementById('AU-rl')||{}).value||'staff',name,email:(document.getElementById('AU-em')||{}).value||'',cls:(document.getElementById('AU-cls')||{}).value||'',subject:(document.getElementById('AU-sub')||{}).value||''});
-  load(true,'Saving...');await save();load(false);moClose();toast('User added!');pgStaff();
+
+  // Check class/subject conflict — warn admin if another staff already has this class or subject
+  if(role==='staff'&&cls){
+    const clsConflict=DB.users.filter(u=>u.role==='staff'&&u.cls===cls&&u.id!==undefined);
+    const subConflict=subject?DB.users.filter(u=>u.role==='staff'&&u.subject===subject&&u.subject!==''):[];
+    const msgs=[];
+    if(clsConflict.length){
+      msgs.push(`Class "${cls}" is already assigned to: ${clsConflict.map(u=>u.name).join(', ')}.`);
+    }
+    if(subConflict.length){
+      msgs.push(`Subject "${subject}" is already assigned to: ${subConflict.map(u=>u.name).join(', ')}.`);
+    }
+    if(msgs.length){
+      const proceed=confirm(
+        '⚠ Assignment Conflict Detected\n\n'+
+        msgs.join('\n')+
+        '\n\nDo you still want to assign the same class/subject to this new user?\n\n'+
+        'Click OK to proceed anyway, or Cancel to go back and change the assignment.'
+      );
+      if(!proceed)return;
+    }
+  }
+
+  DB.users.push({id:DB.nextUid++,username,password,role,name,
+    email:(document.getElementById('AU-em')||{}).value||'',
+    cls,subject});
+  load(true,'Saving...');await save();load(false);moClose();toast('User added successfully!');pgStaff();
 }
 function moEditUser(id){
   const u=DB.users.find(x=>x.id===id);if(!u)return;
@@ -1712,11 +1774,31 @@ async function saveEditUser(id){
   const newUn=(document.getElementById('EU-un')||{}).value?.trim()||u.username;
   if(DB.users.find(x=>x.username===newUn&&x.id!==id)){toast('Username already taken','er');return;}
   const newPw=(document.getElementById('EU-pw')||{}).value||'';
+  const newRole=(document.getElementById('EU-rl')||{}).value||u.role;
+  const newCls=(document.getElementById('EU-cls')||{}).value||'';
+  const newSub=(document.getElementById('EU-sub')||{}).value?.trim()||'';
+
+  // Check class/subject conflict with other staff (excluding this user)
+  if(newRole==='staff'&&newCls){
+    const clsConflict=DB.users.filter(ux=>ux.role==='staff'&&ux.cls===newCls&&ux.id!==id);
+    const subConflict=newSub?DB.users.filter(ux=>ux.role==='staff'&&ux.subject===newSub&&ux.subject!==''&&ux.id!==id):[];
+    const msgs=[];
+    if(clsConflict.length) msgs.push(`Class "${newCls}" is already assigned to: ${clsConflict.map(ux=>ux.name).join(', ')}.`);
+    if(subConflict.length) msgs.push(`Subject "${newSub}" is already assigned to: ${subConflict.map(ux=>ux.name).join(', ')}.`);
+    if(msgs.length){
+      const proceed=confirm(
+        '⚠ Assignment Conflict Detected\n\n'+
+        msgs.join('\n')+
+        '\n\nDo you still want to assign the same class/subject to this user?\n\n'+
+        'Click OK to proceed, or Cancel to go back.'
+      );
+      if(!proceed)return;
+    }
+  }
+
   u.name=(document.getElementById('EU-nm')||{}).value||u.name;
   u.username=newUn;if(newPw)u.password=newPw;
-  u.role=(document.getElementById('EU-rl')||{}).value||u.role;
-  u.cls=(document.getElementById('EU-cls')||{}).value||'';
-  u.subject=(document.getElementById('EU-sub')||{}).value||'';
+  u.role=newRole; u.cls=newCls; u.subject=newSub;
   u.email=(document.getElementById('EU-em')||{}).value||'';
   load(true,'Saving...');await save();load(false);moClose();toast('User updated!');pgStaff();
 }
