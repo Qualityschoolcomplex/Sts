@@ -294,7 +294,7 @@ tbody tr:hover td{background:var(--bg)}
     <div id="L-alert"></div>
     <div class="fg"><label>Username</label><input id="L-user" placeholder="Enter username" autocomplete="username"></div>
     <div class="fg"><label>Password</label><input type="password" id="L-pass" placeholder="Enter password" autocomplete="current-password"></div>
-    <button class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In →</button>
+    <button id="login-btn" class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In</button>
     <p style="text-align:center;color:var(--lt);font-size:10px;margin-top:4px">Quality School Complex · GES Management System</p>
   </div>
 </div>
@@ -410,9 +410,28 @@ const EMPTY_DB = {
 async function save() {
   try {
     await dbWrite(DB);
-    // Refresh user cache so new/changed users work instantly on next login
     if(DB.users) cacheUsers(DB.users);
   } catch(e) { toast('Save error: '+e.message,'er'); }
+}
+// Saving indicator — small non-intrusive indicator, NOT the full-screen spinner
+function showSaving(show){
+  let el=document.getElementById('SAVING-ind');
+  if(show){
+    if(!el){
+      el=document.createElement('div');
+      el.id='SAVING-ind';
+      el.style.cssText='position:fixed;bottom:18px;right:18px;background:var(--gr);color:#fff;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;z-index:8000;display:flex;align-items:center;gap:7px;box-shadow:0 2px 12px rgba(0,0,0,.15)';
+      el.innerHTML='<div style="width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite"></div><span>Saving...</span>';
+      document.body.appendChild(el);
+    }
+    el.style.display='flex';
+  } else {
+    if(el) el.style.display='none';
+  }
+}
+async function saveWithIndicator(){
+  showSaving(true);
+  try{ await save(); } finally { showSaving(false); }
 }
 
 /* ══════════════════════════════════════════════
@@ -817,42 +836,63 @@ async function doLogin(){
   const al=document.getElementById('L-alert');
   if(!username||!password){al.innerHTML=err('Enter username and password.');return;}
 
-  // FAST PATH: check cached users immediately (no network call)
-  const cachedUsers=getCachedUsers();
-  if(cachedUsers){
-    const user=cachedUsers.find(x=>x.username===username&&x.password===password);
-    if(user){
-      al.innerHTML='';
-      CU=user;
-      saveSession(CU);
-      showPG('app');
-      updAppUI();
-      buildNav();
-      go('dashboard');
-      // Sync full DB in background after login
-      dbRead().then(rec=>{ if(rec&&rec.users){ DB=normaliseDB(rec); cacheUsers(DB.users); } }).catch(()=>{});
-      return;
-    }
-    // User not in cache — might be newly added, fall through to network check
+  const loginBtn=document.getElementById('login-btn');
+  if(loginBtn){loginBtn.disabled=true;loginBtn.textContent='Signing in...';}
+
+  function resetBtn(){if(loginBtn){loginBtn.disabled=false;loginBtn.textContent='Sign In';}}
+  function doEnterApp(user){
+    al.innerHTML='';
+    CU=user;
+    saveSession(CU);
+    showPG('app');
+    updAppUI();
+    buildNav();
+    go('dashboard');
   }
 
-  // NETWORK PATH: fetch fresh DB (needed for newly added users)
-  const btn=document.querySelector('#PG-login .btn');
-  if(btn){ btn.disabled=true; btn.textContent='Signing in...'; }
-  try{
-    const rec=await dbRead();
-    if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}
-    const user=DB.users.find(x=>x.username===username&&x.password===password);
-    if(!user){
-      al.innerHTML=err('Wrong username or password.');
-      if(btn){btn.disabled=false;btn.textContent='Sign In →';}
+  // STEP 1: Try cached users first (instant, no network)
+  const cachedUsers=getCachedUsers();
+  if(cachedUsers&&cachedUsers.length>0){
+    const user=cachedUsers.find(x=>x.username===username&&x.password===password);
+    if(user){
+      resetBtn();
+      doEnterApp(user);
+      // Sync DB silently in background — NO load() spinner, NO screen flicker
+      dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
       return;
     }
-    al.innerHTML='';CU=user;saveSession(CU);
-    showPG('app');updAppUI();buildNav();go('dashboard');
+  }
+
+  // STEP 2: Try current in-memory DB (may be populated from background sync)
+  if(DB&&DB.users&&DB.users.length>0){
+    const user=DB.users.find(x=>x.username===username&&x.password===password);
+    if(user){resetBtn();doEnterApp(user);return;}
+  }
+
+  // STEP 3: Fetch fresh from JSONBin (no spinner — just button state change)
+  try{
+    const rec=await dbRead();
+    if(rec&&rec.users){
+      DB=normaliseDB(rec);
+      cacheUsers(DB.users);
+      saveLocalCfg(BIN_ID,API_KEY);
+    }
+    const user=DB&&DB.users?DB.users.find(x=>x.username===username&&x.password===password):null;
+    if(!user){
+      al.innerHTML=err('Wrong username or password.');
+      resetBtn();
+      return;
+    }
+    resetBtn();
+    doEnterApp(user);
   }catch(e){
-    al.innerHTML=err('Connection error. Check your internet and try again.');
-    if(btn){btn.disabled=false;btn.textContent='Sign In →';}
+    // Network failed — try once more with embedded defaults before showing error
+    const allUsers=(getCachedUsers()||[]).concat(DB&&DB.users?DB.users:[]);
+    const uniqueUsers=[...new Map(allUsers.map(u=>[u.id,u])).values()];
+    const user=uniqueUsers.find(x=>x.username===username&&x.password===password);
+    if(user){resetBtn();doEnterApp(user);return;}
+    al.innerHTML=err('Could not connect. Check your internet connection and try again.');
+    resetBtn();
   }
 }
 document.getElementById('L-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
@@ -1055,7 +1095,7 @@ function moEditSt(id){
 async function saveEditSt(id){
   const s=DB.students.find(x=>x.id===id);if(!s)return;
   s.name=document.getElementById('E-nm').value;s.dob=document.getElementById('E-dob').value;s.gender=document.getElementById('E-gd').value;s.cls=document.getElementById('E-cls').value;s.guardian=document.getElementById('E-gu').value;s.phone=document.getElementById('E-ph').value;s.status=document.getElementById('E-st').value;
-  load(true,'Saving...');await save();load(false);moClose();toast('Student updated');go('students');
+  await saveWithIndicator();moClose();toast('Student updated');go('students');
 }
 async function delSt(id){
   if(!confirm('Delete student and all their records?'))return;
@@ -1064,7 +1104,7 @@ async function delSt(id){
   DB.results=DB.results.filter(r=>r.studentId!==id);
   DB.submissions=(DB.submissions||[]).filter(s=>s.studentId!==id);
   DB.savedReports=(DB.savedReports||[]).filter(r=>r.studentId!==id);
-  load(true,'Deleting...');await save();load(false);toast('Student deleted','er');go('students');
+  await saveWithIndicator();toast('Student deleted','er');go('students');
 }
 
 /* ══════════════════════════════════════════════
@@ -1158,7 +1198,7 @@ function filFees(){
 async function delFee(id){
   if(!confirm('Delete payment record?'))return;
   DB.fees=DB.fees.filter(f=>f.id!==id);
-  load(true,'Deleting...');await save();load(false);toast('Record deleted','er');go('fees');
+  await saveWithIndicator();toast('Record deleted','er');go('fees');
 }
 function moSetFees(){
   const k=tk(DB.term.year,DB.term.term); const fees=DB.termFees[k]||{};
@@ -1178,7 +1218,11 @@ function moSetFees(){
       <div style="display:flex;gap:7px;margin-top:12px"><button class="btn bg" onclick="saveTermFees()">Save Current Term Fees</button><button class="btn" onclick="moClose()">Cancel</button></div>
     </div>
     <div id="FT-next" style="display:none">
-      <p style="font-size:12px;color:var(--mu);margin-bottom:10px">Fees for <b>Term ${nextTerm} · ${nextYear}</b>. Shown on report cards as "Next Term Fee".</p>
+      <div class="g2" style="margin-bottom:12px">
+        <div><label>Next Term</label><select id="NF-term-sel" onchange="recalcNextTermKey()"><option value="1" ${nextTerm===1?'selected':''}>Term 1</option><option value="2" ${nextTerm===2?'selected':''}>Term 2</option><option value="3" ${nextTerm===3?'selected':''}>Term 3</option></select></div>
+        <div><label>Next Year</label><input id="NF-year-sel" value="${nextYear}" placeholder="e.g. 2025/2026"></div>
+      </div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:10px">Fees for the selected next term. Shown on report cards as "Next Term Fee".</p>
       <div style="background:var(--gol);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px;color:#555;border:1px solid #e5c97a">
         <b>Maintain same fees as current term?</b><br>
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -1210,13 +1254,18 @@ async function saveTermFees(){
   const k=tk(DB.term.year,DB.term.term);
   if(!DB.termFees[k])DB.termFees[k]={};
   CLASSES.forEach(c=>{const el=document.getElementById('SF-'+c.replace(/\s/g,'_'));if(el&&el.value)DB.termFees[k][c]=parseFloat(el.value)||0;});
-  load(true,'Saving fees...');await save();load(false);moClose();toast('Current term fees saved!');
+  await saveWithIndicator();moClose();toast('Current term fees saved!');
 }
-async function saveNextTermFees(nk){
+async function saveNextTermFees(fallbackNk){
+  // Use selected year/term from modal if available, else fallback
+  const selT=parseInt((document.getElementById('NF-term-sel')||{}).value)||parseInt(fallbackNk.split('||T')[1])||DB.term.term;
+  const selY=(document.getElementById('NF-year-sel')||{}).value?.trim()||fallbackNk.split('||T')[0]||DB.term.year;
+  const nk=tk(selY,selT);
   if(!DB.termFees[nk])DB.termFees[nk]={};
   CLASSES.forEach(c=>{const el=document.getElementById('NF-'+c.replace(/\s/g,'_'));if(el&&el.value)DB.termFees[nk][c]=parseFloat(el.value)||0;});
-  load(true,'Saving next term fees...');await save();load(false);moClose();toast('Next term fees saved! They appear on report cards. ✓');
+  await saveWithIndicator();moClose();toast(`Next term fees saved for Term ${selT} · ${selY}! ✓`);
 }
+function recalcNextTermKey(){/* year/term resolved at save time */}
 function moAddPayment(){
   moOpen('Record Fee Payment',`<div class="g2"><div class="fg"><label>Class *</label><select id="PY-cls" onchange="pyLoadSts()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div class="fg"><label>Term *</label><select id="PY-term"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div></div>
   <div class="fg"><label>Student *</label><select id="PY-sid"><option value="">Select student...</option></select></div>
@@ -1242,7 +1291,7 @@ async function savePayment(){
   const idx=DB.fees.findIndex(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
   const rec={id:idx>=0?DB.fees[idx].id:DB.nextFid++,studentId:sid,amount:amt,paid,term,year:DB.term.year,date:(document.getElementById('PY-dt')||{}).value||'',status,method:(document.getElementById('PY-meth')||{}).value||'Cash'};
   if(idx>=0)DB.fees[idx]=rec; else DB.fees.push(rec);
-  load(true,'Saving...');await save();load(false);moClose();toast('Payment saved!');go('fees');
+  await saveWithIndicator();moClose();toast('Payment saved!');go('fees');
 }
 function moUpdFee(id){
   const f=DB.fees.find(x=>x.id===id);if(!f)return;
@@ -1258,7 +1307,7 @@ async function saveUpdFee(id){
   f.status=f.paid>=f.amount?'paid':f.paid>0?'partial':'unpaid';
   f.method=(document.getElementById('UP-meth')||{}).value||f.method;
   f.date=(document.getElementById('UP-dt')||{}).value||f.date;
-  load(true,'Saving...');await save();load(false);moClose();toast('Payment updated!');go('fees');
+  await saveWithIndicator();moClose();toast('Payment updated!');go('fees');
 }
 
 /* ══════════════════════════════════════════════
@@ -1373,7 +1422,7 @@ async function rSave(){
   const idx=DB.results.findIndex(r=>r.id===RS.existingId||(r.studentId===RS.sid&&r.term===RS.term&&r.year===DB.term.year));
   if(idx>=0){DB.results[idx]={...DB.results[idx],...rec,id:DB.results[idx].id};RS.existingId=DB.results[idx].id;}
   else{DB.results.push(rec);RS.existingId=rec.id;}
-  load(true,'Saving...');await save();load(false);toast('Results saved successfully!');
+  await saveWithIndicator();toast('Results saved successfully!');
 }
 async function rSubmit(){
   await rSave();
@@ -1384,7 +1433,7 @@ async function rSubmit(){
   const subIdx=(DB.submissions||[]).findIndex(s=>s.studentId===RS.sid&&s.term===RS.term&&s.year===DB.term.year&&s.type==='results');
   const subRec={id:Date.now(),studentId:RS.sid,cls:RS.cls,term:RS.term,year:DB.term.year,type:'results',submittedByName:CU.name,submittedAt:new Date().toISOString()};
   if(subIdx>=0)DB.submissions[subIdx]=subRec; else DB.submissions.push(subRec);
-  load(true,'Submitting...');await save();load(false);toast('Submitted to Admin! ✓');
+  await saveWithIndicator();toast('Submitted to Admin! ✓');
 }
 function rClear(){document.querySelectorAll('.RI-cs,.RI-ex').forEach(e=>e.value='');document.querySelectorAll('.RI-e7,.RI-tot').forEach(e=>e.value='');}
 function rAddSubMo(){moOpen('Add Subject',`<div class="fg"><label>Subject Name</label><input id="NS-sub" placeholder="e.g. Civic Education"></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="rAddSub()">Add</button><button class="btn" onclick="moClose()">Cancel</button></div>`);}
@@ -1394,13 +1443,13 @@ async function rAddSub(){
   const subs=getSubs(RS.cls);
   if(subs.includes(name)){toast('Already exists','er');return;}
   subs.push(name);setSubs(RS.cls,subs);
-  load(true,'Saving...');await save();load(false);moClose();toast('Subject added!');rLoadScores();
+  await saveWithIndicator();moClose();toast('Subject added!');rLoadScores();
 }
 async function rRemSub(btn){
   const sub=btn.getAttribute('data-sub');
   if(!confirm(`Remove "${sub}" from ${RS.cls}?`))return;
   const subs=getSubs(RS.cls).filter(s=>s!==sub);
-  setSubs(RS.cls,subs);load(true,'Saving...');await save();load(false);toast('Subject removed');rLoadScores();
+  setSubs(RS.cls,subs);await saveWithIndicator();toast('Subject removed');rLoadScores();
 }
 
 /* ══════════════════════════════════════════════
@@ -1505,7 +1554,9 @@ function buildRC(sid,term,vac,rop){
 /* ══════════════════════════════════════════════
    ADMIN REPORTS
 ══════════════════════════════════════════════ */
-function pgReports(){
+async function pgReports(){
+  // Always fetch fresh DB so admin sees latest staff submissions from any device
+  try{const rec=await dbRead();if(rec){DB=normaliseDB(rec);cacheUsers(DB.users);}}catch(e){/* use cached */}
   document.getElementById('CNT').innerHTML=`
   <div class="sh"><div><div class="stl">Reports & Results</div><div class="ssb">All submitted reports and results</div></div></div>
   <div class="tb-bar"><button class="tab a" onclick="rTab('sub',this)">Submitted Reports</button><button class="tab" onclick="rTab('search',this)">Search Results</button><button class="tab" onclick="rTab('print',this)">Generate & Print</button></div>
@@ -1579,14 +1630,14 @@ async function delResult(id){
     DB.submissions=(DB.submissions||[]).filter(s=>!(s.studentId===r.studentId&&s.term===r.term&&s.year===r.year&&s.type==='results'));
   }
   DB.results=DB.results.filter(x=>x.id!==id);
-  load(true,'Deleting results...');await save();load(false);toast('Results deleted','er');doSearchRes();
+  await saveWithIndicator();toast('Results deleted','er');doSearchRes();
 }
 
 async function delResultById(sid,term){
   if(!confirm('Delete these results permanently? This cannot be undone.'))return;
   DB.results=DB.results.filter(r=>!(r.studentId===sid&&r.term===term&&r.year===DB.term.year));
   DB.submissions=(DB.submissions||[]).filter(s=>!(s.studentId===sid&&s.term===term&&s.year===DB.term.year&&s.type==='results'));
-  load(true,'Deleting results...');await save();load(false);toast('Results deleted','er');rTabSub();
+  await saveWithIndicator();toast('Results deleted','er');rTabSub();
 }
 
 function rTabSearch(){
@@ -1668,7 +1719,7 @@ async function doSaveReport(sid,term,vac,rop){
   const idx=(DB.savedReports||[]).findIndex(r=>r.studentId===sid&&r.term===term&&r.year===DB.term.year);
   if(!DB.savedReports)DB.savedReports=[];
   if(idx>=0)DB.savedReports[idx]=rec; else DB.savedReports.push(rec);
-  load(true,'Saving report...');await save();load(false);toast(`Report card for ${st.name} saved! 💾`);
+  await saveWithIndicator();toast(`Report card for ${st.name} saved! 💾`);
 }
 
 /* ══════════════════════════════════════════════
@@ -1716,7 +1767,7 @@ function printSaved(id){
 async function delSaved(id){
   if(!confirm('Delete this saved report card?'))return;
   DB.savedReports=(DB.savedReports||[]).filter(r=>r.id!==id);
-  load(true,'Deleting...');await save();load(false);toast('Report deleted','er');pgSavedReports();
+  await saveWithIndicator();toast('Report deleted','er');pgSavedReports();
 }
 
 /* ══════════════════════════════════════════════
@@ -1829,11 +1880,11 @@ async function saveNewUser(){
   DB.users.push({id:DB.nextUid++,username,password,role,name,
     email:(document.getElementById('AU-em')||{}).value||'',
     cls,subject});
-  load(true,'Saving...');await save();load(false);moClose();toast('User added successfully!');pgStaff();
+  await saveWithIndicator();moClose();toast('User added successfully!');pgStaff();
 }
 function moEditUser(id){
   const u=DB.users.find(x=>x.id===id);if(!u)return;
-  moOpen(`Edit — ${u.name}`,`<div class="fg"><label>Full Name</label><input id="EU-nm" value="${u.name}"></div><div class="g2"><div class="fg"><label>Username</label><input id="EU-un" value="${u.username}"></div><div class="fg"><label>New Password</label><input type="password" id="EU-pw" placeholder="Leave blank to keep"></div></div><div class="g2"><div class="fg"><label>Role</label><select id="EU-rl"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option></select></div><div class="fg"><label>Assigned Class</label><select id="EU-cls"><option value="">None</option>${CLASSES.map(c=>`<option ${u.cls===c?'selected':''}>${c}</option>`).join('')}</select></div></div><div class="g2"><div class="fg"><label>Subject</label><input id="EU-sub" value="${u.subject||''}"></div><div class="fg"><label>Email</label><input type="email" id="EU-em" value="${u.email||''}"></div></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="saveEditUser(${id})">Save Changes</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+  moOpen(`Edit — ${u.name}`,`<div class="fg"><label>Full Name</label><input id="EU-nm" value="${u.name}"></div><div class="g2"><div class="fg"><label>Username</label><input id="EU-un" value="${u.username}"></div><div class="fg"><label>Password</label><input type="text" id="EU-pw" value="${u.password}" placeholder="Enter password"></div></div><div class="g2"><div class="fg"><label>Role</label><select id="EU-rl"><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option></select></div><div class="fg"><label>Assigned Class</label><select id="EU-cls"><option value="">None</option>${CLASSES.map(c=>`<option ${u.cls===c?'selected':''}>${c}</option>`).join('')}</select></div></div><div class="g2"><div class="fg"><label>Subject</label><input id="EU-sub" value="${u.subject||''}"></div><div class="fg"><label>Email</label><input type="email" id="EU-em" value="${u.email||''}"></div></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="saveEditUser(${id})">Save Changes</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
 }
 async function saveEditUser(id){
   const u=DB.users.find(x=>x.id===id);if(!u)return;
@@ -1863,15 +1914,15 @@ async function saveEditUser(id){
   }
 
   u.name=(document.getElementById('EU-nm')||{}).value||u.name;
-  u.username=newUn;if(newPw)u.password=newPw;
+  u.username=newUn;if(newPw)u.password=newPw; // newPw always set since field shows current
   u.role=newRole; u.cls=newCls; u.subject=newSub;
   u.email=(document.getElementById('EU-em')||{}).value||'';
-  load(true,'Saving...');await save();load(false);moClose();toast('User updated!');pgStaff();
+  await saveWithIndicator();moClose();toast('User updated!');pgStaff();
 }
 async function delUser(id){
   if(!confirm('Delete this user?'))return;
   DB.users=DB.users.filter(u=>u.id!==id);
-  load(true,'Saving...');await save();load(false);toast('User deleted','er');pgStaff();
+  await saveWithIndicator();toast('User deleted','er');pgStaff();
 }
 
 /* ══════════════════════════════════════════════
@@ -1900,21 +1951,7 @@ function pgSettings(){
       <button class="btn bg" onclick="saveSettings()">💾 Save Settings</button>
     </div>
     <div class="card">
-      <div class="ct">School Access Code & Distribution</div><div class="cs">Two ways to share the app with staff so they never need to enter credentials.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div style="border:var(--bd);border-radius:var(--r);padding:12px;background:#f0f7ff">
-          <div style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:6px">⭐ Option 1 — Recommended</div>
-          <div style="font-size:11px;color:#555;margin-bottom:10px;line-height:1.6">Download a pre-configured app file with credentials built in. Share this file with staff — they just open it and log in. No setup ever.</div>
-          <button class="btn sm bg" onclick="downloadConfiguredFile()">⬇ Download Configured App</button>
-        </div>
-        <div style="border:var(--bd);border-radius:var(--r);padding:12px;background:#f9f9f9">
-          <div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:6px">Option 2 — Access Code</div>
-          <div style="font-size:11px;color:#555;margin-bottom:8px;line-height:1.6">Share this code with staff. They paste it once on the setup screen (Staff / New Device tab).</div>
-          <div style="font-family:monospace;font-size:9px;word-break:break-all;color:var(--bl);background:#fff;border:var(--bd);border-radius:5px;padding:7px;margin-bottom:8px;cursor:pointer" onclick="copySAC()" title="Click to copy">${encodeAccessCode(BIN_ID,API_KEY)}</div>
-          <button class="btn sm" onclick="copySAC()">📋 Copy Code</button>
-        </div>
-      </div>
-      <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
+
       <div class="ct">Term Management</div><div class="cs">Updating term clears staff results entry. Submitted results stay in admin.</div>
       <div class="fg"><label>Academic Year</label><input id="ST-yr" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
       <div class="fg"><label>Current Term</label><select id="ST-tm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div>
@@ -1925,10 +1962,7 @@ function pgSettings(){
       <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
       <div class="ct" style="color:var(--rd)">⚠ Danger Zone</div>
       <div class="cs">Permanently deletes all students, results, fees and reports.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn bd" onclick="confirmReset()">Reset All Data</button>
-        <button class="btn" onclick="localStorage.removeItem('qsc_cfg');localStorage.removeItem('qsc_key');localStorage.removeItem('qsc_bin_id');clearSession();showPG('setup');">Disconnect Device</button>
-      </div>
+      <button class="btn bd" onclick="confirmReset()">Reset All Data</button>
     </div>
   </div>`;
 }
@@ -1958,7 +1992,7 @@ async function doReset(){
   if(val!=='CONFIRM'){toast('Type CONFIRM exactly to proceed','er');return;}
   DB.students=[];DB.fees=[];DB.results=[];DB.submissions=[];DB.savedReports=[];
   DB.nextSid=1;DB.nextFid=1;DB.nextRid=1;
-  load(true,'Resetting data...');await save();load(false);moClose();toast('All data reset','er');go('dashboard');
+  await saveWithIndicator();moClose();toast('All data reset','er');go('dashboard');
 }
 
 function handleLogo(e){
@@ -1967,7 +2001,7 @@ function handleLogo(e){
   reader.onload=async evt=>{DB.school.logo=evt.target.result;await save();updSBLogo();updLLogo();toast('Logo uploaded!');pgSettings();};
   reader.readAsDataURL(file);
 }
-async function clearLogo(){DB.school.logo='';load(true,'Saving...');await save();load(false);updSBLogo();updLLogo();toast('Logo removed');pgSettings();}
+async function clearLogo(){DB.school.logo='';await saveWithIndicator();updSBLogo();updLLogo();toast('Logo removed');pgSettings();}
 async function saveSettings(){
   DB.school.name=(document.getElementById('SS-nm')||{}).value?.trim()||DB.school.name;
   DB.school.title=(document.getElementById('SS-ti')||{}).value?.trim()||DB.school.title;
@@ -1976,12 +2010,12 @@ async function saveSettings(){
   DB.school.address=(document.getElementById('SS-ad')||{}).value?.trim()||DB.school.address;
   const logoUrl=(document.getElementById('SS-logo')||{}).value?.trim()||'';
   if(logoUrl)DB.school.logo=logoUrl;
-  load(true,'Saving...');await save();load(false);updAppUI();updLLogo();toast('Settings saved!');pgSettings();
+  await saveWithIndicator();updAppUI();updLLogo();toast('Settings saved!');pgSettings();
 }
 async function doUpdateTerm(){
   DB.term.year=(document.getElementById('ST-yr')||{}).value||DB.term.year;
   DB.term.term=parseInt((document.getElementById('ST-tm')||{}).value)||DB.term.term;
-  load(true,'Updating term...');await save();load(false);updTC();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);
+  await saveWithIndicator();updTC();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);
   // Ask about next term fees
   setTimeout(()=>{
     if(confirm(`Term updated to Term ${DB.term.term} · ${DB.term.year}.\n\nWould you like to set fee amounts for the NEXT term now?\n(They appear on student report cards)`)){
@@ -1999,7 +2033,7 @@ function moUpdateTerm(){
 async function quickUpdateTerm(){
   DB.term.year=(document.getElementById('UT-yr')||{}).value||DB.term.year;
   DB.term.term=parseInt((document.getElementById('UT-tm')||{}).value)||DB.term.term;
-  load(true,'Updating...');await save();load(false);updTC();moClose();
+  await saveWithIndicator();updTC();moClose();
   toast(`Term → Term ${DB.term.term} · ${DB.term.year}`);
   setTimeout(()=>{
     if(confirm(`Term updated to Term ${DB.term.term} · ${DB.term.year}.\n\nSet fee amounts for the NEXT term now?\n(They appear on student report cards)`)){
