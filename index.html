@@ -301,15 +301,20 @@ tbody tr:hover td{background:var(--bg)}
 'use strict';
 /* ══════════════════════════════════════════════
    JSONBIN.IO BACKEND
-   All data stored as single JSON object in a bin
-   Cross-device: works from any browser/device
+   Credentials embedded directly in this file after admin setup.
+   Staff/any device: just open the file — no setup needed.
 ══════════════════════════════════════════════ */
 
-let BIN_ID = '';
-let API_KEY = '';
+// EMBEDDED CREDENTIALS — set to '' initially, filled by admin setup download
+// After admin runs setup, a pre-configured HTML file is downloaded.
+// Anyone who opens THAT file has credentials baked in and goes straight to login.
+const EMBEDDED_BIN_ID = '';
+const EMBEDDED_API_KEY = '';
+
+let BIN_ID = EMBEDDED_BIN_ID;
+let API_KEY = EMBEDDED_API_KEY;
 const BIN_BASE = 'https://api.jsonbin.io/v3/b';
 
-// Write DB to JSONBin
 async function dbWrite(data) {
   const res = await fetch(`${BIN_BASE}/${BIN_ID}`, {
     method: 'PUT',
@@ -320,7 +325,6 @@ async function dbWrite(data) {
   return res.json();
 }
 
-// Read DB from JSONBin
 async function dbRead() {
   const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, {
     headers: { 'X-Master-Key': API_KEY }
@@ -364,7 +368,11 @@ const EMPTY_DB = {
 };
 
 async function save() {
-  try { await dbWrite(DB); } catch(e) { toast('Save error: '+e.message,'er'); }
+  try {
+    await dbWrite(DB);
+    // Refresh user cache so new/changed users work instantly on next login
+    if(DB.users) cacheUsers(DB.users);
+  } catch(e) { toast('Save error: '+e.message,'er'); }
 }
 
 /* ══════════════════════════════════════════════
@@ -467,46 +475,54 @@ function err(m){return`<div style="background:var(--rdl);color:var(--rd);border:
 
 /* ══════════════════════════════════════════════
    SETUP & BOOT
-   Access code = base64(binId + "|" + readKey) — staff only need this one code.
-   Admin has master key stored locally; staff only need the access code once.
+   Strategy: after first-time admin setup, the app generates and downloads
+   a PRE-CONFIGURED copy of this HTML file with BIN_ID and API_KEY embedded.
+   Anyone who opens that file goes straight to login — zero setup needed.
+   localStorage is also used as fallback so refresh works without re-setup.
 ══════════════════════════════════════════════ */
 
-// The School Access Code encodes the bin ID and a read-only identifier
-// so staff can connect without ever seeing the master API key.
-// Format stored in localStorage: qsc_cfg = JSON {b:binId, k:masterKey}
-// Access code shared with staff = btoa(binId)  (bin ID base64 — enough for read, 
-//   but we need master key for writes too, so we store the master key locally
-//   after staff enter the access code, we still need write ability.
-// APPROACH: Access code = btoa(binId + "||" + masterKey) — admin copies this
-//   from Settings and shares it. Staff paste once, stored locally, never shown again.
-
-function encodeAccessCode(binId, masterKey){
-  return btoa(unescape(encodeURIComponent(binId + '||' + masterKey)));
-}
-function decodeAccessCode(code){
-  try{
-    const str = decodeURIComponent(escape(atob(code.trim())));
-    const sep = str.indexOf('||');
-    if(sep < 0) return null;
-    return { binId: str.slice(0, sep), masterKey: str.slice(sep + 2) };
-  } catch(e){ return null; }
-}
 function saveLocalCfg(binId, masterKey){
   try { localStorage.setItem('qsc_cfg', JSON.stringify({b:binId,k:masterKey})); } catch(e){}
 }
 function loadLocalCfg(){
   try{
-    // Try new format first
+    // First priority: embedded in this file
+    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY) return {b:EMBEDDED_BIN_ID, k:EMBEDDED_API_KEY};
+    // Second: localStorage (supports page refresh, same browser)
     const raw = localStorage.getItem('qsc_cfg');
     if(raw){ const o=JSON.parse(raw); if(o.b&&o.k) return o; }
-    // Legacy format from v6
+    // Legacy formats
     const key=localStorage.getItem('qsc_key');
-    const binId=localStorage.getItem('qsc_bin_id')
-      || localStorage.getItem('qsc_bin')
-      || (() => { if(!key) return ''; const k=localStorage.getItem('qsc_bin_'+btoa(key).slice(0,16)); return k||''; })();
+    const binId=localStorage.getItem('qsc_bin_id')||localStorage.getItem('qsc_bin')||'';
     if(key&&binId){ saveLocalCfg(binId,key); return{b:binId,k:key}; }
   } catch(e){}
   return null;
+}
+
+// Cache users in localStorage for fast login (username+password hash only — no sensitive data beyond what's already in DB)
+function cacheUsers(users){
+  try{ localStorage.setItem('qsc_users_cache', JSON.stringify(users.map(u=>({id:u.id,username:u.username,password:u.password,role:u.role,name:u.name,cls:u.cls,subject:u.subject})))); }catch(e){}
+}
+function getCachedUsers(){ try{ const r=localStorage.getItem('qsc_users_cache'); return r?JSON.parse(r):null; }catch(e){return null;} }
+
+// Generate a pre-configured HTML by replacing the placeholder credentials
+async function downloadConfiguredFile(){
+  try{
+    const src = await fetch(location.href).then(r=>r.text());
+    const configured = src
+      .replace("const EMBEDDED_BIN_ID = '';", `const EMBEDDED_BIN_ID = '${BIN_ID}';`)
+      .replace("const EMBEDDED_API_KEY = '';", `const EMBEDDED_API_KEY = '${API_KEY}';`);
+    const blob = new Blob([configured], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'QualitySchoolComplex_App.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Pre-configured app file downloaded! Distribute this file to all staff. ✓');
+  } catch(e){
+    // If fetch of self fails (e.g. local file:// with strict security), give copy-paste instructions
+    toast('Could not auto-download. Share from Settings using the Access Code instead.','inf');
+  }
 }
 
 function suTab(tab){
@@ -525,22 +541,27 @@ async function doSetup(){
   if(!key){al.innerHTML=err('Please enter your Master API Key.');return;}
   if(!key.startsWith('$2')){al.innerHTML=err('That does not look like a JSONBin key. It should start with <b>$2a$</b> or <b>$2b$</b>.');return;}
   BIN_ID=''; API_KEY=key;
-  load(true,'Creating database...');
+  load(true,'Setting up database...');
 
-  // Check if we already have a saved bin for this key
+  // Reuse existing bin if key was used before
   const existing = loadLocalCfg();
   if(existing && existing.k === key && existing.b){
-    BIN_ID = existing.b; API_KEY = key;
+    BIN_ID=existing.b; API_KEY=key;
     try{
       let rec=await dbRead();
       if(!rec||!rec.users){rec=JSON.parse(JSON.stringify(EMPTY_DB));await dbWrite(rec);}
       DB=normaliseDB(rec);
+      saveLocalCfg(BIN_ID,API_KEY);
+      cacheUsers(DB.users);
       load(false);updLLogo();
       document.getElementById('L-sname').textContent=DB.school.name;
-      showPG('login');return;
-    } catch(e){ /* fall through to create new */ }
+      showPG('login');
+      toast('Connected to existing database. ✓');
+      return;
+    } catch(e){ /* fall through */ }
   }
 
+  // Create new bin
   try{
     const seedData=JSON.parse(JSON.stringify(EMPTY_DB));
     const createRes=await fetch('https://api.jsonbin.io/v3/b',{
@@ -555,22 +576,29 @@ async function doSetup(){
     const created=await createRes.json();
     BIN_ID=created.metadata.id;
     DB=normaliseDB(seedData);
-    saveLocalCfg(BIN_ID, key);
+    saveLocalCfg(BIN_ID,API_KEY);
+    cacheUsers(DB.users);
     load(false);al.innerHTML='';
     updLLogo();
     document.getElementById('L-sname').textContent=DB.school.name;
     showPG('login');
-    toast('Database created! Share the School Access Code from Settings with your staff. ✓');
+    // Offer to download configured file immediately
+    setTimeout(()=>{
+      if(confirm('✅ Database created!\n\nDownload the pre-configured app file now?\n\nThis file has your database credentials built in — just share it with staff. Anyone who opens it can log in directly with no setup.')){
+        downloadConfiguredFile();
+      }
+    },400);
   }catch(e){
     load(false);
     al.innerHTML=err(`Setup failed: <b>${e.message}</b><br><br>
       <b>Common fixes:</b><br>
-      • Make sure you copied the <b>full key</b> including <code>$2a$10$</code><br>
+      • Copy the <b>full key</b> including <code>$2a$10$</code> at the start<br>
       • Use the <b>Master Key</b>, not a read key<br>
       • Check your internet connection`);
   }
 }
 
+// Staff connect via access code (fallback when distributed file isn't available)
 async function doStaffConnect(){
   const code=(document.getElementById('SU-code')||{}).value?.trim()||'';
   const al=document.getElementById('SU-alert2');
@@ -583,7 +611,8 @@ async function doStaffConnect(){
     let rec=await dbRead();
     if(!rec||!rec.users){load(false);al.innerHTML=err('Could not load school data. Check the access code is correct.');return;}
     DB=normaliseDB(rec);
-    saveLocalCfg(BIN_ID, API_KEY);
+    saveLocalCfg(BIN_ID,API_KEY);
+    cacheUsers(DB.users);
     load(false);
     updLLogo();
     document.getElementById('L-sname').textContent=DB.school.name;
@@ -595,25 +624,62 @@ async function doStaffConnect(){
   }
 }
 
-// Legacy functions kept for compatibility
 function switchToReconnect(){ suTab('staff'); }
 function switchToFirstTime(){ suTab('admin'); }
 function showSetupForReconnect(){ suTab('staff'); showPG('setup'); }
 async function doReconnect(){ await doStaffConnect(); }
 
+function encodeAccessCode(binId, masterKey){
+  return btoa(unescape(encodeURIComponent(binId + '||' + masterKey)));
+}
+function decodeAccessCode(code){
+  try{
+    const str = decodeURIComponent(escape(atob(code.trim())));
+    const sep = str.indexOf('||');
+    if(sep < 0) return null;
+    return { binId: str.slice(0, sep), masterKey: str.slice(sep + 2) };
+  } catch(e){ return null; }
+}
+
 async function boot(){
   const cfg=loadLocalCfg();
   if(!cfg){showPG('setup');return;}
   BIN_ID=cfg.b; API_KEY=cfg.k;
-  load(true,'Loading school data...');
+
+  // Fast path: use cached DB (users + settings) for instant login screen
+  // Then sync fresh data from JSONBin in the background
+  const cachedUsers=getCachedUsers();
+  if(cachedUsers){
+    // Build minimal DB from cache so login works instantly
+    if(!DB){DB=normaliseDB({...JSON.parse(JSON.stringify(EMPTY_DB)),users:cachedUsers});}
+    updLLogo();
+    document.getElementById('L-sname').textContent=DB.school.name;
+    // Check session
+    const uid=getSessionUid();
+    if(uid){
+      const u=cachedUsers.find(x=>x.id===uid);
+      if(u){ CU=u; showPG('app'); updAppUI(); buildNav(); go('dashboard');
+        // Refresh full DB silently
+        dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
+        return;
+      }
+    }
+    showPG('login');
+    // Load full DB in background so it's ready when user hits Sign In
+    dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);updLLogo();document.getElementById('L-sname').textContent=DB.school.name;}}).catch(()=>{});
+    return;
+  }
+
+  // No cache — full load
+  load(true,'Loading...');
   try{
     let rec=await dbRead();
     if(!rec||!rec.users){rec=JSON.parse(JSON.stringify(EMPTY_DB));await dbWrite(rec);}
     DB=normaliseDB(rec);
+    cacheUsers(DB.users);
     load(false);
     updLLogo();
     document.getElementById('L-sname').textContent=DB.school.name;
-    // Restore session (survives page refresh)
     const uid=getSessionUid();
     if(uid){
       const u=DB.users.find(x=>x.id===uid);
@@ -633,6 +699,8 @@ function normaliseDB(rec){
   if(!rec.termFees)rec.termFees={};
   if(!rec.nextRid)rec.nextRid=1;
   if(!rec.nextUid)rec.nextUid=3;
+  if(!rec.school)rec.school=JSON.parse(JSON.stringify(EMPTY_DB.school));
+  if(!rec.term)rec.term=JSON.parse(JSON.stringify(EMPTY_DB.term));
   return rec;
 }
 
@@ -641,31 +709,50 @@ function showPG(pg){
 }
 
 /* ══════════════════════════════════════════════
-   AUTH
+   AUTH — fast login using cached users, background DB sync
 ══════════════════════════════════════════════ */
 async function doLogin(){
   const username=(document.getElementById('L-user')||{}).value?.trim()||'';
   const password=(document.getElementById('L-pass')||{}).value||'';
   const al=document.getElementById('L-alert');
   if(!username||!password){al.innerHTML=err('Enter username and password.');return;}
-  load(true,'Signing in...');
+
+  // FAST PATH: check cached users immediately (no network call)
+  const cachedUsers=getCachedUsers();
+  if(cachedUsers){
+    const user=cachedUsers.find(x=>x.username===username&&x.password===password);
+    if(user){
+      al.innerHTML='';
+      CU=user;
+      saveSession(CU);
+      showPG('app');
+      updAppUI();
+      buildNav();
+      go('dashboard');
+      // Sync full DB in background after login
+      dbRead().then(rec=>{ if(rec&&rec.users){ DB=normaliseDB(rec); cacheUsers(DB.users); } }).catch(()=>{});
+      return;
+    }
+    // User not in cache — might be newly added, fall through to network check
+  }
+
+  // NETWORK PATH: fetch fresh DB (needed for newly added users)
+  const btn=document.querySelector('#PG-login .btn');
+  if(btn){ btn.disabled=true; btn.textContent='Signing in...'; }
   try{
-    // Always reload fresh data on login to get latest users
-    let rec=await dbRead();
-    if(rec&&rec.users)DB=rec;
-    load(false);
+    const rec=await dbRead();
+    if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}
     const user=DB.users.find(x=>x.username===username&&x.password===password);
-    if(!user){al.innerHTML=err('Wrong username or password.');return;}
-    al.innerHTML='';
-    CU=user;
-    saveSession(CU);
-    showPG('app');
-    updAppUI();
-    buildNav();
-    go('dashboard');
+    if(!user){
+      al.innerHTML=err('Wrong username or password.');
+      if(btn){btn.disabled=false;btn.textContent='Sign In →';}
+      return;
+    }
+    al.innerHTML='';CU=user;saveSession(CU);
+    showPG('app');updAppUI();buildNav();go('dashboard');
   }catch(e){
-    load(false);
     al.innerHTML=err('Connection error. Check your internet and try again.');
+    if(btn){btn.disabled=false;btn.textContent='Sign In →';}
   }
 }
 document.getElementById('L-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
@@ -974,14 +1061,61 @@ async function delFee(id){
   load(true,'Deleting...');await save();load(false);toast('Record deleted','er');go('fees');
 }
 function moSetFees(){
-  const k=tk(DB.term.year,DB.term.term);const fees=DB.termFees[k]||{};
-  moOpen(`Set Term Fees — Term ${DB.term.term} · ${DB.term.year}`,`<p style="font-size:12px;color:var(--mu);margin-bottom:12px">Set fee per class. Auto-fills in enrollment and shows on report cards.</p>${CLASSES.map(c=>`<div class="g2" style="margin-bottom:8px;align-items:center"><div style="font-size:12px;font-weight:500">${c}</div><div><input type="number" id="SF-${c.replace(/\s/g,'_')}" value="${fees[c]||''}" placeholder="GHS" min="0"></div></div>`).join('')}<div style="display:flex;gap:7px;margin-top:10px"><button class="btn bg" onclick="saveTermFees()">Save Fee Amounts</button><button class="btn" onclick="moClose()">Cancel</button></div>`,true);
+  const k=tk(DB.term.year,DB.term.term); const fees=DB.termFees[k]||{};
+  const nextTerm=DB.term.term<3?DB.term.term+1:1;
+  const nyBase=parseInt(DB.term.year.split('/')[0]);
+  const nextYear=DB.term.term<3?DB.term.year:`${nyBase+1}/${nyBase+2}`;
+  const nk=tk(nextYear,nextTerm); const nfees=DB.termFees[nk]||{};
+  // Ask if admin wants to maintain same fees for next term
+  moOpen(`Fee Amounts`,`
+    <div class="tb-bar" style="margin-bottom:12px">
+      <button class="tab a" id="FEE-tab-curr" onclick="feeTab('curr',this)">Current Term ${DB.term.term}</button>
+      <button class="tab" id="FEE-tab-next" onclick="feeTab('next',this)">Next Term ${nextTerm}</button>
+    </div>
+    <div id="FT-curr">
+      <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Fees for <b>Term ${DB.term.term} · ${DB.term.year}</b>.</p>
+      ${CLASSES.map(c=>`<div class="g2" style="margin-bottom:7px;align-items:center"><div style="font-size:12px;font-weight:500">${c}</div><div><input type="number" id="SF-${c.replace(/\s/g,'_')}" value="${fees[c]||''}" placeholder="GHS" min="0"></div></div>`).join('')}
+      <div style="display:flex;gap:7px;margin-top:12px"><button class="btn bg" onclick="saveTermFees()">Save Current Term Fees</button><button class="btn" onclick="moClose()">Cancel</button></div>
+    </div>
+    <div id="FT-next" style="display:none">
+      <p style="font-size:12px;color:var(--mu);margin-bottom:10px">Fees for <b>Term ${nextTerm} · ${nextYear}</b>. Shown on report cards as "Next Term Fee".</p>
+      <div style="background:var(--gol);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px;color:#555;border:1px solid #e5c97a">
+        <b>Maintain same fees as current term?</b><br>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn sm bg" onclick="copyFeesToNext()">✓ Yes, copy current fees</button>
+          <button class="btn sm" onclick="clearNextFees()">No, set different fees</button>
+        </div>
+      </div>
+      ${CLASSES.map(c=>`<div class="g2" style="margin-bottom:7px;align-items:center"><div style="font-size:12px;font-weight:500">${c}</div><div><input type="number" id="NF-${c.replace(/\s/g,'_')}" value="${nfees[c]||''}" placeholder="GHS" min="0"></div></div>`).join('')}
+      <div style="display:flex;gap:7px;margin-top:12px"><button class="btn bg" onclick="saveNextTermFees('${nk}')">Save Next Term Fees</button><button class="btn" onclick="moClose()">Cancel</button></div>
+    </div>
+  `,true);
 }
+function feeTab(tab,el){
+  document.querySelectorAll('.tb-bar .tab').forEach(t=>t.classList.remove('a'));el.classList.add('a');
+  document.getElementById('FT-curr').style.display=tab==='curr'?'block':'none';
+  document.getElementById('FT-next').style.display=tab==='next'?'block':'none';
+}
+function copyFeesToNext(){
+  const k=tk(DB.term.year,DB.term.term); const fees=DB.termFees[k]||{};
+  CLASSES.forEach(c=>{
+    const srcEl=document.getElementById('SF-'+c.replace(/\s/g,'_'));
+    const dstEl=document.getElementById('NF-'+c.replace(/\s/g,'_'));
+    if(dstEl) dstEl.value=srcEl&&srcEl.value?srcEl.value:(fees[c]||'');
+  });
+  toast('Current fees copied to next term fields.');
+}
+function clearNextFees(){ CLASSES.forEach(c=>{ const el=document.getElementById('NF-'+c.replace(/\s/g,'_')); if(el)el.value=''; }); }
 async function saveTermFees(){
   const k=tk(DB.term.year,DB.term.term);
   if(!DB.termFees[k])DB.termFees[k]={};
   CLASSES.forEach(c=>{const el=document.getElementById('SF-'+c.replace(/\s/g,'_'));if(el&&el.value)DB.termFees[k][c]=parseFloat(el.value)||0;});
-  load(true,'Saving fees...');await save();load(false);moClose();toast('Term fees saved!');
+  load(true,'Saving fees...');await save();load(false);moClose();toast('Current term fees saved!');
+}
+async function saveNextTermFees(nk){
+  if(!DB.termFees[nk])DB.termFees[nk]={};
+  CLASSES.forEach(c=>{const el=document.getElementById('NF-'+c.replace(/\s/g,'_'));if(el&&el.value)DB.termFees[nk][c]=parseFloat(el.value)||0;});
+  load(true,'Saving next term fees...');await save();load(false);moClose();toast('Next term fees saved! They appear on report cards. ✓');
 }
 function moAddPayment(){
   moOpen('Record Fee Payment',`<div class="g2"><div class="fg"><label>Class *</label><select id="PY-cls" onchange="pyLoadSts()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div class="fg"><label>Term *</label><select id="PY-term"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div></div>
@@ -1617,10 +1751,20 @@ function pgSettings(){
       <button class="btn bg" onclick="saveSettings()">💾 Save Settings</button>
     </div>
     <div class="card">
-      <div class="ct">School Access Code</div><div class="cs">Share this with staff so they can connect from any device — no API key needed.</div>
-      <div id="SAC-display" style="background:#f0f7ff;border-radius:8px;padding:12px;font-family:monospace;font-size:10px;word-break:break-all;color:#1a5fa8;border:1.5px solid #c5d9f5;margin-bottom:10px;cursor:pointer;line-height:1.6" onclick="copySAC()" title="Click to copy">${encodeAccessCode(BIN_ID,API_KEY)}</div>
-      <button class="btn sm bb" onclick="copySAC()">📋 Copy Access Code</button>
-      <p style="font-size:10px;color:var(--mu);margin-top:8px">Staff paste this once under <b>Staff / New Device</b> on setup screen. Works on any device.</p>
+      <div class="ct">School Access Code & Distribution</div><div class="cs">Two ways to share the app with staff so they never need to enter credentials.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="border:var(--bd);border-radius:var(--r);padding:12px;background:#f0f7ff">
+          <div style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:6px">⭐ Option 1 — Recommended</div>
+          <div style="font-size:11px;color:#555;margin-bottom:10px;line-height:1.6">Download a pre-configured app file with credentials built in. Share this file with staff — they just open it and log in. No setup ever.</div>
+          <button class="btn sm bg" onclick="downloadConfiguredFile()">⬇ Download Configured App</button>
+        </div>
+        <div style="border:var(--bd);border-radius:var(--r);padding:12px;background:#f9f9f9">
+          <div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:6px">Option 2 — Access Code</div>
+          <div style="font-size:11px;color:#555;margin-bottom:8px;line-height:1.6">Share this code with staff. They paste it once on the setup screen (Staff / New Device tab).</div>
+          <div style="font-family:monospace;font-size:9px;word-break:break-all;color:var(--bl);background:#fff;border:var(--bd);border-radius:5px;padding:7px;margin-bottom:8px;cursor:pointer" onclick="copySAC()" title="Click to copy">${encodeAccessCode(BIN_ID,API_KEY)}</div>
+          <button class="btn sm" onclick="copySAC()">📋 Copy Code</button>
+        </div>
+      </div>
       <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
       <div class="ct">Term Management</div><div class="cs">Updating term clears staff results entry. Submitted results stay in admin.</div>
       <div class="fg"><label>Academic Year</label><input id="ST-yr" value="${DB.term.year}" placeholder="e.g. 2024/2025"></div>
@@ -1688,7 +1832,17 @@ async function saveSettings(){
 async function doUpdateTerm(){
   DB.term.year=(document.getElementById('ST-yr')||{}).value||DB.term.year;
   DB.term.term=parseInt((document.getElementById('ST-tm')||{}).value)||DB.term.term;
-  load(true,'Updating term...');await save();load(false);updTC();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);pgSettings();
+  load(true,'Updating term...');await save();load(false);updTC();toast(`Term updated → Term ${DB.term.term} · ${DB.term.year}`);
+  // Ask about next term fees
+  setTimeout(()=>{
+    if(confirm(`Term updated to Term ${DB.term.term} · ${DB.term.year}.\n\nWould you like to set fee amounts for the NEXT term now?\n(They appear on student report cards)`)){
+      moSetFees();
+      // Switch directly to next term tab
+      setTimeout(()=>{ const el=document.getElementById('FEE-tab-next'); if(el){ feeTab('next',el); } },100);
+    } else {
+      pgSettings();
+    }
+  },300);
 }
 function moUpdateTerm(){
   moOpen('Update Current Term',`<div class="fg"><label>Academic Year</label><input id="UT-yr" value="${DB.term.year}"></div><div class="fg"><label>Term</label><select id="UT-tm"><option value="1" ${DB.term.term===1?'selected':''}>Term 1</option><option value="2" ${DB.term.term===2?'selected':''}>Term 2</option><option value="3" ${DB.term.term===3?'selected':''}>Term 3</option></select></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="quickUpdateTerm()">Update</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
@@ -1696,7 +1850,16 @@ function moUpdateTerm(){
 async function quickUpdateTerm(){
   DB.term.year=(document.getElementById('UT-yr')||{}).value||DB.term.year;
   DB.term.term=parseInt((document.getElementById('UT-tm')||{}).value)||DB.term.term;
-  load(true,'Updating...');await save();load(false);updTC();moClose();toast(`Term → Term ${DB.term.term} · ${DB.term.year}`);go('dashboard');
+  load(true,'Updating...');await save();load(false);updTC();moClose();
+  toast(`Term → Term ${DB.term.term} · ${DB.term.year}`);
+  setTimeout(()=>{
+    if(confirm(`Term updated to Term ${DB.term.term} · ${DB.term.year}.\n\nSet fee amounts for the NEXT term now?\n(They appear on student report cards)`)){
+      moSetFees();
+      setTimeout(()=>{ const el=document.getElementById('FEE-tab-next'); if(el){ feeTab('next',el); } },100);
+    } else {
+      go('dashboard');
+    }
+  },300);
 }
 
 /* ══════════════════════════════════════════════
