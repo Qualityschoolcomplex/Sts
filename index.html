@@ -1477,26 +1477,27 @@ function buildRC(sid,term,vac,rop){
   const feeRec=DB.fees.find(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
   const termFeeAmt=getTermFee(st.cls)||0;
   const feePaid=feeRec?feeRec.paid:0;
-  const feeBal=termFeeAmt-feePaid;
+  const feeBal=Math.max(0,termFeeAmt-feePaid); // current term unpaid balance
 
-  // Calculate arrears: unpaid/partial balances from ALL previous terms
+  // Arrears: unpaid balances from ALL previous terms (before this one)
   const arrears=DB.fees.filter(f=>{
-    if(f.studentId!==sid||f.status==='paid')return false;
-    // earlier term in same year or earlier year
+    if(f.studentId!==sid)return false;
+    if(f.status==='paid')return false;
     if(f.year===DB.term.year&&f.term<term)return true;
     if(f.year<DB.term.year)return true;
     return false;
-  }).reduce((sum,f)=>{
-    const bal=(f.amount||0)-(f.paid||0);
-    return sum+(bal>0?bal:0);
-  },0);
+  }).reduce((sum,f)=>sum+Math.max(0,(f.amount||0)-(f.paid||0)),0);
+
+  // Total unpaid = current term balance + previous arrears
+  const totalUnpaid=feeBal+arrears;
 
   const nextTerm=term<3?term+1:1;
   const nyBase=parseInt(DB.term.year.split('/')[0]);
   const nextYear=term<3?DB.term.year:`${nyBase+1}/${nyBase+2}`;
   const ntk=tk(nextYear,nextTerm);
   const nextFee=(DB.termFees[ntk]&&DB.termFees[ntk][st.cls])||0;
-  const totalDue=nextFee+(feeBal>0?feeBal:0)+arrears;
+  // Formula: Next Term Fee + Unpaid = Total Amount to be Paid
+  const totalDue=nextFee+totalUnpaid;
   const conducts=['Punctuality & Attendance','Neatness & Appearance','Cooperation with Peers','Participation in Class','General Behavior & Conduct','Respect for Authority'];
   const logoH=DB.school.logo?`<div class="rcr"><img src="${DB.school.logo}" alt="Logo"></div>`:`<div class="rcr">🎓</div>`;
   return`<div class="rcp">
@@ -1520,26 +1521,23 @@ function buildRC(sid,term,vac,rop){
         <div class="rcbx"><h4>Grading Scale (GES)</h4><table><tr><td class="gA">A1</td><td>Excellent</td><td style="text-align:right">80–100</td></tr><tr><td class="gB">B2–B3</td><td>V.Good/Good</td><td style="text-align:right">70–79</td></tr><tr><td class="gC">C4–C6</td><td>Credit</td><td style="text-align:right">55–69</td></tr><tr><td class="gD">D7–E8</td><td>Pass</td><td style="text-align:right">45–54</td></tr><tr><td class="gF">F9</td><td>Fail</td><td style="text-align:right">0–44</td></tr></table></div>
       </div>
       <div class="rcfe">
-        <div class="lb">Fees Due — Next Term (Term ${nextTerm} · ${nextYear})</div>
-        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px">
-          <div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px">Next Term Fee</div>
-            <div style="font-size:13px;font-weight:700;color:#1a5fa8;margin-top:2px">GHS ${nextFee>0?nextFee:'TBA'}</div>
-          </div>
-          ${feeBal>0?`<div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#a32d2d;letter-spacing:.4px">Current Term Balance</div>
-            <div style="font-size:13px;font-weight:700;color:#a32d2d;margin-top:2px">GHS ${feeBal.toFixed(2)}</div>
-          </div>`:''}
-          ${arrears>0?`<div style="background:#fff;border-radius:4px;padding:7px 9px;border:1px solid #eee">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#a32d2d;letter-spacing:.4px">Previous Term Arrears</div>
-            <div style="font-size:13px;font-weight:700;color:#a32d2d;margin-top:2px">GHS ${arrears.toFixed(2)}</div>
-          </div>`:''}
-          ${totalDue>0?`<div style="background:#fef5e4;border-radius:4px;padding:7px 9px;border:1px solid #e5c97a">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px">Total Amount Due</div>
-            <div style="font-size:14px;font-weight:700;color:#b8760f;margin-top:2px">GHS ${totalDue.toFixed(2)}</div>
-          </div>`:''}
-        </div>
-        ${(feeBal<=0&&arrears===0)?'<div style="margin-top:6px;font-size:11px;color:#16613a;font-weight:600">✓ No outstanding balance. Only next term fee applies.</div>':''}
+        <div class="lb">Next Term Fee Payment — Term ${nextTerm} · ${nextYear}</div>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11px">
+          <tr style="background:#fff8ee">
+            <td style="padding:6px 9px;border:1px solid #e5d9c8;font-weight:500">Next Term Fee</td>
+            <td style="padding:6px 9px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#1a5fa8">GHS ${nextFee>0?nextFee.toFixed(2):'TBA'}</td>
+          </tr>
+          ${totalUnpaid>0?`<tr style="background:#fff3f3">
+            <td style="padding:6px 9px;border:1px solid #e5d9c8;font-weight:500">Unpaid Fees${feeBal>0&&arrears>0?' (Current + Previous Terms)':feeBal>0?' (Current Term)':' (Previous Terms)'}</td>
+            <td style="padding:6px 9px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#a32d2d">GHS ${totalUnpaid.toFixed(2)}</td>
+          </tr>`:''}
+          <tr style="background:#fef5e4">
+            <td style="padding:8px 9px;border:1px solid #e5c97a;font-weight:700;font-size:12px">TOTAL AMOUNT TO BE PAID</td>
+            <td style="padding:8px 9px;border:1px solid #e5c97a;text-align:right;font-weight:700;font-size:13px;color:#b8760f">GHS ${totalDue>0?totalDue.toFixed(2):(nextFee>0?nextFee.toFixed(2):'TBA')}</td>
+          </tr>
+        </table>
+        ${nextFee>0&&totalUnpaid>0?`<div style="margin-top:5px;font-size:10px;color:#555;font-style:italic">= Next Term Fee (GHS ${nextFee.toFixed(2)}) + Unpaid (GHS ${totalUnpaid.toFixed(2)})</div>`:''}
+        ${totalUnpaid===0?'<div style="margin-top:5px;font-size:10px;color:#16613a;font-weight:600">✓ No outstanding balance from previous terms.</div>':''}
       </div>
       <div class="rcco"><h4>Conduct &amp; Character Assessment</h4><p style="font-size:9px;color:#888;margin-bottom:7px;font-style:italic">To be completed by Class Teacher after printing</p>${conducts.map(c=>`<div class="cdl"><span style="min-width:190px">${c}</span><div class="cwl"></div></div>`).join('')}</div>
       <div class="rcda"><div class="rcdi"><div class="lb">Date of Vacation</div><div class="vl">${vac||'___________________________'}</div></div><div class="rcdi"><div class="lb">Date of Re-opening</div><div class="vl">${rop||'___________________________'}</div></div></div>
