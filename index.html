@@ -1474,29 +1474,49 @@ function buildRC(sid,term,vac,rop){
   }).sort((a,b)=>b.avg-a.avg);
   const clsPos=allAvgs.findIndex(x=>x.sid===sid)+1;
   const clsSize=cSts.length;
-  const feeRec=DB.fees.find(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
-  const termFeeAmt=getTermFee(st.cls)||0;
-  const feePaid=feeRec?feeRec.paid:0;
-  const feeBal=Math.max(0,termFeeAmt-feePaid); // current term unpaid balance
+  // ── Fee calculation using ACTUAL fee records on the student profile ──
+  // Use report card's year (not necessarily current DB term year)
+  const rcYear=DB.term.year; // report cards always for current academic year
 
-  // Arrears: unpaid balances from ALL previous terms (before this one)
-  const arrears=DB.fees.filter(f=>{
-    if(f.studentId!==sid)return false;
-    if(f.status==='paid')return false;
-    if(f.year===DB.term.year&&f.term<term)return true;
-    if(f.year<DB.term.year)return true;
+  // Get ALL fee records for this student across all terms
+  const allStudentFees=DB.fees.filter(f=>f.studentId===sid);
+
+  // Current report card term fee record
+  const feeRec=allStudentFees.find(f=>f.term===term&&f.year===rcYear);
+
+  // Current term: use amount from the actual fee record stored on student profile
+  const currentTermAmt=feeRec?parseFloat(feeRec.amount)||0:0;
+  const currentTermPaid=feeRec?parseFloat(feeRec.paid)||0:0;
+  const currentTermBal=Math.max(0,currentTermAmt-currentTermPaid);
+
+  // Helper: convert "2024/2025" year string to a sortable number (use first year)
+  function yearNum(y){ return parseInt((y||'0').split('/')[0])||0; }
+
+  // Arrears: sum of unpaid balances on ALL fee records for this student
+  // that are BEFORE this report card term (using actual stored amounts and paid)
+  const arrears=allStudentFees.filter(f=>{
+    if(f.status==='paid')return false; // fully paid — skip
+    const fBal=Math.max(0,(parseFloat(f.amount)||0)-(parseFloat(f.paid)||0));
+    if(fBal<=0)return false; // no balance — skip
+    // Is this record before the current report card term?
+    const fYearNum=yearNum(f.year);
+    const rcYearNum=yearNum(rcYear);
+    if(fYearNum<rcYearNum)return true;  // earlier academic year
+    if(fYearNum===rcYearNum&&f.term<term)return true; // same year, earlier term
     return false;
-  }).reduce((sum,f)=>sum+Math.max(0,(f.amount||0)-(f.paid||0)),0);
+  }).reduce((sum,f)=>sum+Math.max(0,(parseFloat(f.amount)||0)-(parseFloat(f.paid)||0)),0);
 
-  // Total unpaid = current term balance + previous arrears
-  const totalUnpaid=feeBal+arrears;
+  // Total unpaid = current term balance + all previous arrears
+  const totalUnpaid=currentTermBal+arrears;
 
+  // Next term fee from termFees config
   const nextTerm=term<3?term+1:1;
-  const nyBase=parseInt(DB.term.year.split('/')[0]);
-  const nextYear=term<3?DB.term.year:`${nyBase+1}/${nyBase+2}`;
+  const nyBase=parseInt((rcYear||'2024/2025').split('/')[0]);
+  const nextYear=term<3?rcYear:`${nyBase+1}/${nyBase+2}`;
   const ntk=tk(nextYear,nextTerm);
-  const nextFee=(DB.termFees[ntk]&&DB.termFees[ntk][st.cls])||0;
-  // Formula: Next Term Fee + Unpaid = Total Amount to be Paid
+  const nextFee=parseFloat((DB.termFees[ntk]&&DB.termFees[ntk][st.cls])||0);
+
+  // FORMULA: Next Term Fee + Unpaid = Total Amount to be Paid
   const totalDue=nextFee+totalUnpaid;
   const conducts=['Punctuality & Attendance','Neatness & Appearance','Cooperation with Peers','Participation in Class','General Behavior & Conduct','Respect for Authority'];
   const logoH=DB.school.logo?`<div class="rcr"><img src="${DB.school.logo}" alt="Logo"></div>`:`<div class="rcr">🎓</div>`;
@@ -1521,23 +1541,35 @@ function buildRC(sid,term,vac,rop){
         <div class="rcbx"><h4>Grading Scale (GES)</h4><table><tr><td class="gA">A1</td><td>Excellent</td><td style="text-align:right">80–100</td></tr><tr><td class="gB">B2–B3</td><td>V.Good/Good</td><td style="text-align:right">70–79</td></tr><tr><td class="gC">C4–C6</td><td>Credit</td><td style="text-align:right">55–69</td></tr><tr><td class="gD">D7–E8</td><td>Pass</td><td style="text-align:right">45–54</td></tr><tr><td class="gF">F9</td><td>Fail</td><td style="text-align:right">0–44</td></tr></table></div>
       </div>
       <div class="rcfe">
-        <div class="lb">Next Term Fee Payment — Term ${nextTerm} · ${nextYear}</div>
+        <div class="lb">Fee Payment — Next Term ${nextTerm} · ${nextYear}</div>
         <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11px">
           <tr style="background:#fff8ee">
-            <td style="padding:6px 9px;border:1px solid #e5d9c8;font-weight:500">Next Term Fee</td>
-            <td style="padding:6px 9px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#1a5fa8">GHS ${nextFee>0?nextFee.toFixed(2):'TBA'}</td>
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;font-weight:600">Next Term Fee (Term ${nextTerm})</td>
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#1a5fa8;min-width:110px">GHS ${nextFee>0?nextFee.toFixed(2):'TBA'}</td>
           </tr>
-          ${totalUnpaid>0?`<tr style="background:#fff3f3">
-            <td style="padding:6px 9px;border:1px solid #e5d9c8;font-weight:500">Unpaid Fees${feeBal>0&&arrears>0?' (Current + Previous Terms)':feeBal>0?' (Current Term)':' (Previous Terms)'}</td>
-            <td style="padding:6px 9px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#a32d2d">GHS ${totalUnpaid.toFixed(2)}</td>
+          ${currentTermBal>0?`<tr style="background:#fff3f3">
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;font-weight:500">Current Term Balance (Term ${term} — Paid GHS ${currentTermPaid.toFixed(2)} of GHS ${currentTermAmt.toFixed(2)})</td>
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#a32d2d">GHS ${currentTermBal.toFixed(2)}</td>
           </tr>`:''}
-          <tr style="background:#fef5e4">
-            <td style="padding:8px 9px;border:1px solid #e5c97a;font-weight:700;font-size:12px">TOTAL AMOUNT TO BE PAID</td>
-            <td style="padding:8px 9px;border:1px solid #e5c97a;text-align:right;font-weight:700;font-size:13px;color:#b8760f">GHS ${totalDue>0?totalDue.toFixed(2):(nextFee>0?nextFee.toFixed(2):'TBA')}</td>
+          ${arrears>0?`<tr style="background:#fff3f3">
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;font-weight:500">Previous Term Arrears</td>
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#a32d2d">GHS ${arrears.toFixed(2)}</td>
+          </tr>`:''}
+          ${totalUnpaid>0?`<tr style="background:#fffaf0;border-top:1px solid #e5c97a">
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;font-weight:600;color:#a32d2d">Total Unpaid Fees</td>
+            <td style="padding:7px 10px;border:1px solid #e5d9c8;text-align:right;font-weight:700;color:#a32d2d">GHS ${totalUnpaid.toFixed(2)}</td>
+          </tr>`:''}
+          <tr style="background:#fef0cc">
+            <td style="padding:9px 10px;border:2px solid #e5c97a;font-weight:700;font-size:12px;color:#7a5000">
+              TOTAL AMOUNT TO BE PAID
+              ${totalUnpaid>0&&nextFee>0?`<div style="font-size:9px;font-weight:400;color:#888;margin-top:2px">Next Term Fee GHS ${nextFee.toFixed(2)} + Unpaid GHS ${totalUnpaid.toFixed(2)}</div>`:''}
+            </td>
+            <td style="padding:9px 10px;border:2px solid #e5c97a;text-align:right;font-weight:700;font-size:14px;color:#b8760f;vertical-align:middle">
+              GHS ${totalDue>0?totalDue.toFixed(2):nextFee>0?nextFee.toFixed(2):'TBA'}
+            </td>
           </tr>
         </table>
-        ${nextFee>0&&totalUnpaid>0?`<div style="margin-top:5px;font-size:10px;color:#555;font-style:italic">= Next Term Fee (GHS ${nextFee.toFixed(2)}) + Unpaid (GHS ${totalUnpaid.toFixed(2)})</div>`:''}
-        ${totalUnpaid===0?'<div style="margin-top:5px;font-size:10px;color:#16613a;font-weight:600">✓ No outstanding balance from previous terms.</div>':''}
+        ${totalUnpaid===0?'<div style="margin-top:5px;font-size:10px;color:#16613a;font-weight:600">✓ No outstanding balance. Next term fee only applies.</div>':''}
       </div>
       <div class="rcco"><h4>Conduct &amp; Character Assessment</h4><p style="font-size:9px;color:#888;margin-bottom:7px;font-style:italic">To be completed by Class Teacher after printing</p>${conducts.map(c=>`<div class="cdl"><span style="min-width:190px">${c}</span><div class="cwl"></div></div>`).join('')}</div>
       <div class="rcda"><div class="rcdi"><div class="lb">Date of Vacation</div><div class="vl">${vac||'___________________________'}</div></div><div class="rcdi"><div class="lb">Date of Re-opening</div><div class="vl">${rop||'___________________________'}</div></div></div>
