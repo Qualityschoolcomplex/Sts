@@ -177,11 +177,12 @@ tbody tr:hover td{background:var(--bg)}
 
 /* ===== PRINT ===== */
 @media print{
-  body>*:not(#PA){display:none!important}
-  #PA{display:block!important}
-  @page{margin:9mm;size:A4 portrait}
+  html,body{margin:0!important;padding:0!important;background:#fff!important}
+  body>*{display:none!important}
+  #PA{display:block!important;position:static!important}
+  @page{margin:10mm;size:A4 portrait}
 }
-#PA{display:none}
+#PA{display:none;font-family:'Segoe UI',Arial,sans-serif}
 .rcp{font-family:'Segoe UI',Arial,sans-serif;background:#fff;border:1px solid #bbb}
 .rch{display:flex;align-items:center;gap:14px;padding:13px 15px 10px;border-bottom:3px solid #16613a}
 .rcr{width:68px;height:68px;flex-shrink:0;border-radius:50%;border:2px solid #b8760f;background:#16613a;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;overflow:hidden}
@@ -1531,6 +1532,14 @@ function buildRC(sid,term,vac,rop){
       <div class="rcic"><div class="lb">Gender</div><div class="vl">${st.gender==='M'?'Male':'Female'}</div></div>
       <div class="rcic"><div class="lb">Class Position</div><div class="vl">${clsPos>0?ord(clsPos)+' / '+clsSize+' students':'N/A'}</div></div>
     </div>
+    <div style="padding:8px 11px;background:#f9f9f9;border-bottom:1px solid #ddd;font-size:11px;display:flex;align-items:center;gap:8px">
+      <span style="font-weight:600;color:#333">Attendance:</span>
+      <span style="font-weight:600;color:#333">Made</span>
+      <span style="display:inline-block;border-bottom:1.5px solid #333;min-width:90px;height:14px;margin:0 4px"></span>
+      <span style="font-weight:600;color:#333">out of</span>
+      <span style="display:inline-block;border-bottom:1.5px solid #333;min-width:90px;height:14px;margin:0 4px"></span>
+      <span style="color:#666;font-size:10px;margin-left:6px">school days</span>
+    </div>
     <div class="rcbd">
       <table class="rct">
         <thead><tr><th>#</th><th>Subject</th><th>Class Score (30%)</th><th>Exam Score (70%)</th><th>Total (100%)</th><th>Position</th><th>Grade</th><th>Remarks</th></tr></thead>
@@ -1602,10 +1611,11 @@ function rTabSub(){
   const subs=DB.submissions||[];
   document.getElementById('RT-cnt').innerHTML=`
   <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
-    <input id="RS-q" placeholder="Search student..." oninput="filSubs()" style="max-width:180px">
-    <select id="RS-cls" onchange="filSubs()" style="max-width:130px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
-    <select id="RS-type" onchange="filSubs()" style="max-width:130px"><option value="">All Types</option><option value="results">Results</option><option value="reportcard">Report Cards</option></select>
-    <select id="RS-term" onchange="filSubs()" style="max-width:110px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
+    <input id="RS-q" placeholder="Search student..." oninput="filSubs()" style="max-width:160px">
+    <select id="RS-cls" onchange="filSubs()" style="max-width:120px"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <select id="RS-type" onchange="filSubs()" style="max-width:120px"><option value="">All Types</option><option value="results">Results</option><option value="reportcard">Report Cards</option></select>
+    <select id="RS-term" onchange="filSubs()" style="max-width:100px"><option value="">All Terms</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select>
+    <input id="RS-year" placeholder="Year e.g. 2024/2025" oninput="filSubs()" style="max-width:150px">
   </div>
   <div class="card" style="padding:0"><div class="tw"><table id="SUB-tbl"><thead><tr><th>Student</th><th>Class</th><th>Type</th><th>Term</th><th>Year</th><th>Submitted By</th><th>Date</th><th>Actions</th></tr></thead>
   <tbody>${subRows(subs)}</tbody></table></div></div>`;
@@ -1634,11 +1644,13 @@ function filSubs(){
   const cls=(document.getElementById('RS-cls')||{}).value||'';
   const type=(document.getElementById('RS-type')||{}).value||'';
   const term=(document.getElementById('RS-term')||{}).value||'';
+  const year=(document.getElementById('RS-year')||{}).value?.trim()||'';
   let list=window._subsAll||DB.submissions||[];
   if(q)list=list.filter(s=>{const st=DB.students.find(x=>x.id===s.studentId);return st&&st.name.toLowerCase().includes(q);});
   if(cls)list=list.filter(s=>s.cls===cls);
   if(type)list=list.filter(s=>s.type===type);
   if(term)list=list.filter(s=>s.term===parseInt(term));
+  if(year)list=list.filter(s=>s.year&&s.year.includes(year));
   document.querySelector('#SUB-tbl tbody').innerHTML=subRows(list);
 }
 
@@ -1672,16 +1684,23 @@ async function delResultById(sid,term){
 
 function rTabSearch(){
   document.getElementById('RT-cnt').innerHTML=`
-  <div class="g3" style="margin-bottom:12px"><div><label>Class</label><select id="SR-cls"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div><div><label>Student Name</label><input id="SR-nm" placeholder="Search..."></div><div><label>Term</label><select id="SR-term"><option value="">All</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+    <div><label>Class</label><select id="SR-cls"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    <div><label>Student Name</label><input id="SR-nm" placeholder="Search..."></div>
+    <div><label>Term</label><select id="SR-term"><option value="">All</option><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
+    <div><label>Academic Year</label><input id="SR-year" placeholder="e.g. 2024/2025"></div>
+  </div>
   <button class="btn bg" onclick="doSearchRes()">Search</button><div id="SR-out" style="margin-top:14px"></div>`;
 }
 function doSearchRes(){
   const cls=(document.getElementById('SR-cls')||{}).value||'';
   const nm=(document.getElementById('SR-nm')||{}).value.toLowerCase()||'';
   const term=(document.getElementById('SR-term')||{}).value||'';
+  const year=(document.getElementById('SR-year')||{}).value?.trim()||'';
   let results=DB.results;
   if(cls)results=results.filter(r=>r.cls===cls);
   if(term)results=results.filter(r=>r.term===parseInt(term));
+  if(year)results=results.filter(r=>r.year&&r.year.includes(year));
   if(nm)results=results.filter(r=>{const st=DB.students.find(s=>s.id===r.studentId);return st&&st.name.toLowerCase().includes(nm);});
   if(!results.length){document.getElementById('SR-out').innerHTML='<p style="color:var(--mu);font-size:12px">No results found.</p>';return;}
   document.getElementById('SR-out').innerHTML=`<div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Year</th><th>Avg Score</th><th>Submitted</th><th></th></tr></thead><tbody>${results.map(r=>{
@@ -1739,8 +1758,48 @@ async function apSave(){
 
 function doPrintRC(sid,term,vac,rop){
   const html=buildRC(sid,term,vac,rop);
-  const pa=document.getElementById('PA');pa.innerHTML=html;pa.style.display='block';
-  window.print();setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},600);
+  printViaIframe(html);
+}
+
+function printViaIframe(rcHtml){
+  // Extract all report card CSS from the page's <style> block
+  const allStyles=Array.from(document.styleSheets).map(ss=>{
+    try{return Array.from(ss.cssRules).map(r=>r.cssText).join('\n');}catch(e){return '';}
+  }).join('\n');
+
+  const iframe=document.createElement('iframe');
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:-9999;opacity:0;pointer-events:none';
+  document.body.appendChild(iframe);
+
+  const doc=iframe.contentDocument||iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#000;margin:0;padding:0}
+      ${allStyles}
+      @page{margin:9mm;size:A4 portrait}
+      @media print{body{background:#fff!important}}
+    </style>
+  </head><body>${rcHtml}</body></html>`);
+  doc.close();
+
+  iframe.onload=function(){
+    setTimeout(()=>{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(()=>iframe.remove(),800);
+    },300);
+  };
+  // Fallback: trigger after 600ms if onload doesn't fire
+  setTimeout(()=>{
+    if(iframe.parentNode){
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(()=>{ if(iframe.parentNode)iframe.remove(); },800);
+    }
+  },600);
 }
 async function doSaveReport(sid,term,vac,rop){
   const st=DB.students.find(x=>x.id===sid);if(!st){toast('Student not found','er');return;}
@@ -1772,7 +1831,7 @@ function svRows(list){
   if(!list.length)return`<div style="text-align:center;padding:24px;color:var(--mu);font-size:12px">No saved reports match your search.</div>`;
   return list.map(rc=>{
     const dt=rc.savedAt?new Date(rc.savedAt).toLocaleString():'—';
-    return`<div class="sri"><div style="display:flex;align-items:center;gap:12px"><div style="width:38px;height:38px;border-radius:9px;background:var(--grl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📄</div><div><div style="font-weight:600">${rc.studentName} <span class="bdg bgg">${rc.cls}</span> <span class="bdg bgb">T${rc.term} · ${rc.year}</span></div><div class="srm">Saved by: ${rc.savedBy} | ${dt}</div>${rc.vacationDate?`<div class="srm">Vacation: ${rc.vacationDate} | Re-opens: ${rc.reopenDate||'—'}</div>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn sm bb" onclick="viewSaved(${rc.id})">👁 View</button><button class="btn sm" onclick="printSaved(${rc.id})">🖨 Print</button><button class="btn sm bd" onclick="delSaved(${rc.id})">Del</button></div></div>`;
+    return`<div class="sri"><div style="display:flex;align-items:center;gap:12px"><div style="width:38px;height:38px;border-radius:9px;background:var(--grl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📄</div><div><div style="font-weight:600">${rc.studentName} <span class="bdg bgg">${rc.cls}</span> <span class="bdg bgb">T${rc.term} · ${rc.year}</span></div><div class="srm">Saved by: ${rc.savedBy} | ${dt}</div>${rc.vacationDate?`<div class="srm">Vacation: ${rc.vacationDate} | Re-opens: ${rc.reopenDate||'—'}</div>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap"><button class="btn sm bb" onclick="viewSaved(${rc.id})">👁 View</button><button class="btn sm" onclick="printSaved(${rc.id})">🖨 Print</button><button class="btn sm bg" onclick="downloadSaved(${rc.id})">⬇ Download</button><button class="btn sm bd" onclick="delSaved(${rc.id})">Del</button></div></div>`;
   }).join('');
 }
 function filSaved(){
@@ -1791,13 +1850,53 @@ function viewSaved(id){
 }
 function printSaved(id){
   const rc=(DB.savedReports||[]).find(x=>x.id===id);if(!rc){toast('Not found','er');return;}
-  const pa=document.getElementById('PA');pa.innerHTML=rc.html;pa.style.display='block';
-  window.print();setTimeout(()=>{pa.style.display='none';pa.innerHTML='';},600);
+  printViaIframe(rc.html);
 }
 async function delSaved(id){
   if(!confirm('Delete this saved report card?'))return;
   DB.savedReports=(DB.savedReports||[]).filter(r=>r.id!==id);
   await saveWithIndicator();toast('Report deleted','er');pgSavedReports();
+}
+
+function downloadSaved(id){
+  const rc=(DB.savedReports||[]).find(x=>x.id===id);
+  if(!rc){toast('Report not found','er');return;}
+
+  // Build a complete self-contained HTML file with all styles inlined
+  const allStyles=Array.from(document.styleSheets).map(ss=>{
+    try{return Array.from(ss.cssRules).map(r=>r.cssText).join('\n');}catch(e){return '';}
+  }).join('\n');
+
+  const fileName=`Report_${rc.studentName.replace(/\s+/g,'_')}_Term${rc.term}_${rc.year.replace('/','_')}.html`;
+
+  const fullHtml=`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Report Card — ${rc.studentName} | Term ${rc.term} · ${rc.year}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#000;padding:10mm}
+${allStyles}
+@media print{@page{margin:9mm;size:A4 portrait}body{padding:0}}
+</style>
+</head>
+<body>
+${rc.html}
+<div style="margin-top:16px;text-align:center;font-size:10px;color:#999">Generated by Quality School Complex GES Management System</div>
+</body>
+</html>`;
+
+  const blob=new Blob([fullHtml],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(`Downloaded: ${fileName} ✓`);
 }
 
 /* ══════════════════════════════════════════════
