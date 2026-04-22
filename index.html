@@ -1756,50 +1756,73 @@ async function apSave(){
   await doSaveReport(sid,term,(document.getElementById('AP-vac')||{}).value||'',(document.getElementById('AP-rop')||{}).value||'');
 }
 
-function doPrintRC(sid,term,vac,rop){
-  const html=buildRC(sid,term,vac,rop);
-  printViaIframe(html);
+// RC CSS — fully hard-coded, no CSS variables, safe for print/PDF
+const RC_CSS=`
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1a1e28;margin:0;padding:8mm}
+@page{margin:8mm;size:A4 portrait}
+@media print{body{padding:0}@page{margin:8mm}}
+.rcp{font-family:'Segoe UI',Arial,sans-serif;background:#fff;border:1px solid #bbb;max-width:720px;margin:0 auto}
+.rch{display:flex;align-items:center;gap:14px;padding:13px 15px 10px;border-bottom:3px solid #16613a}
+.rcr{width:68px;height:68px;flex-shrink:0;border-radius:50%;border:2px solid #b8760f;background:#16613a;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;overflow:hidden}
+.rcr img{width:100%;height:100%;object-fit:cover}
+.rcsn{font-size:17px;font-weight:700;color:#16613a}
+.rcci{font-size:10px;color:#666;margin-top:2px}
+.rcdt{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.rcib{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #ddd;background:#f9f9f9}
+.rcic{padding:8px 11px;border-right:1px solid #ddd}
+.rcic:last-child{border-right:none}
+.rcic .lb{font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.4px}
+.rcic .vl{font-size:11px;font-weight:600;margin-top:2px}
+.rcbd{padding:0 13px 13px}
+.rct{width:100%;border-collapse:collapse;margin:10px 0;font-size:11px}
+.rct th{background:#16613a;color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+.rct td{padding:5px 7px;border-bottom:1px solid #eee}
+.rct tr:nth-child(even) td{background:#f7f9f7}
+.rc2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.rcbx{border:1px solid #ddd;border-radius:5px;padding:9px;font-size:11px}
+.rcbx h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:6px;letter-spacing:.4px}
+.rcbx table{width:100%;font-size:11px}
+.rcbx td{padding:2px 0;border:none}
+.rcfe{padding:7px 10px;background:#fef5e4;border-left:3px solid #b8760f;border-radius:5px;font-size:11px;margin:8px 0}
+.rcfe .lb{font-size:9px;font-weight:700;text-transform:uppercase;color:#b8760f;letter-spacing:.4px}
+.rcco{background:#f9f9f9;border-radius:5px;padding:9px 11px;margin:8px 0;font-size:11px}
+.rcco h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:6px}
+.cdl{display:flex;align-items:flex-end;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:11px}
+.cwl{flex:1;border-bottom:1.5px solid #333;margin-left:10px;height:16px;min-width:80px}
+.rcda{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 0;font-size:11px}
+.rcdi{padding:7px 10px;background:#f9f9f9;border-radius:5px;border-left:3px solid #16613a}
+.rcdi .lb{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a}
+.rcdi .vl{font-size:12px;font-weight:600;margin-top:2px}
+.rcrm{background:#f9f9f9;border-radius:5px;padding:9px 11px;margin:8px 0;font-size:11px}
+.rcrm h4{font-size:9px;font-weight:700;text-transform:uppercase;color:#16613a;margin-bottom:5px}
+.rmtx{font-style:italic;padding:6px 9px;background:#fff;border:1px solid #ddd;border-radius:4px;font-size:11px;line-height:1.55;margin-top:4px}
+.rcsi{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:10px 0 4px}
+.rcsi .sl{border-top:1.5px solid #333;margin-top:24px;padding-top:4px;font-size:9px;color:#666;text-align:center}
+.rcft{background:#16613a;color:#fff;text-align:center;padding:6px;font-size:9px;letter-spacing:.3px}
+.gA{color:#16613a;font-weight:700}.gB{color:#1a5fa8;font-weight:700}.gC{color:#b8760f;font-weight:700}.gD,.gF{color:#a32d2d;font-weight:700}
+table{border-collapse:collapse}
+`;
+
+function buildRCPage(rcHtml,title='Report Card'){
+  return `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<style>${RC_CSS}</style>
+</head>
+<body onload="window.print()">
+${rcHtml}
+</body></html>`;
 }
 
-function printViaIframe(rcHtml){
-  // Extract all report card CSS from the page's <style> block
-  const allStyles=Array.from(document.styleSheets).map(ss=>{
-    try{return Array.from(ss.cssRules).map(r=>r.cssText).join('\n');}catch(e){return '';}
-  }).join('\n');
-
-  const iframe=document.createElement('iframe');
-  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:-9999;opacity:0;pointer-events:none';
-  document.body.appendChild(iframe);
-
-  const doc=iframe.contentDocument||iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#000;margin:0;padding:0}
-      ${allStyles}
-      @page{margin:9mm;size:A4 portrait}
-      @media print{body{background:#fff!important}}
-    </style>
-  </head><body>${rcHtml}</body></html>`);
-  doc.close();
-
-  iframe.onload=function(){
-    setTimeout(()=>{
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(()=>iframe.remove(),800);
-    },300);
-  };
-  // Fallback: trigger after 600ms if onload doesn't fire
-  setTimeout(()=>{
-    if(iframe.parentNode){
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(()=>{ if(iframe.parentNode)iframe.remove(); },800);
-    }
-  },600);
+function doPrintRC(sid,term,vac,rop){
+  const html=buildRC(sid,term,vac,rop);
+  const st=DB.students.find(x=>x.id===sid)||{name:'Student'};
+  const pageHtml=buildRCPage(html,`Report Card — ${st.name} Term ${term}`);
+  const win=window.open('','_blank','width=900,height=700,scrollbars=yes');
+  if(!win){toast('Please allow popups for this page, then try again.','inf');return;}
+  win.document.write(pageHtml);
+  win.document.close();
 }
 async function doSaveReport(sid,term,vac,rop){
   const st=DB.students.find(x=>x.id===sid);if(!st){toast('Student not found','er');return;}
@@ -1849,8 +1872,13 @@ function viewSaved(id){
   moOpen(`Report Card — ${rc.studentName}`,`<div style="overflow-x:auto">${rc.html}</div>`,true);
 }
 function printSaved(id){
-  const rc=(DB.savedReports||[]).find(x=>x.id===id);if(!rc){toast('Not found','er');return;}
-  printViaIframe(rc.html);
+  const rc=(DB.savedReports||[]).find(x=>x.id===id);
+  if(!rc){toast('Not found','er');return;}
+  const pageHtml=buildRCPage(rc.html,`Report Card — ${rc.studentName} Term ${rc.term}`);
+  const win=window.open('','_blank','width=900,height=700,scrollbars=yes');
+  if(!win){toast('Please allow popups for this page, then try again.','inf');return;}
+  win.document.write(pageHtml);
+  win.document.close();
 }
 async function delSaved(id){
   if(!confirm('Delete this saved report card?'))return;
@@ -1861,42 +1889,44 @@ async function delSaved(id){
 function downloadSaved(id){
   const rc=(DB.savedReports||[]).find(x=>x.id===id);
   if(!rc){toast('Report not found','er');return;}
-
-  // Build a complete self-contained HTML file with all styles inlined
-  const allStyles=Array.from(document.styleSheets).map(ss=>{
-    try{return Array.from(ss.cssRules).map(r=>r.cssText).join('\n');}catch(e){return '';}
-  }).join('\n');
-
-  const fileName=`Report_${rc.studentName.replace(/\s+/g,'_')}_Term${rc.term}_${rc.year.replace('/','_')}.html`;
-
-  const fullHtml=`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Report Card — ${rc.studentName} | Term ${rc.term} · ${rc.year}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#000;padding:10mm}
-${allStyles}
-@media print{@page{margin:9mm;size:A4 portrait}body{padding:0}}
-</style>
-</head>
-<body>
-${rc.html}
-<div style="margin-top:16px;text-align:center;font-size:10px;color:#999">Generated by Quality School Complex GES Management System</div>
-</body>
-</html>`;
-
-  const blob=new Blob([fullHtml],{type:'text/html;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-  toast(`Downloaded: ${fileName} ✓`);
+  const fname='ReportCard_'+rc.studentName.replace(/[^a-zA-Z0-9]/g,'_')+'_T'+rc.term+'_'+rc.year.replace('/','_')+'.html';
+  // Build page — no inline script tags to avoid HTML parser issues
+  const barCSS=RC_CSS+'#dl-bar{position:fixed;top:0;left:0;right:0;background:#16613a;color:#fff;'+
+    'padding:10px 18px;font-family:Segoe UI,sans-serif;font-size:13px;display:flex;'+
+    'align-items:center;justify-content:space-between;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.3)}'+
+    '#dl-bar button{background:#fff;color:#16613a;border:none;border-radius:6px;padding:6px 14px;'+
+    'font-weight:700;cursor:pointer;font-size:12px}body{padding-top:52px}'+
+    '@media print{#dl-bar{display:none!important}body{padding-top:0}}';
+  const pageHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+
+    'Report Card — '+rc.studentName+'</title><style>'+barCSS+'</style></head><body>'+
+    '<div id="dl-bar"><span>📄 <b>'+rc.studentName+'</b> — Term '+rc.term+' · '+rc.year+
+    ' &nbsp;|&nbsp; To save as PDF: click <b>Print</b> then choose <b>Save as PDF</b></span>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button id="print-btn">🖨 Print / Save as PDF</button>'+
+    '<button id="dl-btn">⬇ Download HTML</button></div></div>'+
+    rc.html+'</body></html>';
+  // Try opening in new window
+  const win=window.open('','_blank','width=920,height=780,scrollbars=yes');
+  if(!win){
+    // Popup blocked — direct blob download
+    const blob=new Blob([pageHtml],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=fname;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);URL.revokeObjectURL(a.href);
+    toast('Downloaded: '+fname+' — open in browser to print/save as PDF ✓');
+    return;
+  }
+  win.document.write(pageHtml);
+  win.document.close();
+  // Wire up buttons via DOM after write (no inline script needed)
+  win.document.getElementById('print-btn').onclick=function(){win.print();};
+  win.document.getElementById('dl-btn').onclick=function(){
+    const blob=new Blob([win.document.documentElement.outerHTML],{type:'text/html'});
+    const a=win.document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=fname;a.click();URL.revokeObjectURL(a.href);
+  };
+  toast('Report opened in new tab. Click Print → Save as PDF ✓');
 }
 
 /* ══════════════════════════════════════════════
