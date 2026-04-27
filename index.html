@@ -1585,6 +1585,16 @@ function buildRC(sid,term,vac,rop){
       <div class="rcrm"><h4>Class Teacher's Remarks</h4><div class="rmtx">${tRemark(avg)}</div></div>
       <div class="rcrm"><h4>Headmaster / Headmistress Remarks</h4><div class="rmtx">${hRemark(avg)}</div></div>
       <div class="rcsi"><div><div class="sl">Class Teacher's Signature &amp; Date</div></div><div><div class="sl">Head Teacher's Signature &amp; Date</div></div></div>
+      <div style="display:flex;gap:0;border-top:1.5px solid #ddd;margin-top:10px;padding-top:10px;font-size:11px;align-items:center;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+          <span style="font-weight:700;color:#16613a;white-space:nowrap">Promoted to:</span>
+          <div style="flex:1;border-bottom:1.5px solid #333;min-height:16px"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+          <span style="font-weight:700;color:#a32d2d;white-space:nowrap">Demoted to:</span>
+          <div style="flex:1;border-bottom:1.5px solid #333;min-height:16px"></div>
+        </div>
+      </div>
     </div>
     <div class="rcft">Next Term Begins: ${rop||'TBA'} | School Fees Due on First Day | ${DB.school.name} — Excellence in Education</div>
   </div>`;
