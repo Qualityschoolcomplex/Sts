@@ -51,7 +51,12 @@ label{font-size:11px;font-weight:600;color:var(--mu);display:block;margin-bottom
 
 /* ===== LAYOUT ===== */
 #APP{display:flex;min-height:100vh}
-.sb{width:215px;background:var(--gr);flex-shrink:0;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb{width:215px;background:var(--gr);flex-shrink:0;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh;overflow-y:auto;transition:width .22s cubic-bezier(.4,0,.2,1),transform .22s cubic-bezier(.4,0,.2,1)}
+#APP.sb-collapsed .sb{width:0;overflow:hidden;transform:translateX(-215px)}
+#APP.sb-collapsed .main{flex:1}
+.menu-toggle{width:34px;height:34px;border-radius:var(--r);background:var(--bg);border:var(--bd);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;flex-shrink:0;margin-right:6px;padding:0}
+.menu-toggle span{display:block;width:16px;height:2px;background:var(--tx);border-radius:2px;transition:.2s}
+.menu-toggle:hover{background:#e5e8ec}
 .sb-top{padding:18px 14px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
 .sb-lg{width:40px;height:40px;background:var(--go);border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;margin-bottom:9px;overflow:hidden;flex-shrink:0}
 .sb-lg img{width:100%;height:100%;object-fit:cover;border-radius:11px}
@@ -232,7 +237,7 @@ tbody tr:hover td{background:var(--bg)}
     <div class="spin"></div>
     <div class="spin-inner">🎓</div>
   </div>
-  <div class="ltx-school">QUALITY SCHOOL COMPLEX</div>
+  <div class="ltx-school" id="LOAD-sname">QUALITY SCHOOL COMPLEX</div>
   <div class="ltx" id="LTXT">Loading...</div>
 </div>
 
@@ -291,6 +296,7 @@ tbody tr:hover td{background:var(--bg)}
   <div class="auth-box">
     <div class="alogo" id="L-logo">🎓</div>
     <div class="asch" id="L-sname">QUALITY SCHOOL COMPLEX</div>
+    <div class="atag" id="L-motto" style="font-style:italic;color:var(--gr);font-weight:500;margin-bottom:4px"></div>
     <div class="atag">GES Academic Management Portal</div>
     <div id="L-alert"></div>
     <div class="fg"><label>Username</label><input id="L-user" placeholder="Enter username" autocomplete="username"></div>
@@ -307,13 +313,17 @@ tbody tr:hover td{background:var(--bg)}
       <div class="sb-top">
         <div class="sb-lg" id="SB-logo">QS</div>
         <div class="sb-nm" id="SB-name">Quality School Complex</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.45);margin-top:2px;font-style:italic;line-height:1.3" id="SB-motto"></div>
         <div class="sb-rl" id="SB-role">Administrator</div>
       </div>
       <nav class="sb-nav" id="NAV"></nav>
     </div>
     <div class="main">
       <div class="topbar">
-        <div class="pg-t" id="PG-title">Dashboard</div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button class="menu-toggle" onclick="toggleSidebar()" title="Toggle menu"><span></span><span></span><span></span></button>
+          <div class="pg-t" id="PG-title">Dashboard</div>
+        </div>
         <div class="top-r">
           <span class="tc" id="TERM-chip">Term 1 · 2024/2025</span>
           <div class="uc"><div class="uav" id="U-av">A</div><span id="U-nm">Admin</span></div>
@@ -333,46 +343,173 @@ tbody tr:hover td{background:var(--bg)}
 <script>
 'use strict';
 /* ══════════════════════════════════════════════
-   JSONBIN.IO BACKEND
-   Credentials embedded directly in this file after admin setup.
-   Staff/any device: just open the file — no setup needed.
+   JSONBIN.IO MULTI-BIN BACKEND
+   Each data type has its own BIN for clean separation and to prevent
+   data overwrites. This fixes the "disappearing data" issue.
 ══════════════════════════════════════════════ */
 
-// EMBEDDED CREDENTIALS — hardcoded so any device opens straight to login, no setup needed
-const EMBEDDED_BIN_ID = '69e18176856a682189416392';
 const EMBEDDED_API_KEY = '$2a$10$rux2O9LTYRuXWBRKsJlCveFWz66mj4J6vbrDXDDlURVTFEsBxGgW2';
+// Master BIN ID (legacy / settings bin — kept for backward compat)
+const EMBEDDED_BIN_ID = '69e18176856a682189416392';
 
-let BIN_ID = EMBEDDED_BIN_ID;
 let API_KEY = EMBEDDED_API_KEY;
 const BIN_BASE = 'https://api.jsonbin.io/v3/b';
 
-async function dbWrite(data) {
-  const res = await fetch(`${BIN_BASE}/${BIN_ID}`, {
+// Multi-bin registry — keys stored in localStorage after first creation
+// Format: { settings, users, students, fees, results, submissions, savedReports, classes }
+let BINS = {};
+
+const BIN_NAMES = {
+  settings:     'QSC-Settings',
+  users:        'QSC-Users',
+  students:     'QSC-Students',
+  fees:         'QSC-Fees',
+  results:      'QSC-Results',
+  submissions:  'QSC-Submissions',
+  savedReports: 'QSC-SavedReports',
+  classes:      'QSC-Classes',
+};
+
+// Expose BIN_ID as alias for the settings bin (used by legacy copySAC / setup code)
+let BIN_ID = EMBEDDED_BIN_ID;
+
+/* ── Per-bin read/write ── */
+async function binWrite(key, data) {
+  const id = BINS[key];
+  if (!id) throw new Error('No BIN for ' + key);
+  const res = await fetch(`${BIN_BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Versioning': 'false' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Write failed: ' + res.status);
+  if (!res.ok) throw new Error(`Write(${key}) failed: ` + res.status);
   return res.json();
 }
 
-async function dbRead() {
-  // Abort fetch after 8 seconds so boot() never hangs indefinitely
+async function binRead(key) {
+  const id = BINS[key];
+  if (!id) throw new Error('No BIN for ' + key);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 9000);
   try {
-    const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, {
+    const res = await fetch(`${BIN_BASE}/${id}/latest`, {
       headers: { 'X-Master-Key': API_KEY },
       signal: controller.signal
     });
     clearTimeout(timer);
-    if (!res.ok) throw new Error('Read failed: ' + res.status);
+    if (!res.ok) throw new Error(`Read(${key}) failed: ` + res.status);
     const j = await res.json();
     return j.record;
-  } catch(e) {
-    clearTimeout(timer);
-    throw e;
+  } catch(e) { clearTimeout(timer); throw e; }
+}
+
+async function binCreate(name, seedData) {
+  const res = await fetch(BIN_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Name': name, 'X-Bin-Private': 'false' },
+    body: JSON.stringify(seedData)
+  });
+  if (!res.ok) {
+    const ej = await res.json().catch(() => ({}));
+    throw new Error(ej.message || 'Status ' + res.status);
   }
+  const j = await res.json();
+  return j.metadata.id;
+}
+
+/* ── Ensure all bins exist (create if missing) ── */
+async function ensureBins(key = null) {
+  const keys = key ? [key] : Object.keys(BIN_NAMES);
+  for (const k of keys) {
+    if (!BINS[k]) {
+      const seed = k === 'settings' ? { school: JSON.parse(JSON.stringify(EMPTY_DB.school)), term: JSON.parse(JSON.stringify(EMPTY_DB.term)), termFees: {}, customSubs: {}, classGroups: {} }
+        : k === 'users' ? { users: JSON.parse(JSON.stringify(EMPTY_DB.users)), nextUid: EMPTY_DB.nextUid }
+        : k === 'students' ? { students: JSON.parse(JSON.stringify(EMPTY_DB.students)), nextSid: EMPTY_DB.nextSid }
+        : k === 'fees' ? { fees: JSON.parse(JSON.stringify(EMPTY_DB.fees)), nextFid: EMPTY_DB.nextFid }
+        : k === 'results' ? { results: [], nextRid: 1 }
+        : k === 'submissions' ? { submissions: [] }
+        : k === 'savedReports' ? { savedReports: [] }
+        : k === 'classes' ? { classGroups: {} }
+        : {};
+      BINS[k] = await binCreate(BIN_NAMES[k], seed);
+    }
+  }
+  saveBinRegistry();
+}
+
+/* ── Registry persistence ── */
+function saveBinRegistry() {
+  try { localStorage.setItem('qsc_bins', JSON.stringify({ bins: BINS, key: API_KEY })); } catch(e) {}
+}
+function loadBinRegistry() {
+  try {
+    const r = localStorage.getItem('qsc_bins');
+    if (r) { const o = JSON.parse(r); if (o.bins && o.key) { BINS = o.bins; API_KEY = o.key; return true; } }
+  } catch(e) {}
+  return false;
+}
+
+/* ── Legacy single-bin read (for migration) ── */
+async function dbReadLegacy() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${BIN_BASE}/${EMBEDDED_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j.record;
+  } catch(e) { clearTimeout(timer); return null; }
+}
+
+/* ── Unified DB write: writes changed sections to their individual bins ── */
+let _pendingWrites = {};  // { key: data }
+let _writeTimer = null;
+let _writePending = false;
+
+async function dbWrite(data) {
+  // Write all sections in parallel using multi-bin approach
+  const writes = {
+    settings: { school: data.school, term: data.term, termFees: data.termFees || {}, customSubs: data.customSubs || {}, classGroups: data.classGroups || {} },
+    users: { users: data.users, nextUid: data.nextUid },
+    students: { students: data.students, nextSid: data.nextSid },
+    fees: { fees: data.fees, nextFid: data.nextFid },
+    results: { results: data.results, nextRid: data.nextRid },
+    submissions: { submissions: data.submissions || [] },
+    savedReports: { savedReports: data.savedReports || [] },
+  };
+  // Best-effort parallel writes — don't fail all if one fails
+  const promises = Object.entries(writes).map(([k, v]) =>
+    BINS[k] ? binWrite(k, v).catch(e => console.warn(`Bin write error (${k}):`, e)) : Promise.resolve()
+  );
+  await Promise.allSettled(promises);
+}
+
+/* ── Unified DB read: reads all bins and assembles DB ── */
+async function dbRead() {
+  const keys = ['settings', 'users', 'students', 'fees', 'results', 'submissions', 'savedReports'];
+  const results = await Promise.allSettled(keys.map(k => BINS[k] ? binRead(k) : Promise.resolve(null)));
+  const [settings, users, students, fees, results2, submissions, savedReports] = results.map(r => r.status === 'fulfilled' ? r.value : null);
+  return {
+    school: settings?.school || EMPTY_DB.school,
+    term: settings?.term || EMPTY_DB.term,
+    termFees: settings?.termFees || {},
+    customSubs: settings?.customSubs || {},
+    classGroups: settings?.classGroups || {},
+    users: users?.users || EMPTY_DB.users,
+    nextUid: users?.nextUid || 3,
+    students: students?.students || EMPTY_DB.students,
+    nextSid: students?.nextSid || 5,
+    fees: fees?.fees || EMPTY_DB.fees,
+    nextFid: fees?.nextFid || 5,
+    results: results2?.results || [],
+    nextRid: results2?.nextRid || 1,
+    submissions: submissions?.submissions || [],
+    savedReports: savedReports?.savedReports || [],
+  };
 }
 
 /* ══════════════════════════════════════════════
@@ -382,19 +519,20 @@ let DB = null;   // in-memory cache
 let CU = null;   // current user object
 
 const EMPTY_DB = {
-  school: { name:'QUALITY SCHOOL COMPLEX', email:'info@qualityschool.edu.gh', phone:'0302-123456', address:'P.O. Box 123, Accra, Ghana', logo:'', title:'Student Academic Report Card' },
+  school: { name:'QUALITY SCHOOL COMPLEX', motto:'Excellence in Education', email:'info@qualityschool.edu.gh', phone:'0302-123456', address:'P.O. Box 123, Accra, Ghana', logo:'', title:'Student Academic Report Card' },
   term: { year:'2024/2025', term:1 },
   termFees: {},
   customSubs: {},
+  classGroups: {}, // e.g. { 'KG 1': ['A','B','C'], 'Basic 1': ['A','B'] }
   users: [
     { id:1, username:'admin', password:'admin123', role:'admin', name:'Dr. Kwame Asante', email:'admin@qualityschool.edu.gh', cls:'', subject:'' },
     { id:2, username:'staff', password:'staff123', role:'staff', name:'Mrs. Abena Mensah', email:'amensah@qualityschool.edu.gh', cls:'Basic 4', subject:'Mathematics' }
   ],
   students: [
-    { id:1, name:'Ama Owusu', dob:'2012-04-10', gender:'F', cls:'Basic 4', guardian:'Mr. Owusu K.', phone:'0244123456', enrollDate:'2020-09-01', status:'active' },
-    { id:2, name:'Kofi Agyeman', dob:'2011-07-22', gender:'M', cls:'Basic 4', guardian:'Mrs. Agyeman R.', phone:'0554321789', enrollDate:'2019-09-01', status:'active' },
-    { id:3, name:'Yaw Asante', dob:'2010-09-30', gender:'M', cls:'JHS 2', guardian:'Mrs. Asante P.', phone:'0277654321', enrollDate:'2018-09-01', status:'active' },
-    { id:4, name:'Efua Mensah', dob:'2014-03-05', gender:'F', cls:'JHS 2', guardian:'Mr. Mensah A.', phone:'0201234567', enrollDate:'2022-09-01', status:'active' }
+    { id:1, name:'Ama Owusu', dob:'2012-04-10', gender:'F', cls:'Basic 4', clsGroup:'', guardian:'Mr. Owusu K.', phone:'0244123456', enrollDate:'2020-09-01', status:'active' },
+    { id:2, name:'Kofi Agyeman', dob:'2011-07-22', gender:'M', cls:'Basic 4', clsGroup:'', guardian:'Mrs. Agyeman R.', phone:'0554321789', enrollDate:'2019-09-01', status:'active' },
+    { id:3, name:'Yaw Asante', dob:'2010-09-30', gender:'M', cls:'JHS 2', clsGroup:'', guardian:'Mrs. Asante P.', phone:'0277654321', enrollDate:'2018-09-01', status:'active' },
+    { id:4, name:'Efua Mensah', dob:'2014-03-05', gender:'F', cls:'JHS 2', clsGroup:'', guardian:'Mr. Mensah A.', phone:'0201234567', enrollDate:'2022-09-01', status:'active' }
   ],
   fees: [
     { id:1, studentId:1, amount:450, paid:450, term:1, year:'2024/2025', date:'2024-09-05', status:'paid', method:'Cash' },
@@ -408,39 +546,102 @@ const EMPTY_DB = {
   nextSid:5, nextFid:5, nextUid:3, nextRid:1
 };
 
-async function save() {
+/* ── LOCAL-FIRST SAVE ──────────────────────────────────────────────────────
+   1. Writes to localStorage instantly  → UI feels instant, no waiting
+   2. Debounces remote sync by 1.5 s   → batches rapid changes into one write
+   3. Remote write happens in background — user is never blocked
+   4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
+      while the background sync is in flight
+──────────────────────────────────────────────────────────────────────── */
+let _syncTimer = null;
+let _syncPending = false;
+
+function saveLocal() {
   try {
-    await dbWrite(DB);
-    if(DB.users) cacheUsers(DB.users);
-  } catch(e) { toast('Save error: '+e.message,'er'); }
+    localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB));
+    if (DB.users) cacheUsers(DB.users);
+  } catch(e) {}
 }
-// Saving indicator — small non-intrusive indicator, NOT the full-screen spinner
-function showSaving(show){
-  let el=document.getElementById('SAVING-ind');
-  if(show){
-    if(!el){
-      el=document.createElement('div');
-      el.id='SAVING-ind';
-      el.style.cssText='position:fixed;bottom:18px;right:18px;background:var(--gr);color:#fff;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;z-index:8000;display:flex;align-items:center;gap:7px;box-shadow:0 2px 12px rgba(0,0,0,.15)';
-      el.innerHTML='<div style="width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite"></div><span>Saving...</span>';
-      document.body.appendChild(el);
-    }
-    el.style.display='flex';
+
+function scheduleRemoteSync() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => { _doRemoteSync(); }, 1500);
+}
+
+async function _doRemoteSync() {
+  if (_syncPending) return;
+  _syncPending = true;
+  showCloudSync(true);
+  try {
+    const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
+    // Ensure all bins exist before writing
+    await ensureBins().catch(() => {});
+    await dbWrite(snapshot);
+  } catch(e) {
+    showCloudSync(false, true);
+    setTimeout(() => { _syncPending = false; _doRemoteSync(); }, 4000);
+    return;
+  } finally {
+    _syncPending = false;
+  }
+  showCloudSync(false);
+}
+
+function showCloudSync(syncing, error) {
+  let el = document.getElementById('SAVING-ind');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'SAVING-ind';
+    el.style.cssText = 'position:fixed;bottom:18px;right:18px;border-radius:20px;padding:5px 13px;font-size:11px;font-weight:500;z-index:8000;display:flex;align-items:center;gap:6px;box-shadow:0 2px 12px rgba(0,0,0,.12);transition:opacity .3s';
+    document.body.appendChild(el);
+  }
+  if (syncing) {
+    el.style.background = 'var(--gr)';
+    el.style.color = '#fff';
+    el.style.opacity = '1';
+    el.style.display = 'flex';
+    el.innerHTML = '<div style="width:10px;height:10px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite"></div><span>Syncing…</span>';
+  } else if (error) {
+    el.style.background = '#fff3cd';
+    el.style.color = '#856404';
+    el.style.opacity = '1';
+    el.style.display = 'flex';
+    el.innerHTML = '⚠ Sync retry…';
+    setTimeout(() => { if(el) el.style.display='none'; }, 3500);
   } else {
-    if(el) el.style.display='none';
+    el.style.background = '#e8f5e9';
+    el.style.color = '#2e7d32';
+    el.style.opacity = '1';
+    el.style.display = 'flex';
+    el.innerHTML = '✓ Saved';
+    setTimeout(() => { if(el) el.style.opacity='0'; }, 1200);
+    setTimeout(() => { if(el) el.style.display='none'; }, 1600);
   }
 }
-async function saveWithIndicator(){
-  showSaving(true);
-  try{ await save(); } finally { showSaving(false); }
+
+// save() — local-first, instant return, background remote sync
+function save() {
+  saveLocal();
+  scheduleRemoteSync();
 }
+
+// saveWithIndicator() — same as save() but shows the "Saved ✓" flash immediately
+function saveWithIndicator() {
+  saveLocal();
+  showCloudSync(false); // flash "✓ Saved" right now
+  scheduleRemoteSync();
+  // Return a resolved promise so all `await saveWithIndicator()` callers work unchanged
+  return Promise.resolve();
+}
+
+function getDBSnapshot(){ try{ const r=localStorage.getItem('qsc_db_snapshot'); return r?JSON.parse(r):null; }catch(e){return null;} }
 
 /* ══════════════════════════════════════════════
    SESSION (survives refresh, cleared on logout)
 ══════════════════════════════════════════════ */
-function saveSession(u) { try { sessionStorage.setItem('qsc_uid', String(u.id)); } catch(e){} }
-function clearSession() { try { sessionStorage.removeItem('qsc_uid'); } catch(e){} }
-function getSessionUid() { try { return parseInt(sessionStorage.getItem('qsc_uid'))||null; } catch(e){ return null; } }
+function saveSession(u) { try { localStorage.setItem('qsc_uid', String(u.id)); } catch(e){} }
+function clearSession() { try { localStorage.removeItem('qsc_uid'); } catch(e){} }
+function getSessionUid() { try { return parseInt(localStorage.getItem('qsc_uid'))||null; } catch(e){ return null; } }
 
 /* ══════════════════════════════════════════════
    CLASSES & CURRICULUM
@@ -543,18 +744,20 @@ function err(m){return`<div style="background:var(--rdl);color:var(--rd);border:
 
 function saveLocalCfg(binId, masterKey){
   try { localStorage.setItem('qsc_cfg', JSON.stringify({b:binId,k:masterKey})); } catch(e){}
+  saveBinRegistry();
 }
 function loadLocalCfg(){
   try{
-    // First priority: embedded in this file
-    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY) return {b:EMBEDDED_BIN_ID, k:EMBEDDED_API_KEY};
-    // Second: localStorage (supports page refresh, same browser)
+    // Check new multi-bin registry first
+    if(loadBinRegistry() && API_KEY){
+      BIN_ID = BINS.settings || EMBEDDED_BIN_ID;
+      return { b: BIN_ID, k: API_KEY };
+    }
+    // Fall back to embedded credentials
+    if(EMBEDDED_API_KEY){ API_KEY = EMBEDDED_API_KEY; BIN_ID = EMBEDDED_BIN_ID; return {b:EMBEDDED_BIN_ID,k:EMBEDDED_API_KEY}; }
+    // Legacy single-bin config
     const raw = localStorage.getItem('qsc_cfg');
-    if(raw){ const o=JSON.parse(raw); if(o.b&&o.k) return o; }
-    // Legacy formats
-    const key=localStorage.getItem('qsc_key');
-    const binId=localStorage.getItem('qsc_bin_id')||localStorage.getItem('qsc_bin')||'';
-    if(key&&binId){ saveLocalCfg(binId,key); return{b:binId,k:key}; }
+    if(raw){ const o=JSON.parse(raw); if(o.b&&o.k){ API_KEY=o.k; BIN_ID=o.b; return o; } }
   } catch(e){}
   return null;
 }
@@ -600,52 +803,24 @@ async function doSetup(){
   const al=document.getElementById('SU-alert');
   if(!key){al.innerHTML=err('Please enter your Master API Key.');return;}
   if(!key.startsWith('$2')){al.innerHTML=err('That does not look like a JSONBin key. It should start with <b>$2a$</b> or <b>$2b$</b>.');return;}
-  BIN_ID=''; API_KEY=key;
-  load(true,'Setting up database...');
+  API_KEY=key;
+  load(true,'Setting up multi-bin database...');
 
-  // Reuse existing bin if key was used before
-  const existing = loadLocalCfg();
-  if(existing && existing.k === key && existing.b){
-    BIN_ID=existing.b; API_KEY=key;
-    try{
-      let rec=await dbRead();
-      if(!rec||!rec.users){rec=JSON.parse(JSON.stringify(EMPTY_DB));await dbWrite(rec);}
-      DB=normaliseDB(rec);
-      saveLocalCfg(BIN_ID,API_KEY);
-      cacheUsers(DB.users);
-      load(false);updLLogo();
-      document.getElementById('L-sname').textContent=DB.school.name;
-      showPG('login');
-      toast('Connected to existing database. ✓');
-      return;
-    } catch(e){ /* fall through */ }
-  }
-
-  // Create new bin
   try{
-    const seedData=JSON.parse(JSON.stringify(EMPTY_DB));
-    const createRes=await fetch('https://api.jsonbin.io/v3/b',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'QSC-School-DB','X-Bin-Private':'false'},
-      body:JSON.stringify(seedData)
-    });
-    if(!createRes.ok){
-      const errJ=await createRes.json().catch(()=>({}));
-      throw new Error(errJ.message||'Status '+createRes.status);
-    }
-    const created=await createRes.json();
-    BIN_ID=created.metadata.id;
-    DB=normaliseDB(seedData);
-    saveLocalCfg(BIN_ID,API_KEY);
+    DB=normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+    BINS={};
+    await ensureBins();
+    await dbWrite(DB);
     cacheUsers(DB.users);
+    saveBinRegistry();
+    saveLocalCfg(BINS.settings||'', API_KEY);
+    BIN_ID=BINS.settings||'';
     load(false);al.innerHTML='';
-    updLLogo();
-    document.getElementById('L-sname').textContent=DB.school.name;
-    showPG('login');
-    // Offer to download configured file immediately
+    updLLogo();updSchoolName();showPG('login');
+    toast('Multi-bin database created! ✓');
     setTimeout(()=>{
-      if(confirm('✅ Database created!\n\nDownload the pre-configured app file now?\n\nThis file has your database credentials built in — just share it with staff. Anyone who opens it can log in directly with no setup.')){
-        downloadConfiguredFile();
+      if(confirm('✅ Database ready!\n\nAll data now stored in separate bins for reliability.\n\nShare the School Access Code from Settings → School Settings with staff.')){
+        go('settings');
       }
     },400);
   }catch(e){
@@ -658,16 +833,26 @@ async function doSetup(){
   }
 }
 
-// Staff connect via access code (fallback when distributed file isn't available)
 async function doStaffConnect(){
   const code=(document.getElementById('SU-code')||{}).value?.trim()||'';
   const al=document.getElementById('SU-alert2');
   if(!code){al.innerHTML=err('Enter the School Access Code given by your admin.');return;}
   const decoded=decodeAccessCode(code);
   if(!decoded){al.innerHTML=err('Invalid access code. Ask your admin for the correct code from Settings → School Settings.');return;}
-  BIN_ID=decoded.binId; API_KEY=decoded.masterKey;
+  API_KEY=decoded.masterKey;
+  // The bins registry is encoded in the access code if using new format, else trigger migration
+  if(decoded.bins){
+    BINS=decoded.bins;
+    saveBinRegistry();
+  } else {
+    // Legacy: try to load from registry or create bins
+    BIN_ID=decoded.binId;
+    BINS.settings=decoded.binId;
+    // Try to find other bins by reading jsonbin (they'll be created if missing)
+  }
   load(true,'Connecting...');
   try{
+    await ensureBins().catch(()=>{});
     let rec=await dbRead();
     if(!rec||!rec.users){load(false);al.innerHTML=err('Could not load school data. Check the access code is correct.');return;}
     DB=normaliseDB(rec);
@@ -675,7 +860,7 @@ async function doStaffConnect(){
     cacheUsers(DB.users);
     load(false);
     updLLogo();
-    document.getElementById('L-sname').textContent=DB.school.name;
+    updSchoolName();
     showPG('login');
     toast('Connected! You can now log in. ✓');
   }catch(e){
@@ -690,11 +875,19 @@ function showSetupForReconnect(){ suTab('staff'); showPG('setup'); }
 async function doReconnect(){ await doStaffConnect(); }
 
 function encodeAccessCode(binId, masterKey){
-  return btoa(unescape(encodeURIComponent(binId + '||' + masterKey)));
+  // New format includes bins registry for multi-bin support
+  const payload = JSON.stringify({ binId, masterKey, bins: BINS });
+  return btoa(unescape(encodeURIComponent(payload)));
 }
 function decodeAccessCode(code){
   try{
     const str = decodeURIComponent(escape(atob(code.trim())));
+    // Try new JSON format first
+    try {
+      const obj = JSON.parse(str);
+      if(obj.masterKey) return obj;
+    } catch(e) {}
+    // Fall back to legacy format
     const sep = str.indexOf('||');
     if(sep < 0) return null;
     return { binId: str.slice(0, sep), masterKey: str.slice(sep + 2) };
@@ -702,114 +895,102 @@ function decodeAccessCode(code){
 }
 
 async function boot(){
-  // Safety net: never stay stuck on loading screen more than 12 seconds
-  const safetyTimer = setTimeout(()=>{ /* 6s max wait */
+  const safetyTimer = setTimeout(()=>{
     load(false);
-    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY){ showPG('login'); }
-    else { showPG('setup'); }
-  }, 6000);
+    showPG('login');
+  }, 12000);
 
   try{
-    const cfg=loadLocalCfg();
-    if(!cfg){
-      clearTimeout(safetyTimer);
-      load(false);
-      showPG('setup');
-      return;
-    }
-    BIN_ID=cfg.b; API_KEY=cfg.k;
+    API_KEY = EMBEDDED_API_KEY;
+    BIN_ID = EMBEDDED_BIN_ID;
 
-    // FAST PATH: cached users → show login instantly, sync DB in background
-    const cachedUsers=getCachedUsers();
-    if(cachedUsers && cachedUsers.length > 0){
-      if(!DB) DB=normaliseDB({...JSON.parse(JSON.stringify(EMPTY_DB)),users:cachedUsers});
+    // Try loading multi-bin registry from localStorage
+    const hasBins = loadBinRegistry();
 
-      // Check for existing session
-      const uid=getSessionUid();
+    // FAST PATH: use localStorage snapshot while syncing in background
+    const snap = getDBSnapshot();
+    const cachedUsers = getCachedUsers();
+
+    if(snap && cachedUsers && cachedUsers.length > 0){
+      DB = normaliseDB(snap);
+      // Check for session
+      const uid = getSessionUid();
       if(uid){
-        const u=cachedUsers.find(x=>x.id===uid);
+        const u = cachedUsers.find(x=>x.id===uid);
         if(u){
-          CU=u;
+          CU = u;
           clearTimeout(safetyTimer);
           load(false);
           showPG('app'); updAppUI(); buildNav(); go('dashboard');
-          // Silent background sync
-          dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
+          // Background sync
+          _backgroundSync();
           return;
         }
       }
-
-      // Show login immediately — no network wait
       clearTimeout(safetyTimer);
       load(false);
-      updLLogo();
-      const snEl=document.getElementById('L-sname');
-      if(snEl) snEl.textContent=DB.school&&DB.school.name?DB.school.name:'QUALITY SCHOOL COMPLEX';
-      showPG('login');
-
-      // Sync DB silently in background so login has fresh user list
-      dbRead().then(rec=>{
-        if(rec&&rec.users){
-          DB=normaliseDB(rec); cacheUsers(DB.users);
-          updLLogo();
-          const sn=document.getElementById('L-sname');
-          if(sn) sn.textContent=DB.school.name;
-        }
-      }).catch(()=>{});
+      updLLogo(); updSchoolName(); showPG('login');
+      _backgroundSync();
       return;
     }
 
-    // FIRST VISIT — no localStorage cache
-    // Show login immediately using EMPTY_DB as placeholder while we fetch in background
-    // This means login appears instantly even on slow connections
-    DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
-    clearTimeout(safetyTimer);
-    load(false);
-    updLLogo();
-    const snEl=document.getElementById('L-sname');
-    if(snEl) snEl.textContent='QUALITY SCHOOL COMPLEX';
-    showPG('login');
-
-    // Now fetch real data in background — updates login screen name + caches users
-    const ltxt=document.getElementById('LTXT');
-    dbRead().then(rec=>{
-      if(rec&&rec.users){
-        DB=normaliseDB(rec);
-        cacheUsers(DB.users);
-        saveLocalCfg(BIN_ID, API_KEY);
-        updLLogo();
-        const sn=document.getElementById('L-sname');
-        if(sn) sn.textContent=DB.school.name;
+    // First visit — need to fetch from remote
+    // If no bins in registry, migrate from legacy or create fresh bins
+    if(!hasBins || Object.keys(BINS).length === 0){
+      load(true, 'Setting up multi-bin database...');
+      // Try migrating from legacy single bin
+      const legacy = await dbReadLegacy();
+      if(legacy && legacy.users){
+        DB = normaliseDB({...JSON.parse(JSON.stringify(EMPTY_DB)), ...legacy});
+      } else {
+        DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
       }
-    }).catch(async e=>{
-      // Bin might be empty (brand new bin), write seed data
-      try{
-        DB=normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
-        await dbWrite(DB);
+      // Create all bins
+      await ensureBins();
+      await dbWrite(DB);
+      cacheUsers(DB.users);
+      saveLocalCfg(BIN_ID, API_KEY);
+      try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){}
+      clearTimeout(safetyTimer);
+      load(false); updLLogo(); updSchoolName(); showPG('login');
+      toast('Multi-bin database initialised! ✓','inf');
+      return;
+    }
+
+    // Bins exist — fetch from them
+    load(true, 'Loading...');
+    try{
+      const rec = await dbRead();
+      if(rec && rec.users){
+        DB = normaliseDB(rec);
         cacheUsers(DB.users);
-        saveLocalCfg(BIN_ID, API_KEY);
-      }catch(e2){ /* offline — user can still attempt login */ }
-    });
+        try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){}
+      }
+    }catch(e){ /* use EMPTY_DB */ DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB))); }
+
+    clearTimeout(safetyTimer);
+    load(false); updLLogo(); updSchoolName(); showPG('login');
 
   } catch(e){
     clearTimeout(safetyTimer);
     load(false);
-    // If credentials are embedded, go straight to login even on network error
-    // User can still log in — data will sync when connection resumes
-    if(EMBEDDED_BIN_ID && EMBEDDED_API_KEY){
-      // Try to show login with whatever DB state we have
-      if(!DB) DB=normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
-      const cachedFallback=getCachedUsers();
-      if(cachedFallback) DB.users=cachedFallback;
-      updLLogo();
-      const snEl=document.getElementById('L-sname');
-      if(snEl) snEl.textContent=DB.school&&DB.school.name?DB.school.name:'QUALITY SCHOOL COMPLEX';
-      showPG('login');
-      toast('Offline mode — login works, data will sync when online.','inf');
-    } else {
-      showPG('setup');
-    }
+    if(!DB) DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+    const cachedFallback = getCachedUsers();
+    if(cachedFallback) DB.users = cachedFallback;
+    updLLogo(); updSchoolName(); showPG('login');
+    toast('Offline mode — login works, data syncs when online.','inf');
   }
+}
+
+async function _backgroundSync(){
+  try{
+    const rec = await dbRead();
+    if(rec && rec.users){
+      DB = normaliseDB(rec);
+      cacheUsers(DB.users);
+      try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){}
+    }
+  }catch(e){ /* ignore — will retry on next action */ }
 }
 
 function normaliseDB(rec){
@@ -817,10 +998,14 @@ function normaliseDB(rec){
   if(!rec.savedReports)rec.savedReports=[];
   if(!rec.customSubs)rec.customSubs={};
   if(!rec.termFees)rec.termFees={};
+  if(!rec.classGroups)rec.classGroups={};
   if(!rec.nextRid)rec.nextRid=1;
   if(!rec.nextUid)rec.nextUid=3;
   if(!rec.school)rec.school=JSON.parse(JSON.stringify(EMPTY_DB.school));
+  if(rec.school.motto===undefined)rec.school.motto='Excellence in Education';
   if(!rec.term)rec.term=JSON.parse(JSON.stringify(EMPTY_DB.term));
+  // Ensure students have clsGroup field
+  if(rec.students)rec.students.forEach(s=>{if(s.clsGroup===undefined)s.clsGroup='';});
   return rec;
 }
 
@@ -859,7 +1044,7 @@ async function doLogin(){
       resetBtn();
       doEnterApp(user);
       // Sync DB silently in background — NO load() spinner, NO screen flicker
-      dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);}}).catch(()=>{});
+      dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){};}}).catch(()=>{});
       return;
     }
   }
@@ -870,13 +1055,15 @@ async function doLogin(){
     if(user){resetBtn();doEnterApp(user);return;}
   }
 
-  // STEP 3: Fetch fresh from JSONBin (no spinner — just button state change)
+  // STEP 3: Fetch fresh from all bins
   try{
+    await ensureBins().catch(()=>{});
     const rec=await dbRead();
     if(rec&&rec.users){
       DB=normaliseDB(rec);
       cacheUsers(DB.users);
-      saveLocalCfg(BIN_ID,API_KEY);
+      try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){}
+      saveBinRegistry();
     }
     const user=DB&&DB.users?DB.users.find(x=>x.username===username&&x.password===password):null;
     if(!user){
@@ -905,7 +1092,22 @@ function updAppUI(){
   document.getElementById('SB-role').textContent=CU.role==='admin'?'Administrator':'Class Teacher';
   document.getElementById('U-av').textContent=CU.name[0];
   document.getElementById('U-nm').textContent=CU.name.split(' ')[0];
-  updTC(); updSBLogo();
+  updTC(); updSBLogo(); updSchoolName();
+}
+function updSchoolName(){
+  const name=DB.school&&DB.school.name?DB.school.name:'QUALITY SCHOOL COMPLEX';
+  const motto=DB.school&&DB.school.motto?DB.school.motto:'';
+  const splash=document.getElementById('LOAD-sname');
+  if(splash)splash.textContent=name;
+  const lsn=document.getElementById('L-sname');
+  if(lsn)lsn.textContent=name;
+  const lmotto=document.getElementById('L-motto');
+  if(lmotto)lmotto.textContent=motto?'"'+motto+'"':'';
+  const sb=document.getElementById('SB-name');
+  if(sb)sb.textContent=name;
+  const sbMotto=document.getElementById('SB-motto');
+  if(sbMotto)sbMotto.textContent=motto?'"'+motto+'"':'';
+  document.title=name+' — GES Management System';
 }
 
 /* ══════════════════════════════════════════════
@@ -928,6 +1130,10 @@ function buildNav(){
     if(x.s)return`<div class="nsec">${x.s}</div>`;
     return`<div class="ni" id="ni-${x.id}" onclick="go('${x.id}')"><span class="ni-i">${x.i}</span>${x.l}</div>`;
   }).join('');
+}
+function toggleSidebar(){
+  const app=document.getElementById('APP');
+  if(app)app.classList.toggle('sb-collapsed');
 }
 function setNav(id){document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));const el=document.getElementById('ni-'+id);if(el)el.classList.add('active');}
 const PTITLES={dashboard:'Dashboard',students:'Students',enrollment:'New Enrollment',fees:'Fees & Payments',results:'Results Entry',reports:'Reports & Results',savedreports:'Saved Reports',yearresults:'Year Results',staff:'Staff Management',settings:'School Settings'};
@@ -952,8 +1158,40 @@ function adminDash(){
   const svCount=(DB.savedReports||[]).length;
   const cc={};DB.students.forEach(s=>{cc[s.cls]=(cc[s.cls]||0)+1;});
 
+  // ── Collection stats ──
+  const now=new Date();
+  const todayStr=now.toISOString().slice(0,10);
+  const weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const collectedToday=DB.fees.filter(f=>f.date===todayStr).reduce((s,f)=>s+(f.paid||0),0);
+  const collectedWeek=DB.fees.filter(f=>{if(!f.date)return false;const d=new Date(f.date);return d>=weekStart&&d<=now;}).reduce((s,f)=>s+(f.paid||0),0);
+  const collectedMonth=DB.fees.filter(f=>{if(!f.date)return false;const d=new Date(f.date);return d>=monthStart&&d<=now;}).reduce((s,f)=>s+(f.paid||0),0);
+  const collectedTerm=DB.fees.filter(f=>f.term===DB.term.term&&f.year===DB.term.year).reduce((s,f)=>s+(f.paid||0),0);
+
   document.getElementById('CNT').innerHTML=`
   <div class="sh"><div><div class="stl">Welcome, ${CU.name.split(' ')[0]}!</div><div class="ssb">Academic Year ${DB.term.year} · Term ${DB.term.term}</div></div><button class="btn bg" onclick="moUpdateTerm()">🔄 Update Term</button></div>
+
+  <!-- Collection Stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+    <div class="st" style="border-left:4px solid var(--gr)"><div class="sn" style="color:var(--gr);font-size:18px">GHS ${collectedToday.toLocaleString()}</div><div class="sl">Collected Today</div></div>
+    <div class="st" style="border-left:4px solid var(--bl)"><div class="sn" style="color:var(--bl);font-size:18px">GHS ${collectedWeek.toLocaleString()}</div><div class="sl">This Week</div></div>
+    <div class="st" style="border-left:4px solid var(--go)"><div class="sn" style="color:var(--go);font-size:18px">GHS ${collectedMonth.toLocaleString()}</div><div class="sl">This Month</div></div>
+    <div class="st" style="border-left:4px solid var(--pu)"><div class="sn" style="color:var(--pu);font-size:18px">GHS ${collectedTerm.toLocaleString()}</div><div class="sl">This Term (T${DB.term.term})</div></div>
+  </div>
+
+  <!-- Date Range Transaction Search -->
+  <div class="card cmb">
+    <div class="ct">📅 Transaction Search</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:flex-end;margin-top:10px">
+      <div><label>From Date</label><input type="date" id="TR-from"></div>
+      <div><label>To Date</label><input type="date" id="TR-to" value="${todayStr}"></div>
+      <div><label>Class</label><select id="TR-cls"><option value="">All Classes</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div><label>Method</label><select id="TR-meth"><option value="">All Methods</option><option>Cash</option><option>MoMo</option><option>Bank</option><option>Cheque</option></select></div>
+      <div><button class="btn bg" onclick="searchTransactions()" style="margin-bottom:12px">Search</button></div>
+    </div>
+    <div id="TR-res"></div>
+  </div>
+
   <div class="card cmb">
     <div class="ct">🔍 Search Students</div>
     <div class="g3" style="margin-top:10px">
@@ -967,7 +1205,7 @@ function adminDash(){
     <div class="st"><div class="sn" style="color:var(--gr)">${DB.students.length}</div><div class="sl">Total Students</div></div>
     <div class="st"><div class="sn" style="color:var(--gr)">${paid}</div><div class="sl">Fees Paid</div></div>
     <div class="st"><div class="sn" style="color:var(--go)">${partial}</div><div class="sl">Partial/Owing</div></div>
-    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="sl">Collected</div></div>
+    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="sl">Total Collected</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
@@ -986,6 +1224,32 @@ function adminDash(){
         <button class="btn" onclick="go('settings')" style="justify-content:flex-start">⚙️ School Settings</button>
       </div>
     </div>
+  </div>`;
+}
+
+function searchTransactions(){
+  const from=(document.getElementById('TR-from')||{}).value||'';
+  const to=(document.getElementById('TR-to')||{}).value||'';
+  const cls=(document.getElementById('TR-cls')||{}).value||'';
+  const meth=(document.getElementById('TR-meth')||{}).value||'';
+  let list=DB.fees.filter(f=>f.paid>0);
+  if(from)list=list.filter(f=>f.date&&f.date>=from);
+  if(to)list=list.filter(f=>f.date&&f.date<=to);
+  if(cls)list=list.filter(f=>{const st=DB.students.find(s=>s.id===f.studentId);return st&&st.cls===cls;});
+  if(meth)list=list.filter(f=>f.method===meth);
+  const total=list.reduce((s,f)=>s+(f.paid||0),0);
+  const out=document.getElementById('TR-res');
+  if(!list.length){out.innerHTML='<p style="color:var(--mu);font-size:12px;margin-top:8px">No transactions found for the selected range.</p>';return;}
+  out.innerHTML=`<div style="margin-top:8px">
+    <div style="background:var(--grl);border-radius:var(--r);padding:9px 13px;margin-bottom:10px;font-size:12px;color:var(--gr);font-weight:600">
+      ${list.length} transaction(s) · Total: GHS ${total.toLocaleString()}
+    </div>
+    <div class="tw"><table><thead><tr><th>Student</th><th>Class</th><th>Term</th><th>Amount Paid</th><th>Method</th><th>Date & Time</th><th>Status</th></tr></thead>
+    <tbody>${list.map(f=>{
+      const st=DB.students.find(s=>s.id===f.studentId)||{name:'Unknown',cls:''};
+      const dt=f.date?(f.datetime?new Date(f.datetime).toLocaleString():f.date):'—';
+      return`<tr><td style="font-weight:500">${st.name}</td><td>${st.cls}</td><td>T${f.term} · ${f.year||''}</td><td style="color:var(--gr);font-weight:600">GHS ${f.paid}</td><td>${f.method||'—'}</td><td>${dt}</td><td><span class="bdg ${f.status==='paid'?'bgg':f.status==='partial'?'bgo':'bgr'}">${f.status}</span></td></tr>`;
+    }).join('')}</tbody></table></div>
   </div>`;
 }
 
@@ -1071,8 +1335,11 @@ function pgStudents(){
   window._stAll=list;
 }
 function stRows(list){
-  return list.map((s,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${s.name}</td><td>${s.gender==='M'?'Male':'Female'}</td><td><span class="bdg bgg">${s.cls}</span></td><td>${s.guardian}</td><td>${s.phone}</td><td><span class="bdg ${s.status==='active'?'bgg':'bgr'}">${s.status}</span></td>
-  <td style="display:flex;gap:4px"><button class="btn sm" onclick="moViewSt(${s.id})">View</button>${CU.role==='admin'?`<button class="btn sm" onclick="moEditSt(${s.id})">Edit</button><button class="btn sm bd" onclick="delSt(${s.id})">Del</button>`:''}</td></tr>`).join('');
+  return list.map((s,i)=>{
+    const clsLabel=s.clsGroup?`${s.cls} ${s.clsGroup}`:s.cls;
+    return`<tr><td>${i+1}</td><td style="font-weight:500">${s.name}</td><td>${s.gender==='M'?'Male':'Female'}</td><td><span class="bdg bgg">${clsLabel}</span></td><td>${s.guardian}</td><td>${s.phone}</td><td><span class="bdg ${s.status==='active'?'bgg':'bgr'}">${s.status}</span></td>
+  <td style="display:flex;gap:4px"><button class="btn sm" onclick="moViewSt(${s.id})">View</button>${CU.role==='admin'?`<button class="btn sm" onclick="moEditSt(${s.id})">Edit</button><button class="btn sm bd" onclick="delSt(${s.id})">Del</button>`:''}</td></tr>`;
+  }).join('');
 }
 function filSt(){
   const q=(document.getElementById('STQ')||{}).value?.toLowerCase()||'';
@@ -1091,11 +1358,19 @@ function moViewSt(id){
 }
 function moEditSt(id){
   const s=DB.students.find(x=>x.id===id);if(!s)return;
-  moOpen(`Edit — ${s.name}`,`<div class="fg"><label>Full Name</label><input id="E-nm" value="${s.name}"></div><div class="g2"><div class="fg"><label>DOB</label><input type="date" id="E-dob" value="${s.dob}"></div><div class="fg"><label>Gender</label><select id="E-gd"><option value="M" ${s.gender==='M'?'selected':''}>Male</option><option value="F" ${s.gender==='F'?'selected':''}>Female</option></select></div></div><div class="fg"><label>Class</label><select id="E-cls">${CLASSES.map(c=>`<option ${s.cls===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="g2"><div class="fg"><label>Guardian</label><input id="E-gu" value="${s.guardian}"></div><div class="fg"><label>Phone</label><input id="E-ph" value="${s.phone}"></div></div><div class="fg"><label>Status</label><select id="E-st"><option value="active" ${s.status==='active'?'selected':''}>Active</option><option value="inactive">Inactive</option></select></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="saveEditSt(${id})">Save</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+  const groups=(DB.classGroups&&DB.classGroups[s.cls])||[];
+  const grpOpts='<option value="">None</option>'+groups.map(g=>`<option ${s.clsGroup===g?'selected':''}>${g}</option>`).join('');
+  moOpen(`Edit — ${s.name}`,`<div class="fg"><label>Full Name</label><input id="E-nm" value="${s.name}"></div><div class="g2"><div class="fg"><label>DOB</label><input type="date" id="E-dob" value="${s.dob}"></div><div class="fg"><label>Gender</label><select id="E-gd"><option value="M" ${s.gender==='M'?'selected':''}>Male</option><option value="F" ${s.gender==='F'?'selected':''}>Female</option></select></div></div><div class="g2"><div class="fg"><label>Class</label><select id="E-cls" onchange="editClsChange(this)">${CLASSES.map(c=>`<option ${s.cls===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="fg"><label>Class Group</label><select id="E-grp">${grpOpts}</select></div></div><div class="g2"><div class="fg"><label>Guardian</label><input id="E-gu" value="${s.guardian}"></div><div class="fg"><label>Phone</label><input id="E-ph" value="${s.phone}"></div></div><div class="fg"><label>Status</label><select id="E-st"><option value="active" ${s.status==='active'?'selected':''}>Active</option><option value="inactive">Inactive</option></select></div><div style="display:flex;gap:7px"><button class="btn bg" onclick="saveEditSt(${id})">Save</button><button class="btn" onclick="moClose()">Cancel</button></div>`);
+}
+function editClsChange(sel){
+  const cls=sel.value;
+  const grpSel=document.getElementById('E-grp');if(!grpSel)return;
+  const groups=(DB.classGroups&&DB.classGroups[cls])||[];
+  grpSel.innerHTML='<option value="">None</option>'+groups.map(g=>`<option>${g}</option>`).join('');
 }
 async function saveEditSt(id){
   const s=DB.students.find(x=>x.id===id);if(!s)return;
-  s.name=document.getElementById('E-nm').value;s.dob=document.getElementById('E-dob').value;s.gender=document.getElementById('E-gd').value;s.cls=document.getElementById('E-cls').value;s.guardian=document.getElementById('E-gu').value;s.phone=document.getElementById('E-ph').value;s.status=document.getElementById('E-st').value;
+  s.name=document.getElementById('E-nm').value;s.dob=document.getElementById('E-dob').value;s.gender=document.getElementById('E-gd').value;s.cls=document.getElementById('E-cls').value;s.clsGroup=document.getElementById('E-grp').value||'';s.guardian=document.getElementById('E-gu').value;s.phone=document.getElementById('E-ph').value;s.status=document.getElementById('E-st').value;
   await saveWithIndicator();moClose();toast('Student updated');go('students');
 }
 async function delSt(id){
@@ -1118,7 +1393,10 @@ function pgEnroll(){
     <div id="EN-alert"></div>
     <div class="fg"><label>Full Name *</label><input id="EN-nm" placeholder="Student full name"></div>
     <div class="g2"><div class="fg"><label>Date of Birth *</label><input type="date" id="EN-dob"></div><div class="fg"><label>Gender *</label><select id="EN-gd"><option value="">Select...</option><option value="M">Male</option><option value="F">Female</option></select></div></div>
-    <div class="fg"><label>Class *</label><select id="EN-cls" onchange="enClsChange()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    <div class="g2">
+      <div class="fg"><label>Class *</label><select id="EN-cls" onchange="enClsChange()"><option value="">Select class...</option>${CLASSES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="fg"><label>Class Group (e.g. A, B, C)</label><select id="EN-grp"><option value="">None / Default</option></select></div>
+    </div>
     <div class="fg"><label>Enrollment Date</label><input type="date" id="EN-dt" value="${new Date().toISOString().slice(0,10)}"></div>
     <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
     <div style="font-size:12px;font-weight:600;color:var(--gr);margin-bottom:9px">Guardian / Parent Information</div>
@@ -1135,25 +1413,31 @@ function enClsChange(){
   const fee=getTermFee(cls);
   const el=document.getElementById('EN-famt');
   if(el&&fee>0)el.value=fee;
+  // Populate group dropdown
+  const grpSel=document.getElementById('EN-grp');
+  if(!grpSel)return;
+  const groups=(DB.classGroups&&DB.classGroups[cls])||[];
+  grpSel.innerHTML='<option value="">None / Default</option>'+groups.map(g=>`<option value="${g}">${cls} ${g}</option>`).join('');
 }
 async function submitEnroll(){
   const name=(document.getElementById('EN-nm')||{}).value?.trim()||'';
   const dob=(document.getElementById('EN-dob')||{}).value||'';
   const gender=(document.getElementById('EN-gd')||{}).value||'';
   const cls=(document.getElementById('EN-cls')||{}).value||'';
+  const clsGroup=(document.getElementById('EN-grp')||{}).value||'';
   const guardian=(document.getElementById('EN-gu')||{}).value?.trim()||'';
   const phone=(document.getElementById('EN-ph')||{}).value?.trim()||'';
   const dt=(document.getElementById('EN-dt')||{}).value||'';
   if(!name||!dob||!gender||!cls||!guardian||!phone){toast('Fill all required fields','er');return;}
   const sid=DB.nextSid++;
-  DB.students.push({id:sid,name,dob,gender,cls,guardian,phone,enrollDate:dt,status:'active'});
+  DB.students.push({id:sid,name,dob,gender,cls,clsGroup,guardian,phone,enrollDate:dt,status:'active'});
   const famt=parseFloat((document.getElementById('EN-famt')||{}).value)||0;
   const fpd=parseFloat((document.getElementById('EN-fpd')||{}).value)||0;
   if(famt>0||fpd>0){
     const status=fpd>=famt&&famt>0?'paid':fpd>0?'partial':'unpaid';
-    DB.fees.push({id:DB.nextFid++,studentId:sid,amount:famt,paid:fpd,term:DB.term.term,year:DB.term.year,date:(document.getElementById('EN-fdt')||{}).value||'',status,method:(document.getElementById('EN-fmeth')||{}).value||'Cash'});
+    DB.fees.push({id:DB.nextFid++,studentId:sid,amount:famt,paid:fpd,term:DB.term.term,year:DB.term.year,date:(document.getElementById('EN-fdt')||{}).value||'',datetime:new Date().toISOString(),status,method:(document.getElementById('EN-fmeth')||{}).value||'Cash'});
   }
-  load(true,'Enrolling...');await save();load(false);toast('Student enrolled!');go('students');
+  await saveWithIndicator();toast('Student enrolled!');go('students');
 }
 
 /* ══════════════════════════════════════════════
@@ -1180,7 +1464,8 @@ function feeRows(list){
   return list.map(f=>{
     const st=DB.students.find(s=>s.id===f.studentId)||{name:'Unknown',cls:''};
     const bal=(f.amount||0)-(f.paid||0);
-    return`<tr><td style="font-weight:500">${st.name}</td><td>${st.cls}</td><td>T${f.term}</td><td>GHS ${f.amount}</td><td style="color:var(--gr);font-weight:600">GHS ${f.paid}</td><td style="color:${bal>0?'var(--rd)':'var(--gr)'};font-weight:600">GHS ${bal}</td><td>${f.method||'—'}</td><td>${f.date||'—'}</td><td><span class="bdg ${f.status==='paid'?'bgg':f.status==='partial'?'bgo':'bgr'}">${f.status}</span></td>
+    const dateDisplay=f.datetime?new Date(f.datetime).toLocaleString():(f.date||'—');
+    return`<tr><td style="font-weight:500">${st.name}</td><td>${st.cls}</td><td>T${f.term}</td><td>GHS ${f.amount}</td><td style="color:var(--gr);font-weight:600">GHS ${f.paid}</td><td style="color:${bal>0?'var(--rd)':'var(--gr)'};font-weight:600">GHS ${bal}</td><td>${f.method||'—'}</td><td style="font-size:11px">${dateDisplay}</td><td><span class="bdg ${f.status==='paid'?'bgg':f.status==='partial'?'bgo':'bgr'}">${f.status}</span></td>
     <td style="display:flex;gap:4px"><button class="btn sm" onclick="moUpdFee(${f.id})">Update</button><button class="btn sm bd" onclick="delFee(${f.id})">Del</button></td></tr>`;
   }).join('');
 }
@@ -1290,7 +1575,7 @@ async function savePayment(){
   if(!sid){toast('Select a student','er');return;}
   const status=paid>=amt&&amt>0?'paid':paid>0?'partial':'unpaid';
   const idx=DB.fees.findIndex(f=>f.studentId===sid&&f.term===term&&f.year===DB.term.year);
-  const rec={id:idx>=0?DB.fees[idx].id:DB.nextFid++,studentId:sid,amount:amt,paid,term,year:DB.term.year,date:(document.getElementById('PY-dt')||{}).value||'',status,method:(document.getElementById('PY-meth')||{}).value||'Cash'};
+  const rec={id:idx>=0?DB.fees[idx].id:DB.nextFid++,studentId:sid,amount:amt,paid,term,year:DB.term.year,date:(document.getElementById('PY-dt')||{}).value||'',datetime:new Date().toISOString(),status,method:(document.getElementById('PY-meth')||{}).value||'Cash'};
   if(idx>=0)DB.fees[idx]=rec; else DB.fees.push(rec);
   await saveWithIndicator();moClose();toast('Payment saved!');go('fees');
 }
@@ -1308,6 +1593,7 @@ async function saveUpdFee(id){
   f.status=f.paid>=f.amount?'paid':f.paid>0?'partial':'unpaid';
   f.method=(document.getElementById('UP-meth')||{}).value||f.method;
   f.date=(document.getElementById('UP-dt')||{}).value||f.date;
+  f.datetime=new Date().toISOString();
   await saveWithIndicator();moClose();toast('Payment updated!');go('fees');
 }
 
@@ -1522,7 +1808,7 @@ function buildRC(sid,term,vac,rop){
   const conducts=['Punctuality & Attendance','Neatness & Appearance','Cooperation with Peers','Participation in Class','General Behavior & Conduct','Respect for Authority'];
   const logoH=DB.school.logo?`<div class="rcr"><img src="${DB.school.logo}" alt="Logo"></div>`:`<div class="rcr">🎓</div>`;
   return`<div class="rcp">
-    <div class="rch">${logoH}<div style="flex:1;text-align:center"><div class="rcsn">${DB.school.name}</div><div class="rcci">${DB.school.address}</div><div class="rcci">Tel: ${DB.school.phone} | Email: ${DB.school.email}</div><div class="rcci" style="font-weight:600;color:#16613a">Accredited by Ghana Education Service (GES)</div></div>${logoH}</div>
+    <div class="rch">${logoH}<div style="flex:1;text-align:center"><div class="rcsn">${DB.school.name}</div>${DB.school.motto?`<div class="rcci" style="font-style:italic;font-weight:600;color:#b8760f;margin-top:1px">"${DB.school.motto}"</div>`:''}  <div class="rcci">${DB.school.address}</div><div class="rcci">Tel: ${DB.school.phone} | Email: ${DB.school.email}</div><div class="rcci" style="font-weight:600;color:#16613a">Accredited by Ghana Education Service (GES)</div></div>${logoH}</div>
     <div class="rcdt">${DB.school.title||'Student Academic Report Card'}</div>
     <div class="rcib">
       <div class="rcic"><div class="lb">Student Name</div><div class="vl">${st.name}</div></div>
@@ -1579,6 +1865,16 @@ function buildRC(sid,term,vac,rop){
           </tr>
         </table>
         ${totalUnpaid===0?'<div style="margin-top:5px;font-size:10px;color:#16613a;font-weight:600">✓ No outstanding balance. Next term fee only applies.</div>':''}
+        <div style="display:flex;gap:12px;border-top:1.5px solid #e5d9c8;margin-top:10px;padding-top:10px;font-size:11px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+            <span style="font-weight:700;color:#16613a;white-space:nowrap">Promoted to:</span>
+            <div style="flex:1;border-bottom:1.5px solid #333;min-height:16px"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+            <span style="font-weight:700;color:#a32d2d;white-space:nowrap">Demoted to:</span>
+            <div style="flex:1;border-bottom:1.5px solid #333;min-height:16px"></div>
+          </div>
+        </div>
       </div>
       <div class="rcco"><h4>Conduct &amp; Character Assessment</h4><p style="font-size:9px;color:#888;margin-bottom:7px;font-style:italic">To be completed by Class Teacher after printing</p>${conducts.map(c=>`<div class="cdl"><span style="min-width:190px">${c}</span><div class="cwl"></div></div>`).join('')}</div>
       <div class="rcda"><div class="rcdi"><div class="lb">Date of Vacation</div><div class="vl">${vac||'___________________________'}</div></div><div class="rcdi"><div class="lb">Date of Re-opening</div><div class="vl">${rop||'___________________________'}</div></div></div>
@@ -1586,7 +1882,7 @@ function buildRC(sid,term,vac,rop){
       <div class="rcrm"><h4>Headmaster / Headmistress Remarks</h4><div class="rmtx">${hRemark(avg)}</div></div>
       <div class="rcsi"><div><div class="sl">Class Teacher's Signature &amp; Date</div></div><div><div class="sl">Head Teacher's Signature &amp; Date</div></div></div>
     </div>
-    <div class="rcft">Next Term Begins: ${rop||'TBA'} | School Fees Due on First Day | ${DB.school.name} — Excellence in Education</div>
+    <div class="rcft">Next Term Begins: ${rop||'TBA'} | School Fees Due on First Day | ${DB.school.name}${DB.school.motto?' — '+DB.school.motto:' — Excellence in Education'}</div>
   </div>`;
 }
 
@@ -2093,7 +2389,12 @@ function pgSettings(){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
       <div class="ct">School Information</div><div class="cs">Appears on all report cards</div>
-      <div class="fg"><label>School Name</label><input id="SS-nm" value="${DB.school.name}"></div>
+      <div class="fg"><label>School Name</label><input id="SS-nm" value="${DB.school.name}" oninput="previewSchoolName(this.value)">
+        <p id="SS-nm-preview" style="font-size:11px;color:var(--gr);margin-top:4px;font-weight:600;display:none"></p>
+      </div>
+      <div class="fg"><label>School Motto</label><input id="SS-mo" value="${DB.school.motto||''}" placeholder="e.g. Excellence in Education" oninput="previewMotto(this.value)">
+        <p id="SS-mo-preview" style="font-size:11px;color:var(--go);margin-top:4px;font-weight:600;font-style:italic;display:none"></p>
+      </div>
       <div class="fg"><label>Report Card Title</label><input id="SS-ti" value="${DB.school.title||'Student Academic Report Card'}"></div>
       <div class="fg"><label>Email</label><input type="email" id="SS-em" value="${DB.school.email}"></div>
       <div class="fg"><label>Phone</label><input id="SS-ph" value="${DB.school.phone}"></div>
@@ -2119,11 +2420,74 @@ function pgSettings(){
       <div class="ct">Term Fee Amounts</div><div class="cs">Set fees per class. Auto-fills enrollment form.</div>
       <button class="btn" onclick="moSetFees()">⚙️ Set Term Fees</button>
       <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
+      <div class="ct">🔤 Class Groups (A, B, C…)</div>
+      <div class="cs">Assign alphabet groups to classes (e.g. KG 1 A, KG 1 B). Used in enrollment.</div>
+      <div id="CG-list" style="margin-bottom:10px">${renderClassGroups()}</div>
+      <button class="btn bg" onclick="moManageClassGroups()">⚙️ Manage Class Groups</button>
+      <hr style="margin:14px 0;border:none;border-top:1.5px solid #eef0f3">
       <div class="ct" style="color:var(--rd)">⚠ Danger Zone</div>
       <div class="cs">Permanently deletes all students, results, fees and reports.</div>
       <button class="btn bd" onclick="confirmReset()">Reset All Data</button>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="ct">🗄️ Multi-Bin Database Status</div>
+    <div class="cs">Each data type is stored in its own JSONBin for reliability — no more disappearing data</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">
+      ${[['Settings','settings'],['Users','users'],['Students','students'],['Fees','fees'],['Results','results'],['Submissions','submissions'],['Saved Reports','savedReports']].map(([label,key])=>`
+      <div style="background:${(BINS&&BINS[key])?'var(--grl)':'var(--rdl)'};border-radius:var(--r);padding:8px 10px;font-size:11px">
+        <div style="font-weight:700;color:${(BINS&&BINS[key])?'var(--gr)':'var(--rd)'}">${label}</div>
+        <div style="color:var(--mu);font-size:10px;margin-top:2px">${(BINS&&BINS[key])?'✓ Connected':'✕ Not set'}</div>
+      </div>`).join('')}
+    </div>
+    <div><label>School Access Code (share with staff — includes all bin IDs)</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <input id="SAC-display" value="${encodeAccessCode(BIN_ID,API_KEY)}" readonly style="font-family:monospace;font-size:10px;flex:1;min-width:0;background:#f5f7fa">
+        <button class="btn bg sm" onclick="copySAC()">📋 Copy</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--mu);margin-top:8px">Staff paste this code once on their device → Settings → Staff Login. It automatically connects all bins.</p>
   </div>`;
+}
+
+/* ── Class Groups ── */
+function renderClassGroups(){
+  const groups=DB.classGroups||{};
+  const active=CLASSES.filter(c=>groups[c]&&groups[c].length>0);
+  if(!active.length)return'<p style="font-size:11px;color:var(--mu)">No class groups defined yet.</p>';
+  return active.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1.5px solid #eef0f3;font-size:12px"><span><b>${c}</b>: ${groups[c].map(g=>`${c} ${g}`).join(', ')}</span></div>`).join('');
+}
+function moManageClassGroups(){
+  const groups=DB.classGroups||{};
+  moOpen('🔤 Manage Class Groups',`
+    <p style="font-size:12px;color:var(--mu);margin-bottom:14px">Enter comma-separated letters for each class (e.g. <b>A, B, C</b>). Leave blank to disable groups for that class.</p>
+    <div style="max-height:360px;overflow-y:auto">
+    ${CLASSES.map(c=>{
+      const cur=(groups[c]||[]).join(', ');
+      return`<div class="g2" style="margin-bottom:8px;align-items:center">
+        <div style="font-size:12px;font-weight:600">${c}</div>
+        <input id="CG-${c.replace(/\s/g,'_')}" value="${cur}" placeholder="A, B, C…" style="font-size:12px">
+      </div>`;
+    }).join('')}
+    </div>
+    <div style="display:flex;gap:7px;margin-top:14px">
+      <button class="btn bg" onclick="saveClassGroups()">💾 Save Groups</button>
+      <button class="btn" onclick="moClose()">Cancel</button>
+    </div>`);
+}
+async function saveClassGroups(){
+  if(!DB.classGroups)DB.classGroups={};
+  CLASSES.forEach(c=>{
+    const el=document.getElementById('CG-'+c.replace(/\s/g,'_'));
+    if(!el)return;
+    const val=el.value.trim();
+    if(val){
+      DB.classGroups[c]=val.split(',').map(x=>x.trim().toUpperCase()).filter(x=>x);
+    } else {
+      delete DB.classGroups[c];
+    }
+  });
+  await saveWithIndicator();moClose();toast('Class groups saved! ✓');pgSettings();
 }
 
 function copySAC(){
@@ -2161,15 +2525,38 @@ function handleLogo(e){
   reader.readAsDataURL(file);
 }
 async function clearLogo(){DB.school.logo='';await saveWithIndicator();updSBLogo();updLLogo();toast('Logo removed');pgSettings();}
+function previewSchoolName(val){
+  const prev=document.getElementById('SS-nm-preview');
+  if(!prev)return;
+  const trimmed=(val||'').trim();
+  if(trimmed&&trimmed!==DB.school.name){
+    prev.style.display='block';
+    prev.textContent='Preview: '+trimmed+' (save to apply everywhere)';
+  } else {
+    prev.style.display='none';
+  }
+}
+function previewMotto(val){
+  const prev=document.getElementById('SS-mo-preview');
+  if(!prev)return;
+  const trimmed=(val||'').trim();
+  if(trimmed&&trimmed!==(DB.school.motto||'')){
+    prev.style.display='block';
+    prev.textContent='Preview: "'+trimmed+'" (save to apply everywhere)';
+  } else {
+    prev.style.display='none';
+  }
+}
 async function saveSettings(){
   DB.school.name=(document.getElementById('SS-nm')||{}).value?.trim()||DB.school.name;
+  DB.school.motto=(document.getElementById('SS-mo')||{}).value?.trim()||'';
   DB.school.title=(document.getElementById('SS-ti')||{}).value?.trim()||DB.school.title;
   DB.school.email=(document.getElementById('SS-em')||{}).value?.trim()||DB.school.email;
   DB.school.phone=(document.getElementById('SS-ph')||{}).value?.trim()||DB.school.phone;
   DB.school.address=(document.getElementById('SS-ad')||{}).value?.trim()||DB.school.address;
   const logoUrl=(document.getElementById('SS-logo')||{}).value?.trim()||'';
   if(logoUrl)DB.school.logo=logoUrl;
-  await saveWithIndicator();updAppUI();updLLogo();toast('Settings saved!');pgSettings();
+  await saveWithIndicator();updAppUI();updSchoolName();updLLogo();toast('Settings saved! ✓');pgSettings();
 }
 async function doUpdateTerm(){
   DB.term.year=(document.getElementById('ST-yr')||{}).value||DB.term.year;
