@@ -628,12 +628,12 @@ function save() {
   scheduleRemoteSync();
 }
 
-// saveWithIndicator() — same as save() but shows the "Saved ✓" flash immediately
+// saveWithIndicator() — instant local save + flash "✓ Saved" + background remote sync
 function saveWithIndicator() {
+  if(DB && DB.users) cacheUsers(DB.users); // always keep cache in sync
   saveLocal();
-  showCloudSync(false); // flash "✓ Saved" right now
+  showCloudSync(false);
   scheduleRemoteSync();
-  // Return a resolved promise so all `await saveWithIndicator()` callers work unchanged
   return Promise.resolve();
 }
 
@@ -1113,31 +1113,33 @@ async function doLogin(){
     go('dashboard');
   }
 
-  // STEP 1: Try cached users first (instant, no network)
+  // STEP 1: Try cached users (instant, no network) — only accept a positive match
   const cachedUsers=getCachedUsers();
   if(cachedUsers&&cachedUsers.length>0){
     const user=cachedUsers.find(x=>x.username===username&&x.password===password);
     if(user){
       resetBtn();
       doEnterApp(user);
-      // Sync DB silently in background — NO load() spinner, NO screen flicker
+      // Sync DB silently in background
       dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){};}}).catch(()=>{});
       return;
     }
+    // Cache miss — don't reject yet; credentials may have changed on another device.
+    // Fall through to live DB check.
   }
 
-  // STEP 2: Try current in-memory DB (may be populated from background sync)
+  // STEP 2: Try current in-memory DB
   if(DB&&DB.users&&DB.users.length>0){
     const user=DB.users.find(x=>x.username===username&&x.password===password);
     if(user){resetBtn();doEnterApp(user);return;}
   }
 
-  // STEP 3: Fetch fresh from all bins to get latest users/data
+  // STEP 3: Fetch fresh from all bins — this is the source of truth
   try{
     const rec = await dbRead();
     if(rec && rec.users){
       DB = normaliseDB(rec);
-      cacheUsers(DB.users);
+      cacheUsers(DB.users); // refresh cache with latest credentials
       try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
     }
     const user = DB && DB.users ? DB.users.find(x=>x.username===username && x.password===password) : null;
@@ -1149,12 +1151,13 @@ async function doLogin(){
     resetBtn();
     doEnterApp(user);
   }catch(e){
-    // Network failed — try once more with embedded defaults before showing error
-    const allUsers=(getCachedUsers()||[]).concat(DB&&DB.users?DB.users:[]);
-    const uniqueUsers=[...new Map(allUsers.map(u=>[u.id,u])).values()];
+    // Network failed — last resort: check all sources we have
+    const allUsers=[...(getCachedUsers()||[]),...(DB&&DB.users?DB.users:[])];
+    const seen=new Set();
+    const uniqueUsers=allUsers.filter(u=>seen.has(u.id)?false:seen.add(u.id));
     const user=uniqueUsers.find(x=>x.username===username&&x.password===password);
     if(user){resetBtn();doEnterApp(user);return;}
-    al.innerHTML=err('Could not connect. Check your internet connection and try again.');
+    al.innerHTML=err('Could not connect to database. Check your internet and try again.');
     resetBtn();
   }
 }
@@ -2410,6 +2413,7 @@ async function saveNewUser(){
   DB.users.push({id:DB.nextUid++,username,password,role,name,
     email:(document.getElementById('AU-em')||{}).value||'',
     cls,subject});
+  cacheUsers(DB.users); // ← update cache so new user can log in immediately
   await saveWithIndicator();moClose();toast('User added successfully!');pgStaff();
 }
 function moEditUser(id){
@@ -2444,14 +2448,18 @@ async function saveEditUser(id){
   }
 
   u.name=(document.getElementById('EU-nm')||{}).value||u.name;
-  u.username=newUn;if(newPw)u.password=newPw; // newPw always set since field shows current
+  u.username=newUn;if(newPw)u.password=newPw;
   u.role=newRole; u.cls=newCls; u.subject=newSub;
   u.email=(document.getElementById('EU-em')||{}).value||'';
+  // If editing the currently logged-in user, update CU immediately
+  if(CU && CU.id === id) CU = {...CU, ...u};
+  cacheUsers(DB.users); // ← update cache NOW so login works with new credentials
   await saveWithIndicator();moClose();toast('User updated!');pgStaff();
 }
 async function delUser(id){
   if(!confirm('Delete this user?'))return;
   DB.users=DB.users.filter(u=>u.id!==id);
+  cacheUsers(DB.users); // ← remove from cache immediately
   await saveWithIndicator();toast('User deleted','er');pgStaff();
 }
 
