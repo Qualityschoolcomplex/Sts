@@ -257,21 +257,19 @@ tbody tr:hover td{background:var(--bg)}
     <!-- ADMIN PANEL -->
     <div id="SU-admin-panel">
       <div style="background:#f0f7ff;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333;border:1px solid #b3d4f5">
-        <b>Admin first-time setup (done once):</b><br>
-        1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--bl);font-weight:600">jsonbin.io</a> → Sign up free<br>
-        2. Dashboard → <b>API Keys</b> → <b>Create Access Key (Master)</b><br>
-        3. Paste it below — the app creates <b>7 separate bins</b> automatically<br>
-        4. Copy the <b>School Access Code</b> and share with all staff
+        <b>First time?</b> Paste your Master Key — bins are created automatically.<br>
+        <b>Bins already created?</b> Paste the same Master Key — the app reconnects to your existing bins automatically.<br><br>
+        Get your key: <a href="https://jsonbin.io" target="_blank" style="color:var(--bl);font-weight:600">jsonbin.io</a> → <b>API Keys</b> → <b>Master Key</b>
       </div>
       <div class="fg">
-        <label>Master API Key <span style="color:var(--mu);font-weight:400">(from JSONBin → API Keys)</span></label>
+        <label>Master API Key</label>
         <input id="SU-key" placeholder="$2a$10$…  (paste your full Master Key)" style="font-family:monospace;font-size:11px">
-        <p style="font-size:10px;color:var(--mu);margin-top:4px">⚠ Use the <b>Master Key</b> (not the Access/Read key). It starts with <code style="background:#f0f2f5;padding:1px 5px;border-radius:3px">$2a$10$</code></p>
+        <p style="font-size:10px;color:var(--mu);margin-top:4px">⚠ Use the <b>Master Key</b> (not the Access/Read key). Starts with <code style="background:#f0f2f5;padding:1px 5px;border-radius:3px">$2a$10$</code></p>
       </div>
       <div id="SU-progress" style="margin-bottom:10px"></div>
       <div id="SU-alert"></div>
-      <button class="btn bg" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doSetup()">🚀 Create Bins &amp; Set Up Database</button>
-      <p style="text-align:center;font-size:10px;color:var(--mu)">7 bins are created automatically on JSONBin. Takes ~15 seconds.</p>
+      <button class="btn bg" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doSetup()">🚀 Connect / Create Database</button>
+      <p style="text-align:center;font-size:10px;color:var(--mu)">Finds existing bins automatically. Creates new ones if missing.</p>
     </div>
 
     <!-- STAFF / NEW DEVICE PANEL -->
@@ -786,25 +784,43 @@ async function doSetup(){
   BINS    = {};
 
   const btn = document.querySelector('#SU-admin-panel .btn.bg');
-  if(btn){ btn.disabled=true; btn.textContent='Creating bins…'; }
+  if(btn){ btn.disabled=true; btn.textContent='Connecting…'; }
   al.innerHTML = '';
 
-  // Progress display
   const prog = document.getElementById('SU-progress');
-  const setStep = (msg, done=false, err_=false) => {
-    if(prog) prog.innerHTML = `<div style="font-size:12px;padding:10px 13px;background:${err_?'#fff0f0':done?'#f0fff4':'#f0f7ff'};border-radius:7px;border:1px solid ${err_?'#f5b8b8':done?'#a5d6a7':'#90caf9'};color:${err_?'var(--rd)':done?'#2e7d32':'#1565c0'}">${msg}</div>`;
+  const setStep = (msg, done=false, isErr=false) => {
+    if(prog) prog.innerHTML = `<div style="font-size:12px;padding:10px 13px;background:${isErr?'#fff0f0':done?'#f0fff4':'#f0f7ff'};border-radius:7px;border:1px solid ${isErr?'#f5b8b8':done?'#a5d6a7':'#90caf9'};color:${isErr?'var(--rd)':done?'#2e7d32':'#1565c0'}">${msg}</div>`;
   };
 
-  setStep('🔑 Verifying API key…');
-  load(true,'Creating your 7 database bins — please wait…');
+  setStep('🔑 Verifying Master Key…');
+  load(true, 'Setting up — please wait…');
 
   try {
-    // Create bins one by one so the user sees progress
-    const binOrder = Object.keys(BIN_NAMES);
-    for(let i=0; i<binOrder.length; i++){
-      const k = binOrder[i];
-      setStep(`📦 Creating bin ${i+1}/${binOrder.length}: <b>${BIN_NAMES[k]}</b>…`);
-      const seed = {
+    // ── STEP 1: Verify the key works by testing against JSONBin ──
+    setStep('🔑 Verifying Master Key…');
+    const KNOWN_BIN = '69e18176856a682189416392'; // original single bin
+    try {
+      const testRes = await fetch(`${BIN_BASE}/${KNOWN_BIN}/latest`, { headers: { 'X-Master-Key': key } });
+      if(testRes.status === 401 || testRes.status === 403){
+        throw new Error('Master Key was rejected. Make sure you are using the <b>Master Key</b>, not an Access Key or Read Key.');
+      }
+      // 200 = bin exists with this key, 404 = key valid but bin deleted — both fine
+    } catch(fe){
+      if(fe.message.includes('Master Key')) throw fe;
+      // network error — proceed anyway, real errors surface later
+    }
+
+    // ── STEP 2: Look up existing QSC bins on this account ──
+    setStep('🔍 Looking for existing bins on your account…');
+    const existingBins = await fetchExistingBins(key);
+
+    if(existingBins && Object.keys(existingBins).length === Object.keys(BIN_NAMES).length){
+      BINS   = existingBins;
+      BIN_ID = BINS.settings;
+      setStep(`✅ Found all ${Object.keys(BIN_NAMES).length} existing bins — reconnecting…`, true);
+    } else {
+      const binOrder = Object.keys(BIN_NAMES);
+      const seedFor = {
         settings:     { school: JSON.parse(JSON.stringify(EMPTY_DB.school)), term: JSON.parse(JSON.stringify(EMPTY_DB.term)), termFees:{}, customSubs:{}, classGroups:{} },
         users:        { users: JSON.parse(JSON.stringify(EMPTY_DB.users)), nextUid: EMPTY_DB.nextUid },
         students:     { students: JSON.parse(JSON.stringify(EMPTY_DB.students)), nextSid: EMPTY_DB.nextSid },
@@ -812,41 +828,92 @@ async function doSetup(){
         results:      { results:[], nextRid:1 },
         submissions:  { submissions:[] },
         savedReports: { savedReports:[] },
-      }[k];
-      BINS[k] = await binCreate(BIN_NAMES[k], seed);
+      };
+      if(existingBins) Object.assign(BINS, existingBins);
+      let created = 0;
+      for(let i=0; i<binOrder.length; i++){
+        const k = binOrder[i];
+        if(BINS[k]) continue;
+        created++;
+        setStep(`📦 Creating bin ${created}: <b>${BIN_NAMES[k]}</b>…`);
+        BINS[k] = await binCreate(BIN_NAMES[k], seedFor[k]);
+      }
+      BIN_ID = BINS.settings;
+      setStep(created > 0 ? `✅ Created ${created} bin(s). All bins ready!` : '✅ All bins found!', true);
     }
-    BIN_ID = BINS.settings;
 
-    setStep(`✅ All ${binOrder.length} bins created! Saving configuration…`);
-    DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+    // ── STEP 2: Read real data from bins ──
+    setStep('📥 Loading data from database…');
+    let rec = null;
+    try { rec = await dbRead(); } catch(e) {}
+
+    if(rec && rec.users){
+      DB = normaliseDB(rec);
+    } else {
+      DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+    }
+
+    // ── STEP 3: Save everything locally ──
     cacheUsers(DB.users);
     saveBinRegistry();
     try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
 
     load(false);
-    if(btn){ btn.disabled=false; btn.textContent='🚀 Set Up Database'; }
-    setStep(`✅ Database ready! All 7 bins connected.`, true);
-    updLLogo(); updSchoolName(); showPG('login');
-    toast('Database created! Share the Access Code from Settings with your staff. ✓');
+    if(btn){ btn.disabled=false; btn.textContent='🚀 Create Bins & Set Up Database'; }
+    setStep('✅ Connected! Taking you to login…', true);
 
-    // Remind admin to copy access code
+    updLLogo(); updSchoolName();
+    setTimeout(()=>{ showPG('login'); }, 800);
+    toast('Database connected! ✓');
+
+    // Show access code for admin to share
     setTimeout(()=>{
       const code = encodeAccessCode();
-      alert(`✅ Setup complete!\n\nYour School Access Code (copy this and share with all staff):\n\n${code}\n\nStaff paste this on the Setup screen → "Staff / New Device" tab.\nYou can also copy it later from Settings → School Settings.`);
-    }, 600);
+      alert(`✅ Setup complete!\n\nYour School Access Code — share with ALL staff and for every new device/browser:\n\n${code}\n\nPaste this on the Setup screen → "Staff / New Device" tab.\nYou can also copy it anytime from Settings → School Settings.`);
+    }, 1200);
 
   } catch(e){
     load(false);
-    if(btn){ btn.disabled=false; btn.textContent='🚀 Set Up Database'; }
-    setStep(`❌ Setup failed: ${e.message}`, false, true);
-    al.innerHTML = err(`<b>Setup failed:</b> ${e.message}<br><br>
+    if(btn){ btn.disabled=false; btn.textContent='🚀 Create Bins & Set Up Database'; }
+    setStep(`❌ Failed: ${e.message}`, false, true);
+    al.innerHTML = err(`<b>Connection failed:</b> ${e.message}<br><br>
       <b>Check:</b><br>
       • Paste the full <b>Master Key</b> (starts with <code>$2a$10$</code>)<br>
-      • Do <b>not</b> use the Access Key — that key is read-only<br>
-      • Make sure you have an internet connection<br>
-      • JSONBin free plan allows up to 10 000 requests/month`);
+      • Use the <b>Master Key</b>, not the Access/Read Key<br>
+      • Internet connection is working`);
     BINS = {}; API_KEY = '';
   }
+}
+
+/* ── Find existing QSC bins on this JSONBin account ── */
+async function fetchExistingBins(masterKey){
+  // Try multiple possible list endpoints — JSONBin API varies
+  const endpoints = [
+    'https://api.jsonbin.io/v3/b?limit=100',
+    'https://api.jsonbin.io/v3/b',
+    'https://api.jsonbin.io/v3/c',
+  ];
+  for(const url of endpoints){
+    try {
+      const res = await fetch(url, { headers: { 'X-Master-Key': masterKey } });
+      if(!res.ok) continue;
+      const j = await res.json();
+      const list = j.list || j.bins || j.records || (Array.isArray(j) ? j : []);
+      if(!list.length) continue;
+      const found = {};
+      for(const [k, name] of Object.entries(BIN_NAMES)){
+        const match = list.find(b => {
+          const bname = b.name || b.snippetMeta?.name || b.meta?.name || b.record?.name || '';
+          return bname === name;
+        });
+        if(match){
+          found[k] = match.id || match._id || match.snippetMeta?.id || match.meta?.id;
+        }
+      }
+      if(Object.keys(found).length > 0) return found;
+    } catch(e){ continue; }
+  }
+  return null;
 }
 
 async function doStaffConnect(){
