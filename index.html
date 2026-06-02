@@ -250,8 +250,9 @@ tbody tr:hover td{background:var(--bg)}
 
     <!-- TAB ROW -->
     <div style="display:flex;gap:0;margin-bottom:20px;border-radius:9px;overflow:hidden;border:1.5px solid #dde2eb">
-      <button id="SU-tab-admin" onclick="suTab('admin')" style="flex:1;padding:10px;font-size:12px;font-weight:600;background:var(--gr);color:#fff;border:none;cursor:pointer">🔑 Admin First-Time Setup</button>
-      <button id="SU-tab-staff" onclick="suTab('staff')" style="flex:1;padding:10px;font-size:12px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer">👩‍🏫 Staff / New Device</button>
+      <button id="SU-tab-admin" onclick="suTab('admin')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:var(--gr);color:#fff;border:none;cursor:pointer">🔑 Admin First-Time Setup</button>
+      <button id="SU-tab-admindev" onclick="suTab('admindev')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer;border-left:1.5px solid #dde2eb;border-right:1.5px solid #dde2eb">🛡️ Admin New Device</button>
+      <button id="SU-tab-staff" onclick="suTab('staff')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer">👩‍🏫 Staff / New Device</button>
     </div>
 
     <!-- ADMIN PANEL -->
@@ -272,7 +273,23 @@ tbody tr:hover td{background:var(--bg)}
       <p style="text-align:center;font-size:10px;color:var(--mu)">Finds existing bins automatically. Creates new ones if missing.</p>
     </div>
 
-    <!-- STAFF / NEW DEVICE PANEL -->
+    <!-- ADMIN NEW DEVICE PANEL -->
+    <div id="SU-admindev-panel" style="display:none">
+      <div style="background:#f0ebfe;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333;border:1px solid #c4b5fd">
+        <b>Admin on a new device?</b><br>
+        1. On your <b>existing logged-in device</b>, go to <b>Settings → School Settings</b><br>
+        2. Click <b>"Generate Admin Login Code"</b> — valid for <b>24 hours</b><br>
+        3. Paste it below — you'll be connected and logged in as admin instantly<br>
+        <span style="color:var(--pu);font-weight:600">✓ No Master Key needed — does not create new bins</span>
+      </div>
+      <div class="fg">
+        <label>Admin Login Code</label>
+        <input id="SU-admincode" placeholder="Paste the Admin Login Code here" style="font-family:monospace;font-size:11px">
+      </div>
+      <div id="SU-alert3"></div>
+      <button class="btn bp" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doAdminDeviceLogin()">🛡️ Connect & Login as Admin</button>
+      <p style="text-align:center;font-size:10px;color:var(--mu)">Code expires 24 hours after generation. Generate a new one if expired.</p>
+    </div>
     <div id="SU-staff-panel" style="display:none">
       <div style="background:#fff8e6;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#555;border:1px solid #e5c97a">
         <b>Staff or new device — connect in seconds:</b><br>
@@ -303,7 +320,7 @@ tbody tr:hover td{background:var(--bg)}
     <div class="fg"><label>Password</label><input type="password" id="L-pass" placeholder="Enter password" autocomplete="current-password"></div>
     <button id="login-btn" class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In</button>
     <p style="text-align:center;color:var(--lt);font-size:10px;margin-top:4px">Quality School Complex · GES Management System</p>
-    <p style="text-align:center;margin-top:8px"><a href="#" onclick="showSetupForReconnect();return false;" style="font-size:11px;color:var(--bl)">New device? Paste access code →</a></p>
+    <p style="text-align:center;margin-top:8px"><a href="#" onclick="showSetupForReconnect();return false;" style="font-size:11px;color:var(--bl)">Staff / New device? Paste access code →</a> &nbsp;·&nbsp; <a href="#" onclick="suTab('admindev');showPG('setup');return false;" style="font-size:11px;color:var(--pu)">Admin new device? →</a></p>
   </div>
 </div>
 
@@ -497,23 +514,57 @@ async function dbWrite(data) {
 /* ── Unified DB read: reads all bins and assembles DB ── */
 async function dbRead() {
   const keys = ['settings', 'users', 'students', 'fees', 'results', 'submissions', 'savedReports'];
-  const results = await Promise.allSettled(keys.map(k => BINS[k] ? binRead(k) : Promise.resolve(null)));
-  const [settings, users, students, fees, results2, submissions, savedReports] = results.map(r => r.status === 'fulfilled' ? r.value : null);
+
+  // Retry helper — tries up to 3 times with 1s gap for transient failures
+  async function binReadWithRetry(key, attempts = 3) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try { return await binRead(key); } catch(e) {
+        lastErr = e;
+        if (i < attempts - 1) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    throw lastErr;
+  }
+
+  const settled = await Promise.allSettled(
+    keys.map(k => BINS[k] ? binReadWithRetry(k) : Promise.resolve(null))
+  );
+
+  // Surface critical bin failures (settings or users) as hard errors
+  const criticalKeys = ['settings', 'users'];
+  for (let i = 0; i < keys.length; i++) {
+    if (criticalKeys.includes(keys[i]) && settled[i].status === 'rejected') {
+      const reason = settled[i].reason?.message || 'Unknown error';
+      throw new Error(`Failed to read '${keys[i]}' bin: ${reason}. Check your access code and internet connection.`);
+    }
+  }
+
+  // Log non-critical failures but don't block
+  for (let i = 0; i < keys.length; i++) {
+    if (settled[i].status === 'rejected') {
+      console.warn(`Non-critical bin read failed (${keys[i]}):`, settled[i].reason);
+    }
+  }
+
+  const [settings, users, students, fees, results2, submissions, savedReports] =
+    settled.map(r => r.status === 'fulfilled' ? r.value : null);
+
   return {
-    school: settings?.school || EMPTY_DB.school,
-    term: settings?.term || EMPTY_DB.term,
-    termFees: settings?.termFees || {},
-    customSubs: settings?.customSubs || {},
-    classGroups: settings?.classGroups || {},
-    users: users?.users || EMPTY_DB.users,
-    nextUid: users?.nextUid || 3,
-    students: students?.students || EMPTY_DB.students,
-    nextSid: students?.nextSid || 5,
-    fees: fees?.fees || EMPTY_DB.fees,
-    nextFid: fees?.nextFid || 5,
-    results: results2?.results || [],
-    nextRid: results2?.nextRid || 1,
-    submissions: submissions?.submissions || [],
+    school:       settings?.school       || EMPTY_DB.school,
+    term:         settings?.term         || EMPTY_DB.term,
+    termFees:     settings?.termFees     || {},
+    customSubs:   settings?.customSubs   || {},
+    classGroups:  settings?.classGroups  || {},
+    users:        users?.users           || EMPTY_DB.users,
+    nextUid:      users?.nextUid         || 3,
+    students:     students?.students     || EMPTY_DB.students,
+    nextSid:      students?.nextSid      || 5,
+    fees:         fees?.fees             || EMPTY_DB.fees,
+    nextFid:      fees?.nextFid          || 5,
+    results:      results2?.results      || [],
+    nextRid:      results2?.nextRid      || 1,
+    submissions:  submissions?.submissions  || [],
     savedReports: savedReports?.savedReports || [],
   };
 }
@@ -765,13 +816,18 @@ function downloadConfiguredFile(){
 }
 
 function suTab(tab){
-  const isAdmin = tab === 'admin';
-  document.getElementById('SU-admin-panel').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('SU-staff-panel').style.display = isAdmin ? 'none' : 'block';
-  document.getElementById('SU-tab-admin').style.background = isAdmin ? 'var(--gr)' : '#f5f7fa';
-  document.getElementById('SU-tab-admin').style.color = isAdmin ? '#fff' : '#666';
-  document.getElementById('SU-tab-staff').style.background = isAdmin ? '#f5f7fa' : 'var(--gr)';
-  document.getElementById('SU-tab-staff').style.color = isAdmin ? '#666' : '#fff';
+  const panels = { admin:'SU-admin-panel', admindev:'SU-admindev-panel', staff:'SU-staff-panel' };
+  const tabs   = { admin:'SU-tab-admin', admindev:'SU-tab-admindev', staff:'SU-tab-staff' };
+  const colors = { admin:'var(--gr)', admindev:'var(--pu)', staff:'var(--gr)' };
+  Object.keys(panels).forEach(t=>{
+    const panel = document.getElementById(panels[t]);
+    const btn   = document.getElementById(tabs[t]);
+    if(panel) panel.style.display = t===tab ? 'block' : 'none';
+    if(btn){
+      btn.style.background = t===tab ? colors[t] : '#f5f7fa';
+      btn.style.color      = t===tab ? '#fff' : '#666';
+    }
+  });
 }
 
 async function doSetup(){
@@ -845,12 +901,19 @@ async function doSetup(){
     // ── STEP 2: Read real data from bins ──
     setStep('📥 Loading data from database…');
     let rec = null;
-    try { rec = await dbRead(); } catch(e) {}
+    try {
+      rec = await dbRead();
+    } catch(e) {
+      // Bins were just created/found but read failed — non-fatal on first setup (bins may be empty)
+      console.warn('dbRead after setup failed:', e.message);
+    }
 
-    if(rec && rec.users){
+    if(rec && rec.users && rec.users.length > 0){
       DB = normaliseDB(rec);
+      setStep(`✅ Loaded existing data — ${rec.students?.length || 0} students found.`, true);
     } else {
       DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+      if(rec) setStep('✅ Bins ready — no existing data found, starting fresh.', true);
     }
 
     // ── STEP 3: Save everything locally ──
@@ -936,12 +999,26 @@ async function doStaffConnect(){
     return;
   }
 
-  load(true, 'Connecting to school database…');
+  // Verify the code has all required bin IDs
+  const requiredBins = ['settings','users','students','fees','results','submissions','savedReports'];
+  const missingBins  = requiredBins.filter(k => !BINS[k]);
+  if(missingBins.length > 0){
+    al.innerHTML = err(`Access code is incomplete — missing bins: <b>${missingBins.join(', ')}</b>.<br>Ask admin to copy a fresh code from <b>Settings → School Settings</b>.`);
+    API_KEY = ''; BINS = {}; BIN_ID = '';
+    return;
+  }
+
+  const btn = document.querySelector('#SU-staff-panel .btn.bg');
+  if(btn){ btn.disabled = true; btn.textContent = 'Connecting…'; }
+
+  load(true, 'Fetching school data…');
   try {
     const rec = await dbRead();
-    if(!rec || !rec.users){
+    if(!rec || !rec.users || rec.users.length === 0){
       load(false);
-      al.innerHTML = err('Connected but no data found. Ask your admin to check the database is set up.');
+      if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
+      al.innerHTML = err('Connected to bins but no school data was found. Make sure the admin has completed setup and data exists.');
+      API_KEY = ''; BINS = {}; BIN_ID = '';
       return;
     }
     DB = normaliseDB(rec);
@@ -949,12 +1026,18 @@ async function doStaffConnect(){
     saveBinRegistry();
     try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
     load(false);
+    if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
     updLLogo(); updSchoolName(); showPG('login');
-    toast('Connected! ✓ You can now log in from this device.');
+    toast(`Connected! ✓ Loaded ${DB.students.length} students. You can now log in.`);
   } catch(e){
     load(false);
+    if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
     API_KEY = ''; BINS = {}; BIN_ID = '';
-    al.innerHTML = err(`Connection failed: <b>${e.message}</b><br>Check your internet and try again.`);
+    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>
+      <b>Possible causes:</b><br>
+      • Access code is from an old setup — ask admin to regenerate it from Settings<br>
+      • Internet connection issue — check your connection and try again<br>
+      • JSONBin rate limit — wait 30 seconds and retry`);
   }
 }
 
@@ -980,6 +1063,109 @@ function decodeAccessCode(code){
   return null;
 }
 
+/* ── Admin Login Code: time-limited code that connects bins AND logs in as admin ── */
+function generateAdminLoginCode(){
+  // Find admin user
+  const adminUser = DB && DB.users ? DB.users.find(u => u.role === 'admin') : null;
+  if(!adminUser){ toast('No admin user found in database','er'); return ''; }
+  const payload = {
+    key:     API_KEY,
+    bins:    BINS,
+    adminLogin: true,
+    adminId: adminUser.id,
+    username: adminUser.username,
+    password: adminUser.password,
+    expires: Date.now() + 24*60*60*1000   // 24 hours
+  };
+  try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e){ return ''; }
+}
+
+function decodeAdminLoginCode(code){
+  try {
+    const str = decodeURIComponent(escape(atob(code.trim())));
+    const obj = JSON.parse(str);
+    if(obj.adminLogin && obj.key && obj.bins && obj.expires) return obj;
+  } catch(e){}
+  return null;
+}
+
+async function doAdminDeviceLogin(){
+  const code = (document.getElementById('SU-admincode')||{}).value?.trim()||'';
+  const al   = document.getElementById('SU-alert3');
+  if(!code){ al.innerHTML = err('Paste the Admin Login Code generated from Settings.'); return; }
+
+  const decoded = decodeAdminLoginCode(code);
+  if(!decoded){
+    al.innerHTML = err('Invalid code. Make sure you are using the <b>Admin Login Code</b> (generated from Settings → School Settings), not the staff access code.');
+    return;
+  }
+  if(Date.now() > decoded.expires){
+    al.innerHTML = err('This Admin Login Code has <b>expired</b> (valid for 24 hours). Generate a new one from Settings on your existing device.');
+    return;
+  }
+
+  API_KEY = decoded.key;
+  BINS    = decoded.bins;
+  BIN_ID  = BINS.settings || '';
+
+  // Verify all required bins are present in the code
+  const requiredBins = ['settings','users','students','fees','results','submissions','savedReports'];
+  const missingBins  = requiredBins.filter(k => !BINS[k]);
+  if(missingBins.length > 0){
+    al.innerHTML = err(`Admin Login Code is incomplete — missing bins: <b>${missingBins.join(', ')}</b>.<br>Generate a fresh code from Settings on your existing device.`);
+    API_KEY = ''; BINS = {}; BIN_ID = '';
+    return;
+  }
+
+  const btn = document.querySelector('#SU-admindev-panel .btn.bp');
+  if(btn){ btn.disabled = true; btn.textContent = 'Connecting…'; }
+
+  load(true, 'Fetching school data…');
+  try {
+    const rec = await dbRead();
+    if(!rec || !rec.users || rec.users.length === 0){
+      load(false);
+      if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+      al.innerHTML = err('Connected but no school data was found. Make sure the admin has completed setup.');
+      API_KEY = ''; BINS = {}; BIN_ID = '';
+      return;
+    }
+    DB = normaliseDB(rec);
+    cacheUsers(DB.users);
+    saveBinRegistry();
+    try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
+
+    // Find and log in as the admin user
+    const adminUser = DB.users.find(u => u.username === decoded.username && u.password === decoded.password && u.role === 'admin');
+    if(!adminUser){
+      // Credentials may have changed — find by role as fallback and prompt login
+      load(false);
+      if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+      updLLogo(); updSchoolName();
+      toast('Connected! Admin credentials may have changed — please log in.', 'inf');
+      showPG('login');
+      return;
+    }
+
+    load(false);
+    if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+    CU = adminUser;
+    saveSession(CU);
+    updAppUI(); buildNav();
+    showPG('app');
+    go('dashboard');
+    toast(`Welcome back, ${adminUser.name.split(' ')[0]}! Loaded ${DB.students.length} students. ✓`);
+  } catch(e){
+    load(false);
+    if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+    API_KEY = ''; BINS = {}; BIN_ID = '';
+    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>
+      <b>Possible causes:</b><br>
+      • Internet connection issue — check and try again<br>
+      • Admin Login Code is stale — generate a new one from Settings<br>
+      • JSONBin rate limit — wait 30 seconds and retry`);
+  }
+}
 async function boot(){
   // Safety: never stay on loading screen forever
   const safetyTimer = setTimeout(()=>{
@@ -2531,6 +2717,19 @@ function pgSettings(){
     </div>
     <p style="font-size:11px;color:var(--mu);margin-top:8px">Staff paste this code once on their device → Setup screen → "Staff / New Device" tab. It automatically connects all 7 bins.</p>
     <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
+    <div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--pu)">🛡️ Admin Login Code</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">Use this when logging into a <b>new device as admin</b>. Valid for 24 hours. Does <b>not</b> create new bins — connects and logs you in directly.</div>
+      <div id="ALC-wrap" style="display:none;margin-bottom:10px">
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <input id="ALC-display" readonly style="font-family:monospace;font-size:10px;flex:1;min-width:0;background:#f0ebfe;border-color:#c4b5fd">
+          <button class="btn bp sm" onclick="copyALC()">📋 Copy</button>
+        </div>
+        <p id="ALC-expiry" style="font-size:10px;color:var(--pu);margin-top:4px;font-weight:600"></p>
+      </div>
+      <button class="btn bp sm" onclick="showAdminLoginCode()">🛡️ Generate Admin Login Code</button>
+    </div>
+    <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
     <button class="btn bd sm" onclick="disconnectDevice()" style="font-size:11px">🔌 Disconnect this device (reset setup)</button>
   </div>`;
 }
@@ -2585,6 +2784,28 @@ function copySAC(){
   });
 }
 
+function showAdminLoginCode(){
+  const code = generateAdminLoginCode();
+  if(!code){ toast('Could not generate code — make sure you are logged in as admin','er'); return; }
+  const wrap = document.getElementById('ALC-wrap');
+  const disp = document.getElementById('ALC-display');
+  const exp  = document.getElementById('ALC-expiry');
+  if(wrap) wrap.style.display = 'block';
+  if(disp) disp.value = code;
+  if(exp){
+    const t = new Date(Date.now() + 24*60*60*1000);
+    exp.textContent = '⏱ Expires: ' + t.toLocaleString() + ' (24 hours)';
+  }
+  toast('Admin Login Code generated! Copy and use it on the new device. ✓');
+}
+
+function copyALC(){
+  const el = document.getElementById('ALC-display');
+  if(!el || !el.value){ toast('Generate a code first','er'); return; }
+  navigator.clipboard.writeText(el.value).then(()=>toast('Admin Login Code copied! Paste it on the new device → Setup → "Admin New Device". ✓')).catch(()=>{
+    const r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');toast('Admin Login Code copied! ✓');
+  });
+}
 function disconnectDevice(){
   if(!confirm('⚠ Disconnect this device?\n\nThis clears the local database connection. You will need to paste the access code again to reconnect.\n\nYour data in JSONBin is NOT deleted.')) return;
   clearBinRegistry();
