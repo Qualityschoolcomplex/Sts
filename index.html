@@ -243,23 +243,50 @@ tbody tr:hover td{background:var(--bg)}
 
 <!-- ══════ PIN VERIFICATION ══════ -->
 <div id="PG-pin" class="auth-wrap" style="display:none">
-  <div class="auth-box" style="max-width:380px">
+  <div class="auth-box" style="max-width:400px">
     <div class="alogo" id="PIN-logo">🎓</div>
     <div class="asch" id="PIN-sname">QUALITY SCHOOL COMPLEX</div>
     <div class="atag" id="PIN-motto" style="font-style:italic;color:var(--gr);font-weight:500;margin-bottom:4px"></div>
-    <div style="text-align:center;margin-bottom:22px">
-      <div style="font-size:32px;margin-bottom:6px">🔐</div>
-      <div style="font-size:17px;font-weight:700;color:var(--tx);margin-bottom:4px">Device Verification</div>
-      <div style="font-size:12px;color:var(--mu)">Enter the Device PIN provided by your admin to connect this browser or device to the school database.</div>
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:28px;margin-bottom:4px">🔐</div>
+      <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:3px">Device Verification</div>
+      <div style="font-size:11px;color:var(--mu)">Enter your PIN to connect this device to the school database.</div>
     </div>
+
+    <!-- PIN type tabs -->
+    <div style="display:flex;gap:0;margin-bottom:18px;border-radius:8px;overflow:hidden;border:1.5px solid #dde2eb">
+      <button id="PINT-admin" onclick="pinTab('admin')" style="flex:1;padding:9px;font-size:12px;font-weight:600;background:var(--gr);color:#fff;border:none;cursor:pointer">🛡️ Admin PIN</button>
+      <button id="PINT-staff" onclick="pinTab('staff')" style="flex:1;padding:9px;font-size:12px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer">👩‍🏫 Staff PIN</button>
+    </div>
+
     <div id="PIN-alert"></div>
-    <div class="fg">
-      <label>Device PIN</label>
-      <input id="PIN-input" type="password" placeholder="Enter Device PIN" style="text-align:center;letter-spacing:6px;font-size:20px;padding:12px" maxlength="20" autocomplete="off">
+
+    <!-- Admin PIN panel -->
+    <div id="PIN-admin-panel">
+      <div style="background:var(--bll);border-radius:var(--r);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--bl);border:1px solid #b3d4f5">
+        <b>Admin only.</b> Enter your personal Admin PIN. This is different from the Staff PIN — only you know it.
+      </div>
+      <div class="fg">
+        <label>Admin PIN</label>
+        <input id="PIN-admin-input" type="password" placeholder="Enter your Admin PIN" style="text-align:center;letter-spacing:6px;font-size:20px;padding:12px" maxlength="20" autocomplete="off">
+      </div>
+      <button id="PIN-admin-btn" class="btn bg" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px" onclick="doPinVerify('admin')">🛡️ Verify Admin PIN</button>
     </div>
-    <button id="PIN-btn" class="btn bg" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:10px" onclick="doPinVerify()">✓ Verify & Connect</button>
-    <p style="text-align:center;font-size:10px;color:var(--lt)">This device will be remembered once verified. You will not need the PIN again on this browser.</p>
-    <p style="text-align:center;margin-top:10px"><a href="#" onclick="showAdminSetup();return false;" style="font-size:11px;color:var(--mu)">Admin? First-time setup →</a></p>
+
+    <!-- Staff PIN panel -->
+    <div id="PIN-staff-panel" style="display:none">
+      <div style="background:var(--gol);border-radius:var(--r);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--god);border:1px solid #e5c97a">
+        <b>Staff members.</b> Enter the Device PIN provided by your admin to connect this device.
+      </div>
+      <div class="fg">
+        <label>Staff Device PIN</label>
+        <input id="PIN-staff-input" type="password" placeholder="Enter Staff Device PIN" style="text-align:center;letter-spacing:6px;font-size:20px;padding:12px" maxlength="20" autocomplete="off">
+      </div>
+      <button id="PIN-staff-btn" class="btn bo" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px" onclick="doPinVerify('staff')">✓ Verify Staff PIN</button>
+    </div>
+
+    <p style="text-align:center;font-size:10px;color:var(--lt);margin-top:12px">This device will be remembered once verified. You will not need the PIN again on this browser.</p>
+    <p style="text-align:center;margin-top:8px"><a href="#" onclick="showAdminSetup();return false;" style="font-size:11px;color:var(--mu)">First-time setup →</a></p>
   </div>
 </div>
 
@@ -292,6 +319,11 @@ tbody tr:hover td{background:var(--bg)}
         <label>🔐 Device Verification PIN <span style="color:var(--rd)">*</span></label>
         <input id="SU-admin-pin" type="password" placeholder="Set a PIN (e.g. 6+ digits) — staff must enter this on new devices" style="letter-spacing:3px;font-size:14px" maxlength="20">
         <p style="font-size:10px;color:var(--mu);margin-top:4px">Staff will need this PIN every time they connect a new browser or device. Keep it private. You can change it later in Settings → Device Security.</p>
+      </div>
+      <div class="fg">
+        <label>🛡️ Admin Verification PIN <span style="color:var(--rd)">*</span></label>
+        <input id="SU-admin-self-pin" type="password" placeholder="Set your own personal admin PIN (min 4 chars)" style="letter-spacing:3px;font-size:14px" maxlength="20">
+        <p style="font-size:10px;color:var(--mu);margin-top:4px">You will use this PIN on new devices to verify yourself as admin. Different from the staff PIN — keep this one to yourself.</p>
       </div>
       <div id="SU-progress" style="margin-bottom:10px"></div>
       <div id="SU-alert"></div>
@@ -557,7 +589,7 @@ let DB = null;   // in-memory cache
 let CU = null;   // current user object
 
 const EMPTY_DB = {
-  school: { name:'QUALITY SCHOOL COMPLEX', motto:'Excellence in Education', email:'info@qualityschool.edu.gh', phone:'0302-123456', address:'P.O. Box 123, Accra, Ghana', logo:'', title:'Student Academic Report Card', devicePin:'' },
+  school: { name:'QUALITY SCHOOL COMPLEX', motto:'Excellence in Education', email:'info@qualityschool.edu.gh', phone:'0302-123456', address:'P.O. Box 123, Accra, Ghana', logo:'', title:'Student Academic Report Card', devicePin:'', adminPin:'' },
   term: { year:'2024/2025', term:1 },
   termFees: {},
   customSubs: {},
@@ -807,13 +839,17 @@ function suTab(tab){
 }
 
 async function doSetup(){
-  const key = (document.getElementById('SU-key')||{}).value?.trim()||'';
-  const adminPin = (document.getElementById('SU-admin-pin')||{}).value?.trim()||'';
+  const key         = (document.getElementById('SU-key')||{}).value?.trim()||'';
+  const adminPin    = (document.getElementById('SU-admin-pin')||{}).value?.trim()||'';
+  const adminSelfPin= (document.getElementById('SU-admin-self-pin')||{}).value?.trim()||'';
   const al  = document.getElementById('SU-alert');
   if(!key){ al.innerHTML = err('Please enter your Master API Key.'); return; }
   if(!key.startsWith('$2')){ al.innerHTML = err('That does not look like a JSONBin Master Key. It must start with <b>$2a$</b> or <b>$2b$</b>.'); return; }
-  if(!adminPin){ al.innerHTML = err('Please set a <b>Device Verification PIN</b>. Staff will need this PIN when connecting a new device.'); return; }
-  if(adminPin.length < 4){ al.innerHTML = err('Device PIN must be at least 4 characters long.'); return; }
+  if(!adminPin){ al.innerHTML = err('Please set a <b>Staff Device PIN</b>. Staff will need this PIN when connecting a new device.'); return; }
+  if(adminPin.length < 4){ al.innerHTML = err('Staff Device PIN must be at least 4 characters long.'); return; }
+  if(!adminSelfPin){ al.innerHTML = err('Please set your personal <b>Admin PIN</b>. You will use this to verify yourself on new devices.'); return; }
+  if(adminSelfPin.length < 4){ al.innerHTML = err('Admin PIN must be at least 4 characters long.'); return; }
+  if(adminSelfPin === adminPin){ al.innerHTML = err('Your Admin PIN must be <b>different</b> from the Staff Device PIN.'); return; }
 
   API_KEY = key;
   BINS    = {};
@@ -890,11 +926,12 @@ async function doSetup(){
 
     // ── STEP 3: Save everything locally ──
     cacheUsers(DB.users);
-    // Persist the device PIN set during admin setup
-    if(adminPin && DB.school){ DB.school.devicePin = adminPin; }
+    // Persist both PINs set during admin setup
+    if(adminPin && DB.school)    { DB.school.devicePin = adminPin; }
+    if(adminSelfPin && DB.school){ DB.school.adminPin  = adminSelfPin; }
     saveBinRegistry();
     try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
-    // Write PIN to remote immediately so staff connections can verify it
+    // Write PINs to remote immediately so connections can verify them
     try{ await binWrite('settings', { school: DB.school, term: DB.term, termFees: DB.termFees||{}, customSubs: DB.customSubs||{}, classGroups: DB.classGroups||{} }); }catch(e){}
 
     load(false);
@@ -905,10 +942,10 @@ async function doSetup(){
     setTimeout(()=>{ showPG('login'); }, 800);
     toast('Database connected! ✓');
 
-    // Show secure link for admin to share
+    // Show secure link + both PINs for admin to note
     setTimeout(()=>{
       const link = encodeSecureLink();
-      alert(`✅ Setup complete!\n\nShare BOTH of these with all staff:\n\n🔗 SECURE LINK (send via WhatsApp/email):\n${link}\n\n🔐 DEVICE PIN: ${adminPin}\n\nWhen staff open the link on a new device, they only see a PIN prompt.\nEntering the correct PIN connects them and takes them to login.\n\nYou can copy the link anytime from Settings → School Settings.`);
+      alert(`✅ Setup complete! Save these carefully.\n\n🛡️ YOUR ADMIN PIN: ${adminSelfPin}\n(Use this on the PIN screen when YOU open the app on a new device)\n\n🔐 STAFF DEVICE PIN: ${adminPin}\n(Share this with staff — they use it on the PIN screen)\n\n🔗 SECURE LINK (send to everyone who needs access):\n${link}\n\nWhen anyone opens the link on a new device they see a PIN prompt.\nAdmin enters the Admin PIN. Staff enter the Staff PIN.\nBoth then proceed to the normal login page.\n\nManage PINs anytime: Settings → Device Security.`);
     }, 1200);
 
   } catch(e){
@@ -1189,6 +1226,7 @@ function normaliseDB(rec){
   if(!rec.school)rec.school=JSON.parse(JSON.stringify(EMPTY_DB.school));
   if(rec.school.motto===undefined)rec.school.motto='Excellence in Education';
   if(rec.school.devicePin===undefined)rec.school.devicePin='';
+  if(rec.school.adminPin===undefined)rec.school.adminPin='';
   if(!rec.term)rec.term=JSON.parse(JSON.stringify(EMPTY_DB.term));
   // Ensure students have clsGroup field
   if(rec.students)rec.students.forEach(s=>{if(s.clsGroup===undefined)s.clsGroup='';});
@@ -1271,12 +1309,26 @@ async function doLogin(){
   }
 }
 document.getElementById('L-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('PIN-input').addEventListener('keydown',e=>{if(e.key==='Enter')doPinVerify();});
+document.getElementById('PIN-admin-input').addEventListener('keydown',e=>{if(e.key==='Enter')doPinVerify('admin');});
+document.getElementById('PIN-staff-input').addEventListener('keydown',e=>{if(e.key==='Enter')doPinVerify('staff');});
 
 /* ── PIN page helpers ── */
 let _pendingAccessPayload = null; // holds decoded {key,bins} while PIN is being verified
 
 function showAdminSetup(){ showPG('setup'); suTab('admin'); }
+
+function pinTab(tab){
+  const isAdmin = tab === 'admin';
+  document.getElementById('PIN-admin-panel').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('PIN-staff-panel').style.display = isAdmin ? 'none'  : 'block';
+  document.getElementById('PINT-admin').style.background = isAdmin ? 'var(--gr)' : '#f5f7fa';
+  document.getElementById('PINT-admin').style.color      = isAdmin ? '#fff'      : '#666';
+  document.getElementById('PINT-staff').style.background = isAdmin ? '#f5f7fa'  : 'var(--go)';
+  document.getElementById('PINT-staff').style.color      = isAdmin ? '#666'      : '#fff';
+  document.getElementById('PIN-alert').innerHTML = '';
+  // Focus the visible input
+  setTimeout(()=>{ const el=document.getElementById(isAdmin?'PIN-admin-input':'PIN-staff-input'); if(el)el.focus(); },50);
+}
 
 function updPinPageBranding(){
   const name = (DB&&DB.school&&DB.school.name) ? DB.school.name : 'QUALITY SCHOOL COMPLEX';
@@ -1290,11 +1342,15 @@ function updPinPageBranding(){
   if(pMotto) pMotto.textContent = motto ? `"${motto}"` : '';
 }
 
-async function doPinVerify(){
-  const pin = (document.getElementById('PIN-input')||{}).value?.trim()||'';
+async function doPinVerify(type){
+  const isAdmin  = type === 'admin';
+  const inputId  = isAdmin ? 'PIN-admin-input' : 'PIN-staff-input';
+  const btnId    = isAdmin ? 'PIN-admin-btn'   : 'PIN-staff-btn';
+  const pin = (document.getElementById(inputId)||{}).value?.trim()||'';
   const al  = document.getElementById('PIN-alert');
-  const btn = document.getElementById('PIN-btn');
-  if(!pin){ al.innerHTML = err('Enter the Device PIN.'); return; }
+  const btn = document.getElementById(btnId);
+
+  if(!pin){ al.innerHTML = err(`Enter the ${isAdmin?'Admin':'Staff Device'} PIN.`); return; }
 
   if(!_pendingAccessPayload || !_pendingAccessPayload.key || !_pendingAccessPayload.bins){
     al.innerHTML = err('Session expired. Please reload the page and try again.');
@@ -1310,32 +1366,38 @@ async function doPinVerify(){
   BINS    = _pendingAccessPayload.bins;
   BIN_ID  = BINS.settings || '';
 
+  const resetBtn = ()=>{ if(btn){ btn.disabled=false; btn.textContent = isAdmin ? '🛡️ Verify Admin PIN' : '✓ Verify Staff PIN'; } };
+
   try {
     const rec = await dbRead();
     if(!rec || !rec.users){
-      load(false);
-      if(btn){ btn.disabled=false; btn.textContent='✓ Verify & Connect'; }
+      load(false); resetBtn();
       API_KEY=prevKey; BINS=prevBins; BIN_ID=prevBid;
       al.innerHTML = err('Could not read school database. Check your internet and try again.');
       return;
     }
 
-    const storedPin = (rec.school&&rec.school.devicePin) ? rec.school.devicePin.trim() : '';
+    // Pick the right stored PIN
+    const storedPin = isAdmin
+      ? ((rec.school&&rec.school.adminPin)  ? rec.school.adminPin.trim()  : '')
+      : ((rec.school&&rec.school.devicePin) ? rec.school.devicePin.trim() : '');
+
     if(!storedPin){
-      load(false);
-      if(btn){ btn.disabled=false; btn.textContent='✓ Verify & Connect'; }
+      load(false); resetBtn();
       API_KEY=prevKey; BINS=prevBins; BIN_ID=prevBid;
-      al.innerHTML = err('<b>No Device PIN configured.</b> Ask your admin to set a PIN in <b>Settings → Device Security</b>.');
+      al.innerHTML = isAdmin
+        ? err('<b>No Admin PIN configured.</b> Go to <b>Settings → Device Security</b> to set one.')
+        : err('<b>No Staff Device PIN configured.</b> Ask your admin to set one in <b>Settings → Device Security</b>.');
       return;
     }
+
     if(pin !== storedPin){
-      load(false);
-      if(btn){ btn.disabled=false; btn.textContent='✓ Verify & Connect'; }
+      load(false); resetBtn();
       API_KEY=prevKey; BINS=prevBins; BIN_ID=prevBid;
-      al.innerHTML = err('<b>Incorrect PIN.</b> Check with your admin and try again.');
-      document.getElementById('PIN-input').value='';
-      document.getElementById('PIN-input').focus();
-      console.warn('QSC: PIN verification failed at', new Date().toISOString());
+      al.innerHTML = err(`<b>Incorrect ${isAdmin?'Admin':'Staff'} PIN.</b> ${isAdmin?'Check your records and try again.':'Contact your admin and try again.'}`);
+      document.getElementById(inputId).value='';
+      document.getElementById(inputId).focus();
+      console.warn(`QSC: ${isAdmin?'Admin':'Staff'} PIN verification failed at`, new Date().toISOString());
       return;
     }
 
@@ -1345,15 +1407,13 @@ async function doPinVerify(){
     saveBinRegistry();
     try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
     _pendingAccessPayload = null;
-    load(false);
-    if(btn){ btn.disabled=false; btn.textContent='✓ Verify & Connect'; }
+    load(false); resetBtn();
     updLLogo(); updSchoolName();
     showPG('login');
-    toast('PIN verified ✓ — this device is now connected. Log in below.');
+    toast(`${isAdmin?'Admin':'Staff'} PIN verified ✓ — device connected. Log in below.`);
 
   } catch(e){
-    load(false);
-    if(btn){ btn.disabled=false; btn.textContent='✓ Verify & Connect'; }
+    load(false); resetBtn();
     API_KEY=prevKey; BINS=prevBins; BIN_ID=prevBid;
     al.innerHTML = err(`Connection failed: <b>${e.message}</b>. Check your internet.`);
   }
@@ -2731,26 +2791,56 @@ function pgSettings(){
   </div>
   <div class="card" style="margin-top:16px">
     <div class="ct">🔐 Device Security — PIN Management</div>
-    <div class="cs">Staff open the <b>Secure Link</b> above on their new device and enter this PIN. Correct PIN = device connected, then straight to login. No access code visible to staff.</div>
-    <div style="background:${(DB.school&&DB.school.devicePin)?'var(--grl)':'var(--rdl)'};border-radius:var(--r);padding:10px 13px;margin-bottom:13px;font-size:12px;color:${(DB.school&&DB.school.devicePin)?'var(--gr)':'var(--rd)'};border:1px solid ${(DB.school&&DB.school.devicePin)?'#a5d6a7':'#f5b8b8'}">
-      ${(DB.school&&DB.school.devicePin)
-        ? `✓ Device PIN is active (${DB.school.devicePin.length} characters). New devices require this PIN to connect.`
-        : '⚠ No Device PIN set. Staff can connect new devices without a PIN — set one now for security.'}
-    </div>
-    <div class="g2">
-      <div class="fg">
-        <label>New Device PIN</label>
-        <input id="DP-new" type="password" placeholder="Enter new PIN (min 4 chars)" style="letter-spacing:3px;font-size:14px" maxlength="20">
+    <div class="cs">Two separate PINs control access. The <b>Admin PIN</b> is yours alone. The <b>Staff PIN</b> is shared with all staff. Both are entered on the PIN screen when connecting a new device or browser.</div>
+
+    <!-- Admin PIN section -->
+    <div style="background:#f0f4ff;border-radius:var(--r);padding:12px 14px;margin-bottom:14px;border:1.5px solid #c5d5f5">
+      <div style="font-weight:700;font-size:12px;color:var(--bl);margin-bottom:8px">🛡️ Your Admin PIN</div>
+      <div style="background:${(DB.school&&DB.school.adminPin)?'var(--grl)':'var(--rdl)'};border-radius:var(--r);padding:8px 11px;margin-bottom:10px;font-size:11px;color:${(DB.school&&DB.school.adminPin)?'var(--gr)':'var(--rd)'};border:1px solid ${(DB.school&&DB.school.adminPin)?'#a5d6a7':'#f5b8b8'}">
+        ${(DB.school&&DB.school.adminPin)
+          ? `✓ Admin PIN is set (${DB.school.adminPin.length} characters). Only you should know this.`
+          : '⚠ No Admin PIN set. Set one so you can verify yourself on new devices without using the master key.'}
       </div>
-      <div class="fg">
-        <label>Confirm PIN</label>
-        <input id="DP-confirm" type="password" placeholder="Re-enter PIN to confirm" style="letter-spacing:3px;font-size:14px" maxlength="20">
+      <div class="g2">
+        <div class="fg">
+          <label>New Admin PIN</label>
+          <input id="AP-new" type="password" placeholder="New PIN (min 4 chars)" style="letter-spacing:3px;font-size:14px" maxlength="20">
+        </div>
+        <div class="fg">
+          <label>Confirm Admin PIN</label>
+          <input id="AP-confirm" type="password" placeholder="Re-enter to confirm" style="letter-spacing:3px;font-size:14px" maxlength="20">
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:10px">Keep this PIN private — it grants admin-level database access on any new device.</p>
+      <div style="display:flex;gap:7px">
+        <button class="btn bg" onclick="saveAdminPin()">🛡️ Save Admin PIN</button>
+        ${(DB.school&&DB.school.adminPin)?`<button class="btn bd" onclick="clearAdminPin()">🗑 Remove</button>`:''}
       </div>
     </div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">After changing, inform all staff of the new PIN. Old PIN is immediately invalidated.</p>
-    <div style="display:flex;gap:7px">
-      <button class="btn bg" onclick="saveDevicePin()">🔐 Save Device PIN</button>
-      ${(DB.school&&DB.school.devicePin)?`<button class="btn bd" onclick="clearDevicePin()">🗑 Remove PIN</button>`:''}
+
+    <!-- Staff Device PIN section -->
+    <div style="background:#fffdf0;border-radius:var(--r);padding:12px 14px;border:1.5px solid #e5c97a">
+      <div style="font-weight:700;font-size:12px;color:#8a6d00;margin-bottom:8px">🔑 Staff Device PIN</div>
+      <div style="background:${(DB.school&&DB.school.devicePin)?'var(--grl)':'var(--rdl)'};border-radius:var(--r);padding:8px 11px;margin-bottom:10px;font-size:11px;color:${(DB.school&&DB.school.devicePin)?'var(--gr)':'var(--rd)'};border:1px solid ${(DB.school&&DB.school.devicePin)?'#a5d6a7':'#f5b8b8'}">
+        ${(DB.school&&DB.school.devicePin)
+          ? `✓ Staff PIN is active (${DB.school.devicePin.length} characters). Share this with all staff.`
+          : '⚠ No Staff PIN set. Staff cannot connect new devices without one.'}
+      </div>
+      <div class="g2">
+        <div class="fg">
+          <label>New Staff PIN</label>
+          <input id="DP-new" type="password" placeholder="New PIN (min 4 chars)" style="letter-spacing:3px;font-size:14px" maxlength="20">
+        </div>
+        <div class="fg">
+          <label>Confirm Staff PIN</label>
+          <input id="DP-confirm" type="password" placeholder="Re-enter to confirm" style="letter-spacing:3px;font-size:14px" maxlength="20">
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:10px">After changing, inform all staff of the new PIN. The old PIN stops working immediately.</p>
+      <div style="display:flex;gap:7px">
+        <button class="btn bo" onclick="saveDevicePin()">🔑 Save Staff PIN</button>
+        ${(DB.school&&DB.school.devicePin)?`<button class="btn bd" onclick="clearDevicePin()">🗑 Remove</button>`:''}
+      </div>
     </div>
   </div>`;
 }
@@ -2811,6 +2901,27 @@ function copySAC(){
   navigator.clipboard.writeText(link).then(()=>toast('Secure link copied! Send this to staff. ✓')).catch(()=>{
     if(el){ const r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');toast('Secure link copied! ✓'); }
   });
+}
+
+async function saveAdminPin(){
+  const np = (document.getElementById('AP-new')||{}).value?.trim()||'';
+  const cp = (document.getElementById('AP-confirm')||{}).value?.trim()||'';
+  if(!np){ toast('Enter a new Admin PIN first.','er'); return; }
+  if(np.length < 4){ toast('Admin PIN must be at least 4 characters.','er'); return; }
+  if(np !== cp){ toast('Admin PINs do not match. Re-enter and try again.','er'); return; }
+  if(np === (DB.school.devicePin||'')){ toast('Admin PIN must be different from the Staff PIN.','er'); return; }
+  DB.school.adminPin = np;
+  await saveWithIndicator();
+  toast('Admin PIN updated ✓ — use this on the PIN screen when you connect a new device.');
+  pgSettings();
+}
+
+async function clearAdminPin(){
+  if(!confirm('⚠ Remove your Admin PIN?\n\nYou will need to use the Staff PIN or re-setup to connect new devices.\n\nAre you sure?')) return;
+  DB.school.adminPin = '';
+  await saveWithIndicator();
+  toast('Admin PIN removed.','inf');
+  pgSettings();
 }
 
 async function saveDevicePin(){
