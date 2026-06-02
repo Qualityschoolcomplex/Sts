@@ -278,7 +278,7 @@ tbody tr:hover td{background:var(--bg)}
       <div style="background:#f0ebfe;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333;border:1px solid #c4b5fd">
         <b>Admin on a new device?</b><br>
         1. On your <b>existing logged-in device</b>, go to <b>Settings → School Settings</b><br>
-        2. Click <b>"Generate Admin Login Code"</b> — valid for <b>24 hours</b><br>
+        2. Click <b>"Generate Admin Login Code"</b><br>
         3. Paste it below — you'll be connected and logged in as admin instantly<br>
         <span style="color:var(--pu);font-weight:600">✓ No Master Key needed — does not create new bins</span>
       </div>
@@ -288,7 +288,7 @@ tbody tr:hover td{background:var(--bg)}
       </div>
       <div id="SU-alert3"></div>
       <button class="btn bp" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doAdminDeviceLogin()">🛡️ Connect & Login as Admin</button>
-      <p style="text-align:center;font-size:10px;color:var(--mu)">Code expires 24 hours after generation. Generate a new one if expired.</p>
+
     </div>
     <div id="SU-staff-panel" style="display:none">
       <div style="background:#fff8e6;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#555;border:1px solid #e5c97a">
@@ -1075,7 +1075,6 @@ function generateAdminLoginCode(){
     adminId: adminUser.id,
     username: adminUser.username,
     password: adminUser.password,
-    expires: Date.now() + 24*60*60*1000   // 24 hours
   };
   try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e){ return ''; }
 }
@@ -1084,7 +1083,7 @@ function decodeAdminLoginCode(code){
   try {
     const str = decodeURIComponent(escape(atob(code.trim())));
     const obj = JSON.parse(str);
-    if(obj.adminLogin && obj.key && obj.bins && obj.expires) return obj;
+    if(obj.adminLogin && obj.key && obj.bins) return obj;
   } catch(e){}
   return null;
 }
@@ -1099,11 +1098,6 @@ async function doAdminDeviceLogin(){
     al.innerHTML = err('Invalid code. Make sure you are using the <b>Admin Login Code</b> (generated from Settings → School Settings), not the staff access code.');
     return;
   }
-  if(Date.now() > decoded.expires){
-    al.innerHTML = err('This Admin Login Code has <b>expired</b> (valid for 24 hours). Generate a new one from Settings on your existing device.');
-    return;
-  }
-
   API_KEY = decoded.key;
   BINS    = decoded.bins;
   BIN_ID  = BINS.settings || '';
@@ -1135,26 +1129,11 @@ async function doAdminDeviceLogin(){
     saveBinRegistry();
     try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
 
-    // Find and log in as the admin user
-    const adminUser = DB.users.find(u => u.username === decoded.username && u.password === decoded.password && u.role === 'admin');
-    if(!adminUser){
-      // Credentials may have changed — find by role as fallback and prompt login
-      load(false);
-      if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
-      updLLogo(); updSchoolName();
-      toast('Connected! Admin credentials may have changed — please log in.', 'inf');
-      showPG('login');
-      return;
-    }
-
     load(false);
     if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
-    CU = adminUser;
-    saveSession(CU);
-    updAppUI(); buildNav();
-    showPG('app');
-    go('dashboard');
-    toast(`Welcome back, ${adminUser.name.split(' ')[0]}! Loaded ${DB.students.length} students. ✓`);
+    updLLogo(); updSchoolName();
+    showPG('login');
+    toast(`Connected! ✓ Loaded ${DB.students.length} students. Please log in.`);
   } catch(e){
     load(false);
     if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
@@ -2719,13 +2698,13 @@ function pgSettings(){
     <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
     <div>
       <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--pu)">🛡️ Admin Login Code</div>
-      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">Use this when logging into a <b>new device as admin</b>. Valid for 24 hours. Does <b>not</b> create new bins — connects and logs you in directly.</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">Use this when logging into a <b>new device as admin</b>. Does <b>not</b> create new bins — connects and logs you in directly.</div>
       <div id="ALC-wrap" style="display:none;margin-bottom:10px">
         <div style="display:flex;gap:6px;margin-top:4px">
           <input id="ALC-display" readonly style="font-family:monospace;font-size:10px;flex:1;min-width:0;background:#f0ebfe;border-color:#c4b5fd">
           <button class="btn bp sm" onclick="copyALC()">📋 Copy</button>
         </div>
-        <p id="ALC-expiry" style="font-size:10px;color:var(--pu);margin-top:4px;font-weight:600"></p>
+
       </div>
       <button class="btn bp sm" onclick="showAdminLoginCode()">🛡️ Generate Admin Login Code</button>
     </div>
@@ -2789,13 +2768,8 @@ function showAdminLoginCode(){
   if(!code){ toast('Could not generate code — make sure you are logged in as admin','er'); return; }
   const wrap = document.getElementById('ALC-wrap');
   const disp = document.getElementById('ALC-display');
-  const exp  = document.getElementById('ALC-expiry');
   if(wrap) wrap.style.display = 'block';
   if(disp) disp.value = code;
-  if(exp){
-    const t = new Date(Date.now() + 24*60*60*1000);
-    exp.textContent = '⏱ Expires: ' + t.toLocaleString() + ' (24 hours)';
-  }
   toast('Admin Login Code generated! Copy and use it on the new device. ✓');
 }
 
