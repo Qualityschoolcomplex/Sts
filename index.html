@@ -700,7 +700,7 @@ async function _doRemoteSync() {
         }
         cacheUsers(DB.users);
         try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
-        await _refreshCurrentPage();
+        if (!_userIsTyping()) await _refreshCurrentPage();
       }
     } catch(e) { /* silent — user still has their local changes visible */ }
   }, 800);
@@ -1330,9 +1330,12 @@ async function _backgroundSync(){
       // Only update localStorage if no write is pending — otherwise we'd overwrite
       // unsaved local changes with stale remote data
       if (!_syncInFlight && !_syncDirty) {
-        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
-        // Re-render the current page so the user sees fresh data without a manual refresh
-        await _refreshCurrentPage();
+        const prevSnap = localStorage.getItem('qsc_db_snapshot') || '';
+        const newSnap  = JSON.stringify(DB);
+        const changed  = prevSnap !== newSnap;
+        try { localStorage.setItem('qsc_db_snapshot', newSnap); } catch(e) {}
+        // Only re-render if remote data actually changed AND user isn't mid-form
+        if (changed && !_userIsTyping()) await _refreshCurrentPage();
       }
     }
   } catch(e) { /* silent — will retry on next user action */ }
@@ -1505,6 +1508,14 @@ async function go(id){
   document.getElementById('CNT').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:180px;gap:12px"><div class="spin"></div><span style="color:var(--mu)">Loading...</span></div>`;
   const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
   if(map[id])try{await map[id]();}catch(e){document.getElementById('CNT').innerHTML=`<div class="card" style="color:var(--rd)">Error: ${e.message}</div>`;}
+}
+
+// Returns true if an input/textarea/select inside the main content area is focused
+function _userIsTyping(){
+  const el = document.activeElement;
+  if(!el) return false;
+  const tag = el.tagName;
+  return (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && !!el.closest('#CNT,#MO-box');
 }
 
 // Re-render the current page in-place without resetting scroll or nav state
