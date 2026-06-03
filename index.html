@@ -550,22 +550,26 @@ async function dbRead() {
   const [settings, users, students, fees, results2, submissions, savedReports] =
     settled.map(r => r.status === 'fulfilled' ? r.value : null);
 
+  // For non-critical bins, fall back to existing DB data (if available) before using EMPTY_DB defaults.
+  // This prevents a partial read from wiping good data that's already in memory.
+  const existingDB = (typeof DB !== 'undefined' && DB) ? DB : null;
+
   return {
-    school:       settings?.school       || EMPTY_DB.school,
-    term:         settings?.term         || EMPTY_DB.term,
-    termFees:     settings?.termFees     || {},
-    customSubs:   settings?.customSubs   || {},
-    classGroups:  settings?.classGroups  || {},
-    users:        users?.users           || EMPTY_DB.users,
-    nextUid:      users?.nextUid         || 3,
-    students:     students?.students     || EMPTY_DB.students,
-    nextSid:      students?.nextSid      || 5,
-    fees:         fees?.fees             || EMPTY_DB.fees,
-    nextFid:      fees?.nextFid          || 5,
-    results:      results2?.results      || [],
-    nextRid:      results2?.nextRid      || 1,
-    submissions:  submissions?.submissions  || [],
-    savedReports: savedReports?.savedReports || [],
+    school:       settings?.school       || existingDB?.school      || EMPTY_DB.school,
+    term:         settings?.term         || existingDB?.term        || EMPTY_DB.term,
+    termFees:     settings?.termFees     || existingDB?.termFees    || {},
+    customSubs:   settings?.customSubs   || existingDB?.customSubs  || {},
+    classGroups:  settings?.classGroups  || existingDB?.classGroups || {},
+    users:        users?.users           || existingDB?.users       || EMPTY_DB.users,
+    nextUid:      users?.nextUid         || existingDB?.nextUid     || 3,
+    students:     students?.students     || existingDB?.students    || EMPTY_DB.students,
+    nextSid:      students?.nextSid      || existingDB?.nextSid     || 5,
+    fees:         fees?.fees             || existingDB?.fees        || EMPTY_DB.fees,
+    nextFid:      fees?.nextFid          || existingDB?.nextFid     || 5,
+    results:      results2?.results      || existingDB?.results     || [],
+    nextRid:      results2?.nextRid      || existingDB?.nextRid     || 1,
+    submissions:  submissions?.submissions  || existingDB?.submissions  || [],
+    savedReports: savedReports?.savedReports || existingDB?.savedReports || [],
   };
 }
 
@@ -1235,8 +1239,27 @@ async function _backgroundSync(){
   if (!isConfigured()) return;
   try {
     const rec = await dbRead();
-    if (rec && rec.users) {
-      DB = normaliseDB(rec);
+    if (rec && rec.users && rec.users.length > 0) {
+      const fresh = normaliseDB(rec);
+      // Only update DB if the fresh fetch has at least as much data as we already have.
+      // This prevents a partial bin read from wiping good in-memory data.
+      const currentStudents = (DB && DB.students) ? DB.students.length : 0;
+      const currentFees     = (DB && DB.fees)     ? DB.fees.length     : 0;
+      if (fresh.students.length >= currentStudents && fresh.fees.length >= currentFees) {
+        DB = fresh;
+      } else {
+        // Merge: keep whichever bin has more records
+        if (!DB) DB = fresh;
+        if (fresh.students.length > (DB.students||[]).length) DB.students = fresh.students;
+        if (fresh.fees.length     > (DB.fees||[]).length)     DB.fees     = fresh.fees;
+        if (fresh.results.length  > (DB.results||[]).length)  DB.results  = fresh.results;
+        if (fresh.users.length    > (DB.users||[]).length)    DB.users    = fresh.users;
+        if (fresh.submissions.length > (DB.submissions||[]).length) DB.submissions = fresh.submissions;
+        if (fresh.savedReports.length > (DB.savedReports||[]).length) DB.savedReports = fresh.savedReports;
+        // Always take latest settings and term
+        DB.school = fresh.school;
+        DB.term   = fresh.term;
+      }
       cacheUsers(DB.users);
       try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
     }
@@ -1292,9 +1315,16 @@ async function doLogin(){
     const user=cachedUsers.find(x=>x.username===username&&x.password===password);
     if(user){
       resetBtn();
+      // Ensure DB is fully loaded from snapshot before entering the app.
+      // This is critical on new devices where the snapshot was just saved by
+      // doStaffConnect / doAdminDeviceLogin and DB may not be in memory yet.
+      if(!DB || !DB.students || DB.students.length === 0){
+        const snap = getDBSnapshot();
+        if(snap) DB = normaliseDB(snap);
+      }
       doEnterApp(user);
-      // Sync DB silently in background
-      dbRead().then(rec=>{if(rec&&rec.users){DB=normaliseDB(rec);cacheUsers(DB.users);try{localStorage.setItem('qsc_db_snapshot',JSON.stringify(DB));}catch(e){};}}).catch(()=>{});
+      // Sync DB silently in background to pick up any changes since last connect
+      _backgroundSync();
       return;
     }
     // Cache miss — don't reject yet; credentials may have changed on another device.
