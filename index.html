@@ -411,10 +411,10 @@ async function binRead(key) {
   const id = BINS[key];
   if (!id) throw new Error('No BIN for ' + key);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000); // 5s is plenty; fail fast
+  const timer = setTimeout(() => controller.abort(), 9000);
   try {
     const res = await fetch(`${BIN_BASE}/${id}/latest`, {
-      headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }, // skip metadata = smaller payload
+      headers: { 'X-Master-Key': API_KEY },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -515,9 +515,20 @@ async function dbWrite(data) {
 async function dbRead() {
   const keys = ['settings', 'users', 'students', 'fees', 'results', 'submissions', 'savedReports'];
 
-  // All 7 bins read in parallel — no retry (fail fast, caller handles errors)
+  // Retry helper — tries up to 3 times with 1s gap for transient failures
+  async function binReadWithRetry(key, attempts = 3) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try { return await binRead(key); } catch(e) {
+        lastErr = e;
+        if (i < attempts - 1) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    throw lastErr;
+  }
+
   const settled = await Promise.allSettled(
-    keys.map(k => BINS[k] ? binRead(k) : Promise.resolve(null))
+    keys.map(k => BINS[k] ? binReadWithRetry(k) : Promise.resolve(null))
   );
 
   // Surface critical bin failures (settings or users) as hard errors
@@ -1298,71 +1309,49 @@ async function boot(){
   }
 }
 
-// Bins to poll on each cycle — always include the 5 active bins.
-// savedReports/submissions are added when the user is on a page that uses them.
-const POLL_BINS_BASE = ['fees','students','results','settings','users'];
-
-function getPollBins(){
-  const extra = [];
-  if(_currentPage === 'savedreports') extra.push('savedReports');
-  if(_currentPage === 'results' || _currentPage === 'reports') extra.push('submissions');
-  return extra.length ? [...POLL_BINS_BASE, ...extra] : POLL_BINS_BASE;
-}
-
 async function _backgroundSync(){
   if (!isConfigured()) return;
+  // Don't poll while a local write is in-flight — server doesn't have our latest yet
   if (_syncInFlight) return;
+  // Don't poll if we have local unsaved changes — we'd overwrite them with stale remote data
   if (_dirtyBins.size > 0) return;
-
   try {
-    const pollBins = getPollBins();
-    const settled = await Promise.allSettled(
-      pollBins.map(k => BINS[k] ? binRead(k).then(r=>({k,r})) : Promise.resolve(null))
-    );
+    const rec = await dbRead();
+    if (!rec || !rec.users || rec.users.length === 0) return;
+    const fresh = normaliseDB(rec);
+    if (!DB) { DB = fresh; }
+    else {
+      // For each bin, only update local DB if remote data is different from what we last wrote.
+      // This prevents device A's poll from overwriting its own local data with device B's
+      // version of a bin that device A hasn't changed.
+      let changed = false;
+      const localSnap = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
 
-    // Abort immediately if a write started while we were reading
-    if (_dirtyBins.size > 0 || _syncInFlight) return;
+      const check = (getRemote, getLocal, apply) => {
+        const remStr = JSON.stringify(getRemote(fresh));
+        const locStr = JSON.stringify(getLocal(localSnap));
+        if (remStr !== locStr) { apply(); changed = true; }
+      };
 
-    const localSnap = JSON.parse(localStorage.getItem('qsc_db_snapshot')||'null') || DB || {};
+      check(d=>({school:d.school,term:d.term}), d=>({school:d.school,term:d.term}), ()=>{
+        DB.school=fresh.school; DB.term=fresh.term; DB.termFees=fresh.termFees;
+        DB.customSubs=fresh.customSubs; DB.classGroups=fresh.classGroups;
+      });
+      check(d=>d.users,    d=>d.users,    ()=>{ if(fresh.users?.length>0)    { DB.users=fresh.users; DB.nextUid=fresh.nextUid; } });
+      check(d=>d.students, d=>d.students, ()=>{ if(fresh.students?.length>0) { DB.students=fresh.students; DB.nextSid=fresh.nextSid; } });
+      check(d=>d.fees,     d=>d.fees,     ()=>{ if(fresh.fees?.length>0)     { DB.fees=fresh.fees; DB.nextFid=fresh.nextFid; } });
+      check(d=>d.results,  d=>d.results,  ()=>{ if(fresh.results?.length>0)  { DB.results=fresh.results; DB.nextRid=fresh.nextRid; } });
+      check(d=>d.submissions,  d=>d.submissions,  ()=>{ if(fresh.submissions?.length>0)   DB.submissions=fresh.submissions; });
+      check(d=>d.savedReports, d=>d.savedReports, ()=>{ if(fresh.savedReports?.length>0)  DB.savedReports=fresh.savedReports; });
 
-    // Build a complete merged candidate in a SEPARATE object — never touch DB until ready
-    const candidate = JSON.parse(JSON.stringify(DB)); // deep clone of current DB
-    let changed = false;
-
-    for (const s of settled) {
-      if (s.status !== 'fulfilled' || !s.value) continue;
-      const {k, r} = s.value;
-      if (!r) continue;
-
-      const remStr = JSON.stringify(r);
-      const locStr = JSON.stringify(BIN_SECTION_MAP[k] ? BIN_SECTION_MAP[k](localSnap) : null);
-      if (remStr === locStr) continue; // bin unchanged — skip
-
-      if (k==='settings') {
-        candidate.school=r.school||candidate.school; candidate.term=r.term||candidate.term;
-        candidate.termFees=r.termFees||{}; candidate.customSubs=r.customSubs||{}; candidate.classGroups=r.classGroups||{};
-        changed=true;
-      }
-      if (k==='users'        && r.users?.length>0)        { candidate.users=r.users; candidate.nextUid=r.nextUid; changed=true; }
-      if (k==='students'     && r.students?.length>0)     { candidate.students=r.students; candidate.nextSid=r.nextSid; changed=true; }
-      if (k==='fees'         && r.fees?.length>0)         { candidate.fees=r.fees; candidate.nextFid=r.nextFid; changed=true; }
-      if (k==='results'      && r.results?.length>0)      { candidate.results=r.results; candidate.nextRid=r.nextRid; changed=true; }
-      if (k==='submissions'  && r.submissions?.length>0)  { candidate.submissions=r.submissions; changed=true; }
-      if (k==='savedReports' && r.savedReports?.length>0) { candidate.savedReports=r.savedReports; changed=true; }
+      if (!changed) return; // nothing new from remote — skip re-render
     }
-
-    if (!changed) return;
-
-    // Final guard — abort if a write queued during the loop above
-    if (_dirtyBins.size > 0 || _syncInFlight) return;
-
-    // Atomic swap: DB goes from old → new in one assignment, no partial state ever
-    DB = candidate;
     cacheUsers(DB.users);
-    try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
-
-    // Patch only visible text nodes rather than destroying and rebuilding the whole page
-    if (!_userIsTyping()) _patchDOM();
+    // Guard: don't overwrite localStorage if a write just queued while we were reading
+    if (_dirtyBins.size === 0 && !_syncInFlight) {
+      try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+      if (!_userIsTyping()) await _refreshCurrentPage();
+    }
   } catch(e) { /* silent — will retry on next poll */ }
 }
 
@@ -1543,64 +1532,12 @@ function _userIsTyping(){
   return (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && !!el.closest('#CNT,#MO-box');
 }
 
-// Ghost-render: render the updated page into a hidden offscreen div,
-// then swap only the inner HTML of #CNT in one shot inside requestAnimationFrame.
-// Works for ANY content change — numbers, names, table rows, statuses, anything.
-// The user never sees the old content being torn down; the swap is atomic from the browser's perspective.
-async function _patchDOM(){
-  if(!CU || document.getElementById('PG-app').style.display==='none') return;
-
-  const pageMap = {dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
-    results:pgResults,reports:pgReports,savedreports:pgSavedReports,
-    yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
-  const fn = pageMap[_currentPage];
-  if(!fn) return;
-
-  // Create an offscreen ghost container — never inserted into the live DOM
-  const ghost = document.createElement('div');
-  ghost.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;';
-  document.body.appendChild(ghost);
-
-  // Temporarily redirect #CNT writes to the ghost
-  const cnt = document.getElementById('CNT');
-  if(!cnt){ document.body.removeChild(ghost); return; }
-
-  const realInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  let ghostHTML = '';
-  const origSet = cnt.__lookupSetter__ ? cnt.__lookupSetter__('innerHTML') : null;
-
-  // Intercept the page render function's innerHTML assignment to #CNT
-  Object.defineProperty(cnt, 'innerHTML', {
-    set(v){ ghostHTML = v; },
-    get(){ return realInnerHTML.get.call(cnt); },
-    configurable: true
-  });
-
-  try { await fn(); } catch(e) { /* render error — bail safely */ }
-
-  // Restore normal innerHTML behaviour
-  Object.defineProperty(cnt, 'innerHTML', realInnerHTML);
-  document.body.removeChild(ghost);
-
-  if(!ghostHTML) return; // render produced nothing — skip swap
-
-  // Only swap if content actually changed — avoids pointless reflows
-  if(ghostHTML === cnt.innerHTML) return;
-
-  // Atomic swap inside rAF: browser completes current paint, then updates in the next frame
-  requestAnimationFrame(() => {
-    cnt.innerHTML = ghostHTML;
-  });
-}
-
-// Full re-render with loading state — used when navigating to a page
+// Re-render the current page in-place without resetting scroll or nav state
 async function _refreshCurrentPage(){
   if(!CU || document.getElementById('PG-app').style.display==='none') return;
-  const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
-    results:pgResults,reports:pgReports,savedreports:pgSavedReports,
-    yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
+  const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
   const fn = map[_currentPage];
-  if(fn) try{ await fn(); }catch(e){ /* silent */ }
+  if(fn) try{ await fn(); }catch(e){ /* silent — stale render is better than crash */ }
 }
 
 /* ══════════════════════════════════════════════
@@ -1660,10 +1597,10 @@ function adminDash(){
     <div id="DS-res" style="margin-top:12px"></div>
   </div>
   <div class="sg">
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="students-count">${DB.students.length}</div><div class="sl">Total Students</div></div>
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="fees-paid-count">${paid}</div><div class="sl">Fees Paid</div></div>
-    <div class="st"><div class="sn" style="color:var(--go)" data-live="fees-unpaid-count">${partial}</div><div class="sl">Partial/Owing</div></div>
-    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px" data-live="fees-total-amount">GHS ${tot.toLocaleString()}</div><div class="sl">Total Collected</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${DB.students.length}</div><div class="sl">Total Students</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${paid}</div><div class="sl">Fees Paid</div></div>
+    <div class="st"><div class="sn" style="color:var(--go)">${partial}</div><div class="sl">Partial/Owing</div></div>
+    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="sl">Total Collected</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
@@ -1734,10 +1671,10 @@ function staffDash(){
   document.getElementById('CNT').innerHTML=`
   <div class="sh"><div><div class="stl">Hello, ${CU.name.split(' ')[0]}!</div><div class="ssb">${CU.cls||'Staff'} · Term ${DB.term.term} · ${DB.term.year}</div></div></div>
   <div class="sg">
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="students-count">${sts.length}</div><div class="sl">My Students</div></div>
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="fees-paid-count">${fees.filter(f=>f.status==='paid').length}</div><div class="sl">Fees Paid</div></div>
-    <div class="st"><div class="sn" style="color:var(--go)" data-live="fees-unpaid-count">${fees.filter(f=>f.status==='partial').length}</div><div class="sl">Partial</div></div>
-    <div class="st"><div class="sn" style="color:var(--rd)" data-live="fees-unpaid-count">${unpaid}</div><div class="sl">Unpaid</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${sts.length}</div><div class="sl">My Students</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${fees.filter(f=>f.status==='paid').length}</div><div class="sl">Fees Paid</div></div>
+    <div class="st"><div class="sn" style="color:var(--go)">${fees.filter(f=>f.status==='partial').length}</div><div class="sl">Partial</div></div>
+    <div class="st"><div class="sn" style="color:var(--rd)">${unpaid}</div><div class="sl">Unpaid</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
