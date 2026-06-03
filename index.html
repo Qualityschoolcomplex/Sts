@@ -610,8 +610,9 @@ const EMPTY_DB = {
    4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
       while the background sync is in flight
 ──────────────────────────────────────────────────────────────────────── */
-let _syncTimer = null;
-let _syncPending = false;
+let _syncTimer    = null;
+let _syncInFlight = false;  // true while a dbWrite is actively running
+let _syncDirty    = false;  // true if a save happened while a write was in-flight
 
 function saveLocal() {
   try {
@@ -621,24 +622,43 @@ function saveLocal() {
 }
 
 function scheduleRemoteSync() {
+  // Always mark dirty so a queued write knows there's new data to push
+  _syncDirty = true;
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(_doRemoteSync, 1500);
 }
 
 async function _doRemoteSync() {
-  if (_syncPending || !isConfigured()) return;
-  _syncPending = true;
+  if (!isConfigured()) return;
+
+  // If a write is already running, the dirty flag ensures it re-runs after finishing
+  if (_syncInFlight) return;
+
+  _syncInFlight = true;
+  _syncDirty    = false;   // consuming the pending dirty state now
   showCloudSync(true);
+
   try {
+    // Always write from the freshest localStorage snapshot, not a stale closure value
     const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
     await dbWrite(snapshot);
     showCloudSync(false);
   } catch(e) {
     showCloudSync(false, true);
-    setTimeout(() => { _syncPending = false; _doRemoteSync(); }, 5000);
+    _syncInFlight = false;
+    // Retry in 5 s — preserve dirty flag so the retry picks up the latest data
+    _syncDirty = true;
+    setTimeout(_doRemoteSync, 5000);
     return;
   }
-  _syncPending = false;
+
+  _syncInFlight = false;
+
+  // If another save happened while we were writing, run again immediately
+  if (_syncDirty) {
+    _syncDirty = false;
+    setTimeout(_doRemoteSync, 200);
+  }
 }
 
 function showCloudSync(syncing, error) {
@@ -1233,15 +1253,18 @@ async function boot(){
 
 async function _backgroundSync(){
   if (!isConfigured()) return;
+  // Don't run a background read while a local write is still in-flight —
+  // the remote hasn't received the latest data yet, so reading now would
+  // fetch stale data and overwrite good local state.
+  if (_syncInFlight || _syncDirty) return;
   try {
     const rec = await dbRead();
     if (rec && rec.users && rec.users.length > 0) {
       const fresh = normaliseDB(rec);
-      // Guard: only overwrite DB sections where the fresh data is non-empty.
-      // This prevents a rate-limited or partial bin read from wiping good in-memory data.
-      if (!DB) DB = fresh;
-      else {
-        // Always take settings/term/users (critical, always fetched)
+      if (!DB) {
+        DB = fresh;
+      } else {
+        // Always take settings/term/users (critical bins, always fetched successfully)
         DB.school      = fresh.school;
         DB.term        = fresh.term;
         DB.termFees    = fresh.termFees;
@@ -1249,15 +1272,20 @@ async function _backgroundSync(){
         DB.classGroups = fresh.classGroups;
         DB.users       = fresh.users;
         DB.nextUid     = fresh.nextUid;
-        // Only overwrite data bins if fresh has records (not EMPTY_DB defaults from a failed read)
-        if (fresh.students.length > 0)    { DB.students    = fresh.students;    DB.nextSid = fresh.nextSid; }
-        if (fresh.fees.length > 0)        { DB.fees        = fresh.fees;        DB.nextFid = fresh.nextFid; }
-        if (fresh.results.length > 0)     { DB.results     = fresh.results;     DB.nextRid = fresh.nextRid; }
-        if (fresh.submissions.length > 0) { DB.submissions = fresh.submissions; }
-        if (fresh.savedReports.length > 0){ DB.savedReports= fresh.savedReports;}
+        // Only overwrite data bins when remote has actual records.
+        // An empty array means the bin read failed/rate-limited — keep local data.
+        if (fresh.students.length > 0)     { DB.students     = fresh.students;     DB.nextSid = fresh.nextSid; }
+        if (fresh.fees.length > 0)         { DB.fees         = fresh.fees;         DB.nextFid = fresh.nextFid; }
+        if (fresh.results.length > 0)      { DB.results      = fresh.results;      DB.nextRid = fresh.nextRid; }
+        if (fresh.submissions.length > 0)  { DB.submissions  = fresh.submissions; }
+        if (fresh.savedReports.length > 0) { DB.savedReports = fresh.savedReports; }
       }
       cacheUsers(DB.users);
-      try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+      // Only update localStorage if no write is pending — otherwise we'd overwrite
+      // unsaved local changes with stale remote data
+      if (!_syncInFlight && !_syncDirty) {
+        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+      }
     }
   } catch(e) { /* silent — will retry on next user action */ }
 }
