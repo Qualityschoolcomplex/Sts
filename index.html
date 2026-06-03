@@ -776,10 +776,18 @@ function toast(msg,type='ok'){
   setTimeout(()=>{el.style.animation='to2 .3s ease forwards';setTimeout(()=>el.remove(),300);},2800);
 }
 function updTC(){ document.getElementById('TERM-chip').textContent=`Term ${DB.term.term} · ${DB.term.year}`; }
+function getSchoolInitials(name){
+  const words=(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return 'SC';
+  if(words.length===1) return words[0].substring(0,2).toUpperCase();
+  // Use first letter of each word, max 3 letters
+  return words.slice(0,3).map(w=>w[0].toUpperCase()).join('');
+}
 function updSBLogo(){
   const el=document.getElementById('SB-logo');
   if(!el)return;
-  el.innerHTML=DB.school.logo?`<img src="${DB.school.logo}" alt="Logo">`:'QS';
+  const initials=getSchoolInitials(DB.school&&DB.school.name?DB.school.name:'');
+  el.innerHTML=DB.school.logo?`<img src="${DB.school.logo}" alt="Logo">`:initials;
 }
 function updLLogo(){
   const el=document.getElementById('L-logo');
@@ -1350,6 +1358,9 @@ function updSchoolName(){
   if(sb)sb.textContent=name;
   const sbMotto=document.getElementById('SB-motto');
   if(sbMotto)sbMotto.textContent=motto?'"'+motto+'"':'';
+  // Update badge initials whenever name changes (only if no custom logo)
+  const sbLogo=document.getElementById('SB-logo');
+  if(sbLogo&&!DB.school.logo) sbLogo.textContent=getSchoolInitials(name);
   document.title=name+' — GES Management System';
 }
 
@@ -1382,6 +1393,9 @@ function setNav(id){document.querySelectorAll('.ni').forEach(e=>e.classList.remo
 const PTITLES={dashboard:'Dashboard',students:'Students',enrollment:'New Enrollment',fees:'Fees & Payments',results:'Results Entry',reports:'Reports & Results',savedreports:'Saved Reports',yearresults:'Year Results',staff:'Staff Management',settings:'School Settings'};
 async function go(id){
   setNav(id);
+  // Collapse sidebar when a menu item is selected
+  const app=document.getElementById('APP');
+  if(app && !app.classList.contains('sb-collapsed')) app.classList.add('sb-collapsed');
   document.getElementById('PG-title').textContent=PTITLES[id]||id;
   document.getElementById('CNT').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:180px;gap:12px"><div class="spin"></div><span style="color:var(--mu)">Loading...</span></div>`;
   const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
@@ -2825,6 +2839,13 @@ function previewSchoolName(val){
   } else {
     prev.style.display='none';
   }
+  // Live-preview badge initials and sidebar name
+  const sbLogo=document.getElementById('SB-logo');
+  if(sbLogo&&!DB.school.logo) sbLogo.textContent=trimmed?getSchoolInitials(trimmed):getSchoolInitials(DB.school.name||'');
+  const sbName=document.getElementById('SB-name');
+  if(sbName) sbName.textContent=trimmed||DB.school.name;
+  const lsn=document.getElementById('L-sname');
+  if(lsn) lsn.textContent=trimmed||DB.school.name;
 }
 function previewMotto(val){
   const prev=document.getElementById('SS-mo-preview');
