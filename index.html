@@ -599,16 +599,13 @@ const EMPTY_DB = {
    4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
       while the background sync is in flight
 ──────────────────────────────────────────────────────────────────────── */
-let _syncTimer      = null;
-let _syncInFlight   = false;   // true while a dbWrite is actively running
-let _dirtyBins      = new Set(); // which bins have local changes not yet written to remote
-let _pollTimer      = null;    // periodic remote-fetch so all devices stay in sync
-let _lastWriteTime  = 0;       // timestamp of last completed write
-const WRITE_COOLDOWN = 5000;   // ms to wait after a write before polling (CDN propagation buffer)
+// ── Sync state ──
+let _syncTimer    = null;   // debounce timer for writes
+let _syncInFlight = false;  // true while a write is running
+let _pollTimer    = null;   // interval for polling remote changes
+let _lastWriteAt  = 0;      // timestamp of last successful write completion
 
-const POLL_INTERVAL = 30000; // 30 seconds
-
-// Map each DB section to its bin key — used for dirty tracking
+// Section map: how each DB section maps to its bin payload
 const BIN_SECTION_MAP = {
   settings:    d => ({ school: d.school, term: d.term, termFees: d.termFees||{}, customSubs: d.customSubs||{}, classGroups: d.classGroups||{} }),
   users:       d => ({ users: d.users, nextUid: d.nextUid }),
@@ -619,43 +616,26 @@ const BIN_SECTION_MAP = {
   savedReports:d => ({ savedReports: d.savedReports||[] }),
 };
 
-// Call this whenever a specific section of DB changes
-// Usage: markDirty('fees') or markDirty('students','fees')
-function markDirty(...bins){
-  bins.forEach(b => _dirtyBins.add(b));
-}
+// Dirty tracking: which bins have unsaved local changes
+let _dirtyBins = new Set();
+function markDirty(...bins){ bins.forEach(b => _dirtyBins.add(b)); }
 
 function startPolling(){
   stopPolling();
-  _pollTimer = setInterval(async ()=>{
-    // Skip poll if a local write is in-flight — we'd read data the server hasn't received yet
-    if(_syncInFlight) return;
-    // Skip poll if a write just finished — JSONBin CDN may still serve stale cached data
-    if(Date.now() - _lastWriteTime < WRITE_COOLDOWN) return;
-    await _backgroundSync();
-  }, POLL_INTERVAL);
+  _pollTimer = setInterval(_remotePoll, 10000); // poll every 10 seconds
 }
-
 function stopPolling(){
   if(_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
 }
 
 function saveLocal() {
   try {
-    // Detect which bins actually changed vs the last saved snapshot
     const prev = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null');
-    if (prev) {
-      if (JSON.stringify(BIN_SECTION_MAP.settings(DB))    !== JSON.stringify(BIN_SECTION_MAP.settings(prev)))    markDirty('settings');
-      if (JSON.stringify(BIN_SECTION_MAP.users(DB))       !== JSON.stringify(BIN_SECTION_MAP.users(prev)))       markDirty('users');
-      if (JSON.stringify(BIN_SECTION_MAP.students(DB))    !== JSON.stringify(BIN_SECTION_MAP.students(prev)))    markDirty('students');
-      if (JSON.stringify(BIN_SECTION_MAP.fees(DB))        !== JSON.stringify(BIN_SECTION_MAP.fees(prev)))        markDirty('fees');
-      if (JSON.stringify(BIN_SECTION_MAP.results(DB))     !== JSON.stringify(BIN_SECTION_MAP.results(prev)))     markDirty('results');
-      if (JSON.stringify(BIN_SECTION_MAP.submissions(DB)) !== JSON.stringify(BIN_SECTION_MAP.submissions(prev))) markDirty('submissions');
-      if (JSON.stringify(BIN_SECTION_MAP.savedReports(DB))!== JSON.stringify(BIN_SECTION_MAP.savedReports(prev)))markDirty('savedReports');
-    } else {
-      // No previous snapshot — treat all bins as dirty on first save
-      Object.keys(BIN_SECTION_MAP).forEach(b => markDirty(b));
-    }
+    Object.keys(BIN_SECTION_MAP).forEach(k => {
+      if (!prev || JSON.stringify(BIN_SECTION_MAP[k](DB)) !== JSON.stringify(BIN_SECTION_MAP[k](prev))) {
+        markDirty(k);
+      }
+    });
     localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB));
     if (DB.users) cacheUsers(DB.users);
   } catch(e) {}
@@ -667,44 +647,27 @@ function scheduleRemoteSync() {
 }
 
 async function _doRemoteSync() {
-  if (!isConfigured()) return;
-  if (_syncInFlight) return;
-  if (_dirtyBins.size === 0) return; // nothing to write
+  if (!isConfigured() || _syncInFlight || _dirtyBins.size === 0) return;
 
   _syncInFlight = true;
-  const binsToWrite = new Set(_dirtyBins); // snapshot which bins we're writing now
+  const binsToWrite = new Set(_dirtyBins);
   _dirtyBins.clear();
   showCloudSync(true);
 
-  const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
-  const promises = [];
-  for (const k of binsToWrite) {
-    if (BINS[k] && BIN_SECTION_MAP[k]) {
-      promises.push(
-        binWrite(k, BIN_SECTION_MAP[k](snapshot))
-          .catch(e => { console.warn(`Bin write error (${k}):`, e); markDirty(k); }) // re-queue on failure
-      );
-    }
-  }
+  const snap = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
+  await Promise.allSettled(
+    [...binsToWrite]
+      .filter(k => BINS[k] && BIN_SECTION_MAP[k])
+      .map(k => binWrite(k, BIN_SECTION_MAP[k](snap))
+        .catch(() => markDirty(k))) // re-queue failed bins
+  );
 
-  try {
-    await Promise.allSettled(promises);
-    showCloudSync(false);
-  } catch(e) {
-    showCloudSync(false, true);
-  }
-
+  showCloudSync(false);
   _syncInFlight = false;
-  _lastWriteTime = Date.now(); // record when write finished for poll cooldown
+  _lastWriteAt = Date.now();
 
-  // If more bins became dirty while we were writing, flush them now
-  if (_dirtyBins.size > 0) {
-    setTimeout(_doRemoteSync, 200);
-  }
-  // No confirm-read: local DB is already correct after a write.
-  // A post-write read risks fetching a CDN-cached stale version from JSONBin,
-  // which would flash old data briefly until the next poll corrects it.
-  // The 30-second poll is the natural confirmation mechanism.
+  // Flush any bins that got dirty during the write
+  if (_dirtyBins.size > 0) setTimeout(_doRemoteSync, 300);
 }
 
 function showCloudSync(syncing, error) {
@@ -1298,73 +1261,75 @@ async function boot(){
   }
 }
 
-// Bins to poll on each cycle — always include the 5 active bins.
-// savedReports/submissions are added when the user is on a page that uses them.
+// Bins always polled + extras based on current page
 const POLL_BINS_BASE = ['fees','students','results','settings','users'];
-
 function getPollBins(){
-  const extra = [];
-  if(_currentPage === 'savedreports') extra.push('savedReports');
-  if(_currentPage === 'results' || _currentPage === 'reports') extra.push('submissions');
-  return extra.length ? [...POLL_BINS_BASE, ...extra] : POLL_BINS_BASE;
+  const bins = [...POLL_BINS_BASE];
+  if(_currentPage==='savedreports') bins.push('savedReports');
+  if(_currentPage==='results'||_currentPage==='reports') bins.push('submissions');
+  return bins;
 }
 
-async function _backgroundSync(){
-  if (!isConfigured()) return;
-  if (_syncInFlight) return;
-  if (_dirtyBins.size > 0) return;
+// Called every 10 seconds to pull remote changes from other devices
+async function _remotePoll(){
+  if(!isConfigured() || !CU) return;         // not logged in
+  if(_syncInFlight) return;                  // our own write still running
+  if(_dirtyBins.size > 0) return;            // unsaved local changes — don't overwrite
+  if(Date.now() - _lastWriteAt < 3000) return; // brief cooldown after our own write
 
   try {
-    const pollBins = getPollBins();
-    const settled = await Promise.allSettled(
-      pollBins.map(k => BINS[k] ? binRead(k).then(r=>({k,r})) : Promise.resolve(null))
+    const bins = getPollBins();
+    const results = await Promise.allSettled(
+      bins.map(k => BINS[k] ? binRead(k).then(r => ({k, r})) : Promise.resolve(null))
     );
 
-    // Abort immediately if a write started while we were reading
-    if (_dirtyBins.size > 0 || _syncInFlight) return;
+    // If a write started while we were fetching, discard — our data is newer
+    if(_syncInFlight || _dirtyBins.size > 0) return;
 
-    const localSnap = JSON.parse(localStorage.getItem('qsc_db_snapshot')||'null') || DB || {};
-
-    // Build a complete merged candidate in a SEPARATE object — never touch DB until ready
-    const candidate = JSON.parse(JSON.stringify(DB)); // deep clone of current DB
+    // Build merged candidate — never mutate DB until fully ready
+    const candidate = JSON.parse(JSON.stringify(DB));
     let changed = false;
 
-    for (const s of settled) {
-      if (s.status !== 'fulfilled' || !s.value) continue;
-      const {k, r} = s.value;
-      if (!r) continue;
+    for(const res of results){
+      if(res.status !== 'fulfilled' || !res.value) continue;
+      const {k, r} = res.value;
+      if(!r) continue;
 
-      const remStr = JSON.stringify(r);
-      const locStr = JSON.stringify(BIN_SECTION_MAP[k] ? BIN_SECTION_MAP[k](localSnap) : null);
-      if (remStr === locStr) continue; // bin unchanged — skip
+      // Compare remote bin to what we last wrote to localStorage
+      const localBin = BIN_SECTION_MAP[k](candidate);
+      if(JSON.stringify(r) === JSON.stringify(localBin)) continue; // no change
 
-      if (k==='settings') {
-        candidate.school=r.school||candidate.school; candidate.term=r.term||candidate.term;
-        candidate.termFees=r.termFees||{}; candidate.customSubs=r.customSubs||{}; candidate.classGroups=r.classGroups||{};
-        changed=true;
+      // Apply remote — only accept non-empty arrays for list bins
+      if(k==='settings'){
+        if(r.school) candidate.school = r.school;
+        if(r.term)   candidate.term   = r.term;
+        candidate.termFees    = r.termFees    || {};
+        candidate.customSubs  = r.customSubs  || {};
+        candidate.classGroups = r.classGroups || {};
+        changed = true;
       }
-      if (k==='users'        && r.users?.length>0)        { candidate.users=r.users; candidate.nextUid=r.nextUid; changed=true; }
-      if (k==='students'     && r.students?.length>0)     { candidate.students=r.students; candidate.nextSid=r.nextSid; changed=true; }
-      if (k==='fees'         && r.fees?.length>0)         { candidate.fees=r.fees; candidate.nextFid=r.nextFid; changed=true; }
-      if (k==='results'      && r.results?.length>0)      { candidate.results=r.results; candidate.nextRid=r.nextRid; changed=true; }
-      if (k==='submissions'  && r.submissions?.length>0)  { candidate.submissions=r.submissions; changed=true; }
-      if (k==='savedReports' && r.savedReports?.length>0) { candidate.savedReports=r.savedReports; changed=true; }
+      if(k==='users'        && r.users?.length)        { candidate.users=r.users; candidate.nextUid=r.nextUid||candidate.nextUid; changed=true; }
+      if(k==='students'     && r.students?.length)     { candidate.students=r.students; candidate.nextSid=r.nextSid||candidate.nextSid; changed=true; }
+      if(k==='fees'         && r.fees?.length)         { candidate.fees=r.fees; candidate.nextFid=r.nextFid||candidate.nextFid; changed=true; }
+      if(k==='results'      && r.results?.length)      { candidate.results=r.results; candidate.nextRid=r.nextRid||candidate.nextRid; changed=true; }
+      if(k==='submissions'  && r.submissions?.length)  { candidate.submissions=r.submissions; changed=true; }
+      if(k==='savedReports' && r.savedReports?.length) { candidate.savedReports=r.savedReports; changed=true; }
     }
 
-    if (!changed) return;
+    if(!changed) return;
+    if(_syncInFlight || _dirtyBins.size > 0) return; // last-chance guard
 
-    // Final guard — abort if a write queued during the loop above
-    if (_dirtyBins.size > 0 || _syncInFlight) return;
-
-    // Atomic swap: DB goes from old → new in one assignment, no partial state ever
+    // Atomic swap
     DB = candidate;
     cacheUsers(DB.users);
-    try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+    try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
 
-    // Silent re-render with new data — no spinner, no flash
     await _patchDOM();
-  } catch(e) { /* silent — will retry on next poll */ }
+  } catch(e){ /* silent — next poll will retry */ }
 }
+
+// Keep _backgroundSync as alias so existing call sites work
+const _backgroundSync = _remotePoll;
 
 function normaliseDB(rec){
   if(!rec.submissions)rec.submissions=[];
