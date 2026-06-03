@@ -1361,8 +1361,8 @@ async function _backgroundSync(){
     cacheUsers(DB.users);
     try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
 
-    // Patch only visible text nodes rather than destroying and rebuilding the whole page
-    if (!_userIsTyping()) _patchDOM();
+    // Silent re-render with new data — no spinner, no flash
+    await _patchDOM();
   } catch(e) { /* silent — will retry on next poll */ }
 }
 
@@ -1543,12 +1543,11 @@ function _userIsTyping(){
   return (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && !!el.closest('#CNT,#MO-box');
 }
 
-// Ghost-render: render the updated page into a hidden offscreen div,
-// then swap only the inner HTML of #CNT in one shot inside requestAnimationFrame.
-// Works for ANY content change — numbers, names, table rows, statuses, anything.
-// The user never sees the old content being torn down; the swap is atomic from the browser's perspective.
+// Silent re-render triggered by background sync — no spinner, no flash.
+// Renders directly into a temp string, compares with live DOM, swaps only if different.
 async function _patchDOM(){
   if(!CU || document.getElementById('PG-app').style.display==='none') return;
+  if(_userIsTyping()) return;
 
   const pageMap = {dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
     results:pgResults,reports:pgReports,savedreports:pgSavedReports,
@@ -1556,44 +1555,36 @@ async function _patchDOM(){
   const fn = pageMap[_currentPage];
   if(!fn) return;
 
-  // Create an offscreen ghost container — never inserted into the live DOM
-  const ghost = document.createElement('div');
-  ghost.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;';
-  document.body.appendChild(ghost);
-
-  // Temporarily redirect #CNT writes to the ghost
   const cnt = document.getElementById('CNT');
-  if(!cnt){ document.body.removeChild(ghost); return; }
+  if(!cnt) return;
 
-  const realInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  let ghostHTML = '';
-  const origSet = cnt.__lookupSetter__ ? cnt.__lookupSetter__('innerHTML') : null;
+  // Capture the rendered HTML into a temp variable without touching the live DOM
+  let captured = null;
+  const origSet = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set;
+  const ownDesc = Object.getOwnPropertyDescriptor(cnt, 'innerHTML');
 
-  // Intercept the page render function's innerHTML assignment to #CNT
   Object.defineProperty(cnt, 'innerHTML', {
-    set(v){ ghostHTML = v; },
-    get(){ return realInnerHTML.get.call(cnt); },
-    configurable: true
+    configurable: true,
+    get() { return origSet ? cnt.textContent : ''; },
+    set(v) { captured = v; }
   });
 
-  try { await fn(); } catch(e) { /* render error — bail safely */ }
+  try { await fn(); } catch(e) { /* silent */ }
 
-  // Restore normal innerHTML behaviour
-  Object.defineProperty(cnt, 'innerHTML', realInnerHTML);
-  document.body.removeChild(ghost);
+  // Always restore before doing anything else
+  if(ownDesc) Object.defineProperty(cnt, 'innerHTML', ownDesc);
+  else delete cnt.innerHTML; // remove own property, fall back to prototype
 
-  if(!ghostHTML) return; // render produced nothing — skip swap
+  if(!captured) return; // render produced nothing
 
-  // Only swap if content actually changed — avoids pointless reflows
-  if(ghostHTML === cnt.innerHTML) return;
+  // Only update the DOM if content actually differs
+  if(captured === cnt.innerHTML) return;
 
-  // Atomic swap inside rAF: browser completes current paint, then updates in the next frame
-  requestAnimationFrame(() => {
-    cnt.innerHTML = ghostHTML;
-  });
+  // Swap in next animation frame — browser finishes current paint first, no visible flash
+  requestAnimationFrame(() => { cnt.innerHTML = captured; });
 }
 
-// Full re-render with loading state — used when navigating to a page
+// Full re-render with loading state — used only when navigating to a page
 async function _refreshCurrentPage(){
   if(!CU || document.getElementById('PG-app').style.display==='none') return;
   const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
