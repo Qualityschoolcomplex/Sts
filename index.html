@@ -610,12 +610,10 @@ const EMPTY_DB = {
    4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
       while the background sync is in flight
 ──────────────────────────────────────────────────────────────────────── */
-let _syncTimer      = null;
-let _syncInFlight   = false;   // true while a dbWrite is actively running
-let _dirtyBins      = new Set(); // which bins have local changes not yet written to remote
-let _pollTimer      = null;    // periodic remote-fetch so all devices stay in sync
-let _lastWriteTime  = 0;       // timestamp of last completed write
-const WRITE_COOLDOWN = 5000;   // ms to wait after a write before polling (CDN propagation buffer)
+let _syncTimer    = null;
+let _syncInFlight = false;   // true while a dbWrite is actively running
+let _dirtyBins    = new Set(); // which bins have local changes not yet written to remote
+let _pollTimer    = null;    // periodic remote-fetch so all devices stay in sync
 
 const POLL_INTERVAL = 30000; // 30 seconds
 
@@ -641,8 +639,6 @@ function startPolling(){
   _pollTimer = setInterval(async ()=>{
     // Skip poll if a local write is in-flight — we'd read data the server hasn't received yet
     if(_syncInFlight) return;
-    // Skip poll if a write just finished — JSONBin CDN may still serve stale cached data
-    if(Date.now() - _lastWriteTime < WRITE_COOLDOWN) return;
     await _backgroundSync();
   }, POLL_INTERVAL);
 }
@@ -706,16 +702,41 @@ async function _doRemoteSync() {
   }
 
   _syncInFlight = false;
-  _lastWriteTime = Date.now(); // record when write finished for poll cooldown
 
   // If more bins became dirty while we were writing, flush them now
   if (_dirtyBins.size > 0) {
     setTimeout(_doRemoteSync, 200);
+    return;
   }
-  // No confirm-read: local DB is already correct after a write.
-  // A post-write read risks fetching a CDN-cached stale version from JSONBin,
-  // which would flash old data briefly until the next poll corrects it.
-  // The 30-second poll is the natural confirmation mechanism.
+
+  // Confirm-read: read back only the bins we just wrote to confirm the server accepted them
+  // Short delay lets JSONBin propagate the write
+  setTimeout(async () => {
+    if (_syncInFlight || _dirtyBins.size > 0) return;
+    try {
+      const reads = await Promise.allSettled(
+        [...binsToWrite].filter(k => BINS[k]).map(k => binRead(k).then(r => ({ k, r })))
+      );
+      let changed = false;
+      for (const s of reads) {
+        if (s.status !== 'fulfilled') continue;
+        const { k, r } = s.value;
+        if (!r) continue;
+        if (k === 'settings')     { DB.school=r.school; DB.term=r.term; DB.termFees=r.termFees||{}; DB.customSubs=r.customSubs||{}; DB.classGroups=r.classGroups||{}; changed=true; }
+        if (k === 'users'    && r.users?.length>0)      { DB.users=r.users; DB.nextUid=r.nextUid; changed=true; }
+        if (k === 'students' && r.students?.length>0)   { DB.students=r.students; DB.nextSid=r.nextSid; changed=true; }
+        if (k === 'fees'     && r.fees?.length>0)       { DB.fees=r.fees; DB.nextFid=r.nextFid; changed=true; }
+        if (k === 'results'  && r.results?.length>0)    { DB.results=r.results; DB.nextRid=r.nextRid; changed=true; }
+        if (k === 'submissions' && r.submissions?.length>0) { DB.submissions=r.submissions; changed=true; }
+        if (k === 'savedReports'&& r.savedReports?.length>0){ DB.savedReports=r.savedReports; changed=true; }
+      }
+      if (changed) {
+        cacheUsers(DB.users);
+        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+        if (!_userIsTyping()) await _refreshCurrentPage();
+      }
+    } catch(e) { /* silent */ }
+  }, 800);
 }
 
 function showCloudSync(syncing, error) {
