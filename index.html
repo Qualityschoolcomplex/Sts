@@ -613,6 +613,22 @@ const EMPTY_DB = {
 let _syncTimer    = null;
 let _syncInFlight = false;  // true while a dbWrite is actively running
 let _syncDirty    = false;  // true if a save happened while a write was in-flight
+let _pollTimer    = null;   // periodic remote-fetch so all devices stay in sync
+
+const POLL_INTERVAL = 30000; // 30 seconds
+
+function startPolling(){
+  stopPolling();
+  _pollTimer = setInterval(async ()=>{
+    // Skip poll if a local write is pending or in-flight — we'd read stale data
+    if(_syncInFlight || _syncDirty) return;
+    await _backgroundSync();
+  }, POLL_INTERVAL);
+}
+
+function stopPolling(){
+  if(_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
+}
 
 function saveLocal() {
   try {
@@ -654,11 +670,40 @@ async function _doRemoteSync() {
 
   _syncInFlight = false;
 
-  // If another save happened while we were writing, run again immediately
+  // If another save happened while we were writing, run again immediately with the new data
   if (_syncDirty) {
     _syncDirty = false;
     setTimeout(_doRemoteSync, 200);
+    return;
   }
+
+  // Confirm-read: fetch back what we just wrote so device B always sees
+  // its own saves confirmed from the server, then re-render the page.
+  // Short delay lets JSONBin propagate the write before we read it back.
+  setTimeout(async () => {
+    if (_syncInFlight || _syncDirty) return; // another write queued — skip
+    try {
+      const rec = await dbRead();
+      if (rec && rec.users && rec.users.length > 0) {
+        const fresh = normaliseDB(rec);
+        if (!DB) { DB = fresh; }
+        else {
+          DB.school = fresh.school; DB.term = fresh.term;
+          DB.termFees = fresh.termFees; DB.customSubs = fresh.customSubs;
+          DB.classGroups = fresh.classGroups; DB.users = fresh.users;
+          DB.nextUid = fresh.nextUid;
+          if (fresh.students.length > 0)     { DB.students     = fresh.students;     DB.nextSid = fresh.nextSid; }
+          if (fresh.fees.length > 0)         { DB.fees         = fresh.fees;         DB.nextFid = fresh.nextFid; }
+          if (fresh.results.length > 0)      { DB.results      = fresh.results;      DB.nextRid = fresh.nextRid; }
+          if (fresh.submissions.length > 0)  { DB.submissions  = fresh.submissions; }
+          if (fresh.savedReports.length > 0) { DB.savedReports = fresh.savedReports; }
+        }
+        cacheUsers(DB.users);
+        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+        await _refreshCurrentPage();
+      }
+    } catch(e) { /* silent — user still has their local changes visible */ }
+  }, 800);
 }
 
 function showCloudSync(syncing, error) {
@@ -1209,6 +1254,7 @@ async function boot(){
           load(false);
           showPG('app'); updAppUI(); buildNav(); go('dashboard');
           _backgroundSync(); // refresh from remote silently
+          startPolling();    // keep syncing while logged in
           return;
         }
       }
@@ -1285,6 +1331,8 @@ async function _backgroundSync(){
       // unsaved local changes with stale remote data
       if (!_syncInFlight && !_syncDirty) {
         try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+        // Re-render the current page so the user sees fresh data without a manual refresh
+        await _refreshCurrentPage();
       }
     }
   } catch(e) { /* silent — will retry on next user action */ }
@@ -1331,6 +1379,7 @@ async function doLogin(){
     updAppUI();
     buildNav();
     go('dashboard');
+    startPolling(); // keep all devices in sync while logged in
   }
 
   // STEP 1: Try cached users (instant, no network) — only accept a positive match
@@ -1390,7 +1439,7 @@ async function doLogin(){
 }
 document.getElementById('L-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
-function doLogout(){ clearSession(); CU=null; showPG('login'); }
+function doLogout(){ stopPolling(); clearSession(); CU=null; showPG('login'); }
 
 function updAppUI(){
   document.getElementById('SB-name').textContent=DB.school.name;
@@ -1445,7 +1494,9 @@ function toggleSidebar(){
 }
 function setNav(id){document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));const el=document.getElementById('ni-'+id);if(el)el.classList.add('active');}
 const PTITLES={dashboard:'Dashboard',students:'Students',enrollment:'New Enrollment',fees:'Fees & Payments',results:'Results Entry',reports:'Reports & Results',savedreports:'Saved Reports',yearresults:'Year Results',staff:'Staff Management',settings:'School Settings'};
+let _currentPage = 'dashboard';
 async function go(id){
+  _currentPage = id;
   setNav(id);
   // Collapse sidebar when a menu item is selected
   const app=document.getElementById('APP');
@@ -1454,6 +1505,14 @@ async function go(id){
   document.getElementById('CNT').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:180px;gap:12px"><div class="spin"></div><span style="color:var(--mu)">Loading...</span></div>`;
   const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
   if(map[id])try{await map[id]();}catch(e){document.getElementById('CNT').innerHTML=`<div class="card" style="color:var(--rd)">Error: ${e.message}</div>`;}
+}
+
+// Re-render the current page in-place without resetting scroll or nav state
+async function _refreshCurrentPage(){
+  if(!CU || document.getElementById('PG-app').style.display==='none') return;
+  const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
+  const fn = map[_currentPage];
+  if(fn) try{ await fn(); }catch(e){ /* silent — stale render is better than crash */ }
 }
 
 /* ══════════════════════════════════════════════
