@@ -411,10 +411,10 @@ async function binRead(key) {
   const id = BINS[key];
   if (!id) throw new Error('No BIN for ' + key);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000); // 5s is plenty; fail fast
+  const timer = setTimeout(() => controller.abort(), 9000);
   try {
     const res = await fetch(`${BIN_BASE}/${id}/latest`, {
-      headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }, // skip metadata = smaller payload
+      headers: { 'X-Master-Key': API_KEY },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -515,9 +515,20 @@ async function dbWrite(data) {
 async function dbRead() {
   const keys = ['settings', 'users', 'students', 'fees', 'results', 'submissions', 'savedReports'];
 
-  // All 7 bins read in parallel — no retry (fail fast, caller handles errors)
+  // Retry helper — tries up to 3 times with 1s gap for transient failures
+  async function binReadWithRetry(key, attempts = 3) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try { return await binRead(key); } catch(e) {
+        lastErr = e;
+        if (i < attempts - 1) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    throw lastErr;
+  }
+
   const settled = await Promise.allSettled(
-    keys.map(k => BINS[k] ? binRead(k) : Promise.resolve(null))
+    keys.map(k => BINS[k] ? binReadWithRetry(k) : Promise.resolve(null))
   );
 
   // Surface critical bin failures (settings or users) as hard errors
@@ -599,23 +610,59 @@ const EMPTY_DB = {
    4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
       while the background sync is in flight
 ──────────────────────────────────────────────────────────────────────── */
-let _syncTimer   = null;
-let _syncPending = false;  // true while a write is in-flight
-let _pollTimer   = null;
+let _syncTimer    = null;
+let _syncInFlight = false;   // true while a dbWrite is actively running
+let _dirtyBins    = new Set(); // which bins have local changes not yet written to remote
+let _pollTimer    = null;    // periodic remote-fetch so all devices stay in sync
+
+const POLL_INTERVAL = 30000; // 30 seconds
+
+// Map each DB section to its bin key — used for dirty tracking
+const BIN_SECTION_MAP = {
+  settings:    d => ({ school: d.school, term: d.term, termFees: d.termFees||{}, customSubs: d.customSubs||{}, classGroups: d.classGroups||{} }),
+  users:       d => ({ users: d.users, nextUid: d.nextUid }),
+  students:    d => ({ students: d.students, nextSid: d.nextSid }),
+  fees:        d => ({ fees: d.fees, nextFid: d.nextFid }),
+  results:     d => ({ results: d.results, nextRid: d.nextRid }),
+  submissions: d => ({ submissions: d.submissions||[] }),
+  savedReports:d => ({ savedReports: d.savedReports||[] }),
+};
+
+// Call this whenever a specific section of DB changes
+// Usage: markDirty('fees') or markDirty('students','fees')
+function markDirty(...bins){
+  bins.forEach(b => _dirtyBins.add(b));
+}
 
 function startPolling(){
   stopPolling();
   _pollTimer = setInterval(async ()=>{
-    if(_syncPending) return; // don't read while we're writing
+    // Skip poll if a local write is in-flight — we'd read data the server hasn't received yet
+    if(_syncInFlight) return;
     await _backgroundSync();
-  }, 15000); // poll every 15 seconds
+  }, POLL_INTERVAL);
 }
+
 function stopPolling(){
   if(_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
 }
 
 function saveLocal() {
   try {
+    // Detect which bins actually changed vs the last saved snapshot
+    const prev = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null');
+    if (prev) {
+      if (JSON.stringify(BIN_SECTION_MAP.settings(DB))    !== JSON.stringify(BIN_SECTION_MAP.settings(prev)))    markDirty('settings');
+      if (JSON.stringify(BIN_SECTION_MAP.users(DB))       !== JSON.stringify(BIN_SECTION_MAP.users(prev)))       markDirty('users');
+      if (JSON.stringify(BIN_SECTION_MAP.students(DB))    !== JSON.stringify(BIN_SECTION_MAP.students(prev)))    markDirty('students');
+      if (JSON.stringify(BIN_SECTION_MAP.fees(DB))        !== JSON.stringify(BIN_SECTION_MAP.fees(prev)))        markDirty('fees');
+      if (JSON.stringify(BIN_SECTION_MAP.results(DB))     !== JSON.stringify(BIN_SECTION_MAP.results(prev)))     markDirty('results');
+      if (JSON.stringify(BIN_SECTION_MAP.submissions(DB)) !== JSON.stringify(BIN_SECTION_MAP.submissions(prev))) markDirty('submissions');
+      if (JSON.stringify(BIN_SECTION_MAP.savedReports(DB))!== JSON.stringify(BIN_SECTION_MAP.savedReports(prev)))markDirty('savedReports');
+    } else {
+      // No previous snapshot — treat all bins as dirty on first save
+      Object.keys(BIN_SECTION_MAP).forEach(b => markDirty(b));
+    }
     localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB));
     if (DB.users) cacheUsers(DB.users);
   } catch(e) {}
@@ -627,19 +674,69 @@ function scheduleRemoteSync() {
 }
 
 async function _doRemoteSync() {
-  if (_syncPending || !isConfigured()) return;
-  _syncPending = true;
+  if (!isConfigured()) return;
+  if (_syncInFlight) return;
+  if (_dirtyBins.size === 0) return; // nothing to write
+
+  _syncInFlight = true;
+  const binsToWrite = new Set(_dirtyBins); // snapshot which bins we're writing now
+  _dirtyBins.clear();
   showCloudSync(true);
+
+  const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
+  const promises = [];
+  for (const k of binsToWrite) {
+    if (BINS[k] && BIN_SECTION_MAP[k]) {
+      promises.push(
+        binWrite(k, BIN_SECTION_MAP[k](snapshot))
+          .catch(e => { console.warn(`Bin write error (${k}):`, e); markDirty(k); }) // re-queue on failure
+      );
+    }
+  }
+
   try {
-    const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
-    await dbWrite(snapshot);
+    await Promise.allSettled(promises);
     showCloudSync(false);
   } catch(e) {
     showCloudSync(false, true);
-    setTimeout(() => { _syncPending = false; _doRemoteSync(); }, 5000);
+  }
+
+  _syncInFlight = false;
+
+  // If more bins became dirty while we were writing, flush them now
+  if (_dirtyBins.size > 0) {
+    setTimeout(_doRemoteSync, 200);
     return;
   }
-  _syncPending = false;
+
+  // Confirm-read: read back only the bins we just wrote to confirm the server accepted them
+  // Short delay lets JSONBin propagate the write
+  setTimeout(async () => {
+    if (_syncInFlight || _dirtyBins.size > 0) return;
+    try {
+      const reads = await Promise.allSettled(
+        [...binsToWrite].filter(k => BINS[k]).map(k => binRead(k).then(r => ({ k, r })))
+      );
+      let changed = false;
+      for (const s of reads) {
+        if (s.status !== 'fulfilled') continue;
+        const { k, r } = s.value;
+        if (!r) continue;
+        if (k === 'settings')     { DB.school=r.school; DB.term=r.term; DB.termFees=r.termFees||{}; DB.customSubs=r.customSubs||{}; DB.classGroups=r.classGroups||{}; changed=true; }
+        if (k === 'users'    && r.users?.length>0)      { DB.users=r.users; DB.nextUid=r.nextUid; changed=true; }
+        if (k === 'students' && r.students?.length>0)   { DB.students=r.students; DB.nextSid=r.nextSid; changed=true; }
+        if (k === 'fees'     && r.fees?.length>0)       { DB.fees=r.fees; DB.nextFid=r.nextFid; changed=true; }
+        if (k === 'results'  && r.results?.length>0)    { DB.results=r.results; DB.nextRid=r.nextRid; changed=true; }
+        if (k === 'submissions' && r.submissions?.length>0) { DB.submissions=r.submissions; changed=true; }
+        if (k === 'savedReports'&& r.savedReports?.length>0){ DB.savedReports=r.savedReports; changed=true; }
+      }
+      if (changed) {
+        cacheUsers(DB.users);
+        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+        if (!_userIsTyping()) await _refreshCurrentPage();
+      }
+    } catch(e) { /* silent */ }
+  }, 800);
 }
 
 function showCloudSync(syncing, error) {
@@ -1234,16 +1331,49 @@ async function boot(){
 }
 
 async function _backgroundSync(){
-  if (!isConfigured() || _syncPending) return;
+  if (!isConfigured()) return;
+  // Don't poll while a local write is in-flight — server doesn't have our latest yet
+  if (_syncInFlight) return;
+  // Don't poll if we have local unsaved changes — we'd overwrite them with stale remote data
+  if (_dirtyBins.size > 0) return;
   try {
     const rec = await dbRead();
-    if (rec && rec.users) {
-      DB = normaliseDB(rec);
-      cacheUsers(DB.users);
-      try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
-      await _patchDOM();
+    if (!rec || !rec.users || rec.users.length === 0) return;
+    const fresh = normaliseDB(rec);
+    if (!DB) { DB = fresh; }
+    else {
+      // For each bin, only update local DB if remote data is different from what we last wrote.
+      // This prevents device A's poll from overwriting its own local data with device B's
+      // version of a bin that device A hasn't changed.
+      let changed = false;
+      const localSnap = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
+
+      const check = (getRemote, getLocal, apply) => {
+        const remStr = JSON.stringify(getRemote(fresh));
+        const locStr = JSON.stringify(getLocal(localSnap));
+        if (remStr !== locStr) { apply(); changed = true; }
+      };
+
+      check(d=>({school:d.school,term:d.term}), d=>({school:d.school,term:d.term}), ()=>{
+        DB.school=fresh.school; DB.term=fresh.term; DB.termFees=fresh.termFees;
+        DB.customSubs=fresh.customSubs; DB.classGroups=fresh.classGroups;
+      });
+      check(d=>d.users,    d=>d.users,    ()=>{ if(fresh.users?.length>0)    { DB.users=fresh.users; DB.nextUid=fresh.nextUid; } });
+      check(d=>d.students, d=>d.students, ()=>{ if(fresh.students?.length>0) { DB.students=fresh.students; DB.nextSid=fresh.nextSid; } });
+      check(d=>d.fees,     d=>d.fees,     ()=>{ if(fresh.fees?.length>0)     { DB.fees=fresh.fees; DB.nextFid=fresh.nextFid; } });
+      check(d=>d.results,  d=>d.results,  ()=>{ if(fresh.results?.length>0)  { DB.results=fresh.results; DB.nextRid=fresh.nextRid; } });
+      check(d=>d.submissions,  d=>d.submissions,  ()=>{ if(fresh.submissions?.length>0)   DB.submissions=fresh.submissions; });
+      check(d=>d.savedReports, d=>d.savedReports, ()=>{ if(fresh.savedReports?.length>0)  DB.savedReports=fresh.savedReports; });
+
+      if (!changed) return; // nothing new from remote — skip re-render
     }
-  } catch(e) { /* silent */ }
+    cacheUsers(DB.users);
+    // Guard: don't overwrite localStorage if a write just queued while we were reading
+    if (_dirtyBins.size === 0 && !_syncInFlight) {
+      try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+      if (!_userIsTyping()) await _refreshCurrentPage();
+    }
+  } catch(e) { /* silent — will retry on next poll */ }
 }
 
 function normaliseDB(rec){
@@ -1423,55 +1553,12 @@ function _userIsTyping(){
   return (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && !!el.closest('#CNT,#MO-box');
 }
 
-// Silent re-render triggered by background sync — no spinner, no flash.
-// Renders directly into a temp string, compares with live DOM, swaps only if different.
-async function _patchDOM(){
-  if(!CU || document.getElementById('PG-app').style.display==='none') return;
-  if(_userIsTyping()) return;
-
-  const pageMap = {dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
-    results:pgResults,reports:pgReports,savedreports:pgSavedReports,
-    yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
-  const fn = pageMap[_currentPage];
-  if(!fn) return;
-
-  const cnt = document.getElementById('CNT');
-  if(!cnt) return;
-
-  // Capture the rendered HTML into a temp variable without touching the live DOM
-  let captured = null;
-  const origSet = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set;
-  const ownDesc = Object.getOwnPropertyDescriptor(cnt, 'innerHTML');
-
-  Object.defineProperty(cnt, 'innerHTML', {
-    configurable: true,
-    get() { return origSet ? cnt.textContent : ''; },
-    set(v) { captured = v; }
-  });
-
-  try { await fn(); } catch(e) { /* silent */ }
-
-  // Always restore before doing anything else
-  if(ownDesc) Object.defineProperty(cnt, 'innerHTML', ownDesc);
-  else delete cnt.innerHTML; // remove own property, fall back to prototype
-
-  if(!captured) return; // render produced nothing
-
-  // Only update the DOM if content actually differs
-  if(captured === cnt.innerHTML) return;
-
-  // Swap in next animation frame — browser finishes current paint first, no visible flash
-  requestAnimationFrame(() => { cnt.innerHTML = captured; });
-}
-
-// Full re-render with loading state — used only when navigating to a page
+// Re-render the current page in-place without resetting scroll or nav state
 async function _refreshCurrentPage(){
   if(!CU || document.getElementById('PG-app').style.display==='none') return;
-  const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,
-    results:pgResults,reports:pgReports,savedreports:pgSavedReports,
-    yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
+  const map={dashboard:pgDash,students:pgStudents,enrollment:pgEnroll,fees:pgFees,results:pgResults,reports:pgReports,savedreports:pgSavedReports,yearresults:pgYearResults,staff:pgStaff,settings:pgSettings};
   const fn = map[_currentPage];
-  if(fn) try{ await fn(); }catch(e){ /* silent */ }
+  if(fn) try{ await fn(); }catch(e){ /* silent — stale render is better than crash */ }
 }
 
 /* ══════════════════════════════════════════════
@@ -1531,10 +1618,10 @@ function adminDash(){
     <div id="DS-res" style="margin-top:12px"></div>
   </div>
   <div class="sg">
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="students-count">${DB.students.length}</div><div class="sl">Total Students</div></div>
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="fees-paid-count">${paid}</div><div class="sl">Fees Paid</div></div>
-    <div class="st"><div class="sn" style="color:var(--go)" data-live="fees-unpaid-count">${partial}</div><div class="sl">Partial/Owing</div></div>
-    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px" data-live="fees-total-amount">GHS ${tot.toLocaleString()}</div><div class="sl">Total Collected</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${DB.students.length}</div><div class="sl">Total Students</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${paid}</div><div class="sl">Fees Paid</div></div>
+    <div class="st"><div class="sn" style="color:var(--go)">${partial}</div><div class="sl">Partial/Owing</div></div>
+    <div class="st"><div class="sn" style="color:var(--bl);font-size:18px">GHS ${tot.toLocaleString()}</div><div class="sl">Total Collected</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
@@ -1605,10 +1692,10 @@ function staffDash(){
   document.getElementById('CNT').innerHTML=`
   <div class="sh"><div><div class="stl">Hello, ${CU.name.split(' ')[0]}!</div><div class="ssb">${CU.cls||'Staff'} · Term ${DB.term.term} · ${DB.term.year}</div></div></div>
   <div class="sg">
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="students-count">${sts.length}</div><div class="sl">My Students</div></div>
-    <div class="st"><div class="sn" style="color:var(--gr)" data-live="fees-paid-count">${fees.filter(f=>f.status==='paid').length}</div><div class="sl">Fees Paid</div></div>
-    <div class="st"><div class="sn" style="color:var(--go)" data-live="fees-unpaid-count">${fees.filter(f=>f.status==='partial').length}</div><div class="sl">Partial</div></div>
-    <div class="st"><div class="sn" style="color:var(--rd)" data-live="fees-unpaid-count">${unpaid}</div><div class="sl">Unpaid</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${sts.length}</div><div class="sl">My Students</div></div>
+    <div class="st"><div class="sn" style="color:var(--gr)">${fees.filter(f=>f.status==='paid').length}</div><div class="sl">Fees Paid</div></div>
+    <div class="st"><div class="sn" style="color:var(--go)">${fees.filter(f=>f.status==='partial').length}</div><div class="sl">Partial</div></div>
+    <div class="st"><div class="sn" style="color:var(--rd)">${unpaid}</div><div class="sl">Unpaid</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
