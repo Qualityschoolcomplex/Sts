@@ -245,36 +245,17 @@ tbody tr:hover td{background:var(--bg)}
 <div id="PG-setup" class="auth-wrap" style="display:none">
   <div class="auth-box" style="max-width:480px">
     <div style="font-size:40px;text-align:center;margin-bottom:8px">🗄️</div>
-    <div style="font-size:19px;font-weight:700;color:var(--gr);text-align:center;margin-bottom:4px">Database Connection</div>
-    <div style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:18px">Connect once — works on every device</div>
+    <div style="font-size:19px;font-weight:700;color:var(--gr);text-align:center;margin-bottom:4px">Connect to School Database</div>
+    <div style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:18px">Use an access code from your admin to connect</div>
 
     <!-- TAB ROW -->
     <div style="display:flex;gap:0;margin-bottom:20px;border-radius:9px;overflow:hidden;border:1.5px solid #dde2eb">
-      <button id="SU-tab-admin" onclick="suTab('admin')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:var(--gr);color:#fff;border:none;cursor:pointer">🔑 Admin First-Time Setup</button>
-      <button id="SU-tab-admindev" onclick="suTab('admindev')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer;border-left:1.5px solid #dde2eb;border-right:1.5px solid #dde2eb">🛡️ Admin New Device</button>
-      <button id="SU-tab-staff" onclick="suTab('staff')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer">👩‍🏫 Staff / New Device</button>
-    </div>
-
-    <!-- ADMIN PANEL -->
-    <div id="SU-admin-panel">
-      <div style="background:#f0f7ff;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333;border:1px solid #b3d4f5">
-        <b>First time?</b> Paste your Master Key — bins are created automatically.<br>
-        <b>Bins already created?</b> Paste the same Master Key — the app reconnects to your existing bins automatically.<br><br>
-        Get your key: <a href="https://jsonbin.io" target="_blank" style="color:var(--bl);font-weight:600">jsonbin.io</a> → <b>API Keys</b> → <b>Master Key</b>
-      </div>
-      <div class="fg">
-        <label>Master API Key</label>
-        <input id="SU-key" placeholder="$2a$10$…  (paste your full Master Key)" style="font-family:monospace;font-size:11px">
-        <p style="font-size:10px;color:var(--mu);margin-top:4px">⚠ Use the <b>Master Key</b> (not the Access/Read key). Starts with <code style="background:#f0f2f5;padding:1px 5px;border-radius:3px">$2a$10$</code></p>
-      </div>
-      <div id="SU-progress" style="margin-bottom:10px"></div>
-      <div id="SU-alert"></div>
-      <button class="btn bg" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doSetup()">🚀 Connect / Create Database</button>
-      <p style="text-align:center;font-size:10px;color:var(--mu)">Finds existing bins automatically. Creates new ones if missing.</p>
+      <button id="SU-tab-admindev" onclick="suTab('admindev')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:var(--pu);color:#fff;border:none;cursor:pointer">🛡️ Admin New Device</button>
+      <button id="SU-tab-staff" onclick="suTab('staff')" style="flex:1;padding:10px;font-size:11px;font-weight:600;background:#f5f7fa;color:#666;border:none;cursor:pointer;border-left:1.5px solid #dde2eb">👩‍🏫 Staff / New Device</button>
     </div>
 
     <!-- ADMIN NEW DEVICE PANEL -->
-    <div id="SU-admindev-panel" style="display:none">
+    <div id="SU-admindev-panel">
       <div style="background:#f0ebfe;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#333;border:1px solid #c4b5fd">
         <b>Admin on a new device?</b><br>
         1. On your <b>existing logged-in device</b>, go to <b>Settings → School Settings</b><br>
@@ -288,8 +269,9 @@ tbody tr:hover td{background:var(--bg)}
       </div>
       <div id="SU-alert3"></div>
       <button class="btn bp" style="width:100%;justify-content:center;padding:12px;font-size:13px;border-radius:10px;margin-bottom:8px" onclick="doAdminDeviceLogin()">🛡️ Connect & Login as Admin</button>
-
     </div>
+
+    <!-- STAFF PANEL -->
     <div id="SU-staff-panel" style="display:none">
       <div style="background:#fff8e6;border-radius:9px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#555;border:1px solid #e5c97a">
         <b>Staff or new device — connect in seconds:</b><br>
@@ -320,7 +302,6 @@ tbody tr:hover td{background:var(--bg)}
     <div class="fg"><label>Password</label><input type="password" id="L-pass" placeholder="Enter password" autocomplete="current-password"></div>
     <button id="login-btn" class="btn bg" style="width:100%;justify-content:center;padding:11px;font-size:13px;border-radius:10px" onclick="doLogin()">Sign In</button>
     <p style="text-align:center;color:var(--lt);font-size:10px;margin-top:4px">Quality School Complex · GES Management System</p>
-    <p style="text-align:center;margin-top:8px"><a href="#" onclick="showSetupForReconnect();return false;" style="font-size:11px;color:var(--bl)">Staff / New device? Paste access code →</a> &nbsp;·&nbsp; <a href="#" onclick="suTab('admindev');showPG('setup');return false;" style="font-size:11px;color:var(--pu)">Admin new device? →</a></p>
   </div>
 </div>
 
@@ -361,213 +342,142 @@ tbody tr:hover td{background:var(--bg)}
 <script>
 'use strict';
 /* ══════════════════════════════════════════════
-   JSONBIN.IO MULTI-BIN BACKEND
-   Each data type has its own BIN for clean separation and to prevent
-   data overwrites. This fixes the "disappearing data" issue.
+   JSONBIN.IO SINGLE-BIN BACKEND
+   All data lives in one master bin as a single JSON object.
+   Pre-configured — no setup needed for admin.
 ══════════════════════════════════════════════ */
 
-/* ─────────────────────────────────────────────────────────
-   CREDENTIALS — set by admin during first-time setup.
-   Once set, stored in localStorage so every device/browser
-   that has done setup (or pasted an Access Code) connects
-   automatically without repeating setup.
-───────────────────────────────────────────────────────── */
-let API_KEY  = '';   // JSONBin Master Key  ($2a$10$...)
-let BIN_ID   = '';   // alias for settings bin (legacy compat)
+const API_KEY  = '$2a$10$rux2O9LTYRuXWBRKsJlCveFWz66mj4J6vbrDXDDlURVTFEsBxGgW2';
+const BIN_ID   = '6a21e94ef5f4af5e29ba5ab4';
 const BIN_BASE = 'https://api.jsonbin.io/v3/b';
+const BIN_URL  = `${BIN_BASE}/${BIN_ID}`;
 
-/* ─── Multi-Bin Registry ───────────────────────────────
-   Each data type lives in its own JSONBin BIN so writes
-   never overwrite each other.  The registry maps a short
-   key → jsonbin BIN ID and is persisted in localStorage
-   so only the admin has to create bins once.
-─────────────────────────────────────────────────────── */
-let BINS = {};   // { settings, users, students, fees, results, submissions, savedReports }
+/* ── In-memory cache of the master bin ── */
+let _master = null;
+let _masterPromise = null;
 
-const BIN_NAMES = {
-  settings:     'QSC-Settings',
-  users:        'QSC-Users',
-  students:     'QSC-Students',
-  fees:         'QSC-Fees',
-  results:      'QSC-Results',
-  submissions:  'QSC-Submissions',
-  savedReports: 'QSC-SavedReports',
-};
+function _fetchMaster(force) {
+  if (!force && _master) return Promise.resolve(_master);
+  if (_masterPromise) return _masterPromise;
+  _masterPromise = fetch(BIN_URL + '/latest', {
+    headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
+  })
+  .then(r => r.ok ? r.json() : {})
+  .then(j => {
+    _master = (j && typeof j === 'object') ? (j.record || j) : {};
+    if (!_master || typeof _master !== 'object') _master = {};
+    _masterPromise = null;
+    return _master;
+  })
+  .catch(() => { _masterPromise = null; _master = {}; return _master; });
+  return _masterPromise;
+}
 
-/* ── Per-bin read/write ── */
-async function binWrite(key, data) {
-  const id = BINS[key];
-  if (!id) throw new Error('No BIN for ' + key);
-  const res = await fetch(`${BIN_BASE}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Versioning': 'false' },
-    body: JSON.stringify(data)
+function _writeMaster() {
+  if (_writeMaster._scheduled) return;
+  _writeMaster._scheduled = true;
+  Promise.resolve().then(() => {
+    _writeMaster._scheduled = false;
+    fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Versioning': 'false' },
+      body: JSON.stringify(_master || {})
+    }).catch(() => {});
   });
-  if (!res.ok) throw new Error(`Write(${key}) failed: ` + res.status);
-  return res.json();
 }
 
-async function binRead(key) {
-  const id = BINS[key];
-  if (!id) throw new Error('No BIN for ' + key);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 9000);
+function _flushMaster() {
   try {
-    const res = await fetch(`${BIN_BASE}/${id}/latest`, {
-      headers: { 'X-Master-Key': API_KEY },
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`Read(${key}) failed: ` + res.status);
-    const j = await res.json();
-    return j.record;
-  } catch(e) { clearTimeout(timer); throw e; }
-}
-
-async function binCreate(name, seedData) {
-  const res = await fetch(BIN_BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Name': name, 'X-Bin-Private': 'false' },
-    body: JSON.stringify(seedData)
-  });
-  if (!res.ok) {
-    const ej = await res.json().catch(() => ({}));
-    throw new Error(ej.message || 'Status ' + res.status);
-  }
-  const j = await res.json();
-  return j.metadata.id;
-}
-
-/* ── Ensure all bins exist — creates any that are missing ── */
-async function ensureBins() {
-  const seed = {
-    settings:     () => ({ school: JSON.parse(JSON.stringify(EMPTY_DB.school)), term: JSON.parse(JSON.stringify(EMPTY_DB.term)), termFees: {}, customSubs: {}, classGroups: {} }),
-    users:        () => ({ users: JSON.parse(JSON.stringify(EMPTY_DB.users)), nextUid: EMPTY_DB.nextUid }),
-    students:     () => ({ students: JSON.parse(JSON.stringify(EMPTY_DB.students)), nextSid: EMPTY_DB.nextSid }),
-    fees:         () => ({ fees: JSON.parse(JSON.stringify(EMPTY_DB.fees)), nextFid: EMPTY_DB.nextFid }),
-    results:      () => ({ results: [], nextRid: 1 }),
-    submissions:  () => ({ submissions: [] }),
-    savedReports: () => ({ savedReports: [] }),
-  };
-  for (const k of Object.keys(BIN_NAMES)) {
-    if (!BINS[k]) {
-      BINS[k] = await binCreate(BIN_NAMES[k], seed[k]());
-    }
-  }
-  BIN_ID = BINS.settings || '';
-  saveBinRegistry();
-}
-
-/* ── Registry persistence — stored in localStorage, survives refresh ── */
-function saveBinRegistry() {
-  try {
-    localStorage.setItem('qsc_bins_v2', JSON.stringify({ bins: BINS, key: API_KEY }));
+    if (!_master) return;
+    fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Versioning': 'false' },
+      body: JSON.stringify(_master || {}),
+      keepalive: true
+    }).catch(() => {});
   } catch(e) {}
 }
-function loadBinRegistry() {
-  try {
-    const r = localStorage.getItem('qsc_bins_v2');
-    if (r) {
-      const o = JSON.parse(r);
-      if (o && o.key && o.bins && Object.keys(o.bins).length > 0) {
-        API_KEY = o.key;
-        BINS    = o.bins;
-        BIN_ID  = BINS.settings || '';
-        return true;
-      }
-    }
-  } catch(e) {}
-  return false;
+
+try {
+  window.addEventListener('pagehide', _flushMaster);
+  window.addEventListener('beforeunload', _flushMaster);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushMaster(); });
+} catch(e) {}
+
+/* ── Read/write a single store key from the master bin ── */
+function jbGet(store, callback) {
+  _fetchMaster(false).then(m => {
+    if (callback) callback(m && Object.prototype.hasOwnProperty.call(m, store) ? m[store] : null);
+  });
 }
-function clearBinRegistry() {
-  try { localStorage.removeItem('qsc_bins_v2'); } catch(e) {}
+function jbPut(store, data) {
+  if (_master && typeof _master === 'object') {
+    _master[store] = data;
+    _writeMaster();
+    return;
+  }
+  _fetchMaster(false).then(m => {
+    m[store] = data;
+    _master = m;
+    _writeMaster();
+  });
 }
 
-/* ── Check whether this device is already configured ── */
-function isConfigured() {
-  return !!(API_KEY && BINS && BINS.settings);
-}
-
-/* ── Unified DB write: writes changed sections to their individual bins ── */
-let _pendingWrites = {};  // { key: data }
-let _writeTimer = null;
-let _writePending = false;
-
-async function dbWrite(data) {
-  // Write all sections in parallel using multi-bin approach
-  const writes = {
-    settings: { school: data.school, term: data.term, termFees: data.termFees || {}, customSubs: data.customSubs || {}, classGroups: data.classGroups || {} },
-    users: { users: data.users, nextUid: data.nextUid },
-    students: { students: data.students, nextSid: data.nextSid },
-    fees: { fees: data.fees, nextFid: data.nextFid },
-    results: { results: data.results, nextRid: data.nextRid },
-    submissions: { submissions: data.submissions || [] },
+/* ── Map DB to master-bin stores ── */
+function _dbToStores(data) {
+  return {
+    settings:     { school: data.school, term: data.term, termFees: data.termFees || {}, customSubs: data.customSubs || {}, classGroups: data.classGroups || {} },
+    users:        { users: data.users, nextUid: data.nextUid },
+    students:     { students: data.students, nextSid: data.nextSid },
+    fees:         { fees: data.fees, nextFid: data.nextFid },
+    results:      { results: data.results, nextRid: data.nextRid },
+    submissions:  { submissions: data.submissions || [] },
     savedReports: { savedReports: data.savedReports || [] },
   };
-  // Best-effort parallel writes — don't fail all if one fails
-  const promises = Object.entries(writes).map(([k, v]) =>
-    BINS[k] ? binWrite(k, v).catch(e => console.warn(`Bin write error (${k}):`, e)) : Promise.resolve()
-  );
-  await Promise.allSettled(promises);
 }
 
-/* ── Unified DB read: reads all bins and assembles DB ── */
+/* ── Write full DB to master bin ── */
+async function dbWrite(data) {
+  const stores = _dbToStores(data);
+  if (_master && typeof _master === 'object') {
+    Object.assign(_master, stores);
+  } else {
+    _master = await _fetchMaster(false);
+    Object.assign(_master, stores);
+  }
+  _writeMaster();
+}
+
+/* ── Read full DB from master bin ── */
 async function dbRead() {
-  const keys = ['settings', 'users', 'students', 'fees', 'results', 'submissions', 'savedReports'];
-
-  // Retry helper — tries up to 3 times with 1s gap for transient failures
-  async function binReadWithRetry(key, attempts = 3) {
-    let lastErr;
-    for (let i = 0; i < attempts; i++) {
-      try { return await binRead(key); } catch(e) {
-        lastErr = e;
-        if (i < attempts - 1) await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-    throw lastErr;
-  }
-
-  const settled = await Promise.allSettled(
-    keys.map(k => BINS[k] ? binReadWithRetry(k) : Promise.resolve(null))
-  );
-
-  // Surface critical bin failures (settings or users) as hard errors
-  const criticalKeys = ['settings', 'users'];
-  for (let i = 0; i < keys.length; i++) {
-    if (criticalKeys.includes(keys[i]) && settled[i].status === 'rejected') {
-      const reason = settled[i].reason?.message || 'Unknown error';
-      throw new Error(`Failed to read '${keys[i]}' bin: ${reason}. Check your access code and internet connection.`);
-    }
-  }
-
-  // Log non-critical failures but don't block
-  for (let i = 0; i < keys.length; i++) {
-    if (settled[i].status === 'rejected') {
-      console.warn(`Non-critical bin read failed (${keys[i]}):`, settled[i].reason);
-    }
-  }
-
-  const [settings, users, students, fees, results2, submissions, savedReports] =
-    settled.map(r => r.status === 'fulfilled' ? r.value : null);
-
+  const m = await _fetchMaster(true);
+  const s = m.settings, u = m.users, st = m.students, f = m.fees, r = m.results, sub = m.submissions, sr = m.savedReports;
   return {
-    school:       settings?.school       || EMPTY_DB.school,
-    term:         settings?.term         || EMPTY_DB.term,
-    termFees:     settings?.termFees     || {},
-    customSubs:   settings?.customSubs   || {},
-    classGroups:  settings?.classGroups  || {},
-    users:        users?.users           || EMPTY_DB.users,
-    nextUid:      users?.nextUid         || 3,
-    students:     students?.students     || EMPTY_DB.students,
-    nextSid:      students?.nextSid      || 5,
-    fees:         fees?.fees             || EMPTY_DB.fees,
-    nextFid:      fees?.nextFid          || 5,
-    results:      results2?.results      || [],
-    nextRid:      results2?.nextRid      || 1,
-    submissions:  submissions?.submissions  || [],
-    savedReports: savedReports?.savedReports || [],
+    school:       s?.school       || EMPTY_DB.school,
+    term:         s?.term         || EMPTY_DB.term,
+    termFees:     s?.termFees     || {},
+    customSubs:   s?.customSubs   || {},
+    classGroups:  s?.classGroups  || {},
+    users:        u?.users        || EMPTY_DB.users,
+    nextUid:      u?.nextUid      || 3,
+    students:     st?.students    || EMPTY_DB.students,
+    nextSid:      st?.nextSid     || 5,
+    fees:         f?.fees         || EMPTY_DB.fees,
+    nextFid:      f?.nextFid      || 5,
+    results:      r?.results      || [],
+    nextRid:      r?.nextRid      || 1,
+    submissions:  sub?.submissions || [],
+    savedReports: sr?.savedReports || [],
   };
 }
+
+/* ── isConfigured: always true — credentials are hardcoded ── */
+function isConfigured() { return true; }
+
+/* ── Registry stubs: no-ops since we have no multi-bin registry ── */
+function saveBinRegistry() {}
+function loadBinRegistry() { return true; }
+function clearBinRegistry() {}
 
 /* ══════════════════════════════════════════════
    LOCAL DB CACHE — loaded once, written on change
@@ -580,7 +490,7 @@ const EMPTY_DB = {
   term: { year:'2024/2025', term:1 },
   termFees: {},
   customSubs: {},
-  classGroups: {}, // e.g. { 'KG 1': ['A','B','C'], 'Basic 1': ['A','B'] }
+  classGroups: {},
   users: [
     { id:1, username:'admin', password:'admin123', role:'admin', name:'Dr. Kwame Asante', email:'admin@qualityschool.edu.gh', cls:'', subject:'' },
     { id:2, username:'staff', password:'staff123', role:'staff', name:'Mrs. Abena Mensah', email:'amensah@qualityschool.edu.gh', cls:'Basic 4', subject:'Mathematics' }
@@ -607,62 +517,27 @@ const EMPTY_DB = {
    1. Writes to localStorage instantly  → UI feels instant, no waiting
    2. Debounces remote sync by 1.5 s   → batches rapid changes into one write
    3. Remote write happens in background — user is never blocked
-   4. "Saved ✓" indicator appears immediately; a tiny cloud spinner shows
-      while the background sync is in flight
 ──────────────────────────────────────────────────────────────────────── */
 let _syncTimer    = null;
-let _syncInFlight = false;   // true while a dbWrite is actively running
-let _dirtyBins    = new Set(); // which bins have local changes not yet written to remote
-let _pollTimer    = null;    // periodic remote-fetch so all devices stay in sync
+let _syncInFlight = false;
+let _pollTimer    = null;
 
-const POLL_INTERVAL = 30000; // 30 seconds
+const POLL_INTERVAL = 30000;
 
-// Map each DB section to its bin key — used for dirty tracking
-const BIN_SECTION_MAP = {
-  settings:    d => ({ school: d.school, term: d.term, termFees: d.termFees||{}, customSubs: d.customSubs||{}, classGroups: d.classGroups||{} }),
-  users:       d => ({ users: d.users, nextUid: d.nextUid }),
-  students:    d => ({ students: d.students, nextSid: d.nextSid }),
-  fees:        d => ({ fees: d.fees, nextFid: d.nextFid }),
-  results:     d => ({ results: d.results, nextRid: d.nextRid }),
-  submissions: d => ({ submissions: d.submissions||[] }),
-  savedReports:d => ({ savedReports: d.savedReports||[] }),
-};
-
-// Call this whenever a specific section of DB changes
-// Usage: markDirty('fees') or markDirty('students','fees')
-function markDirty(...bins){
-  bins.forEach(b => _dirtyBins.add(b));
-}
-
-function startPolling(){
+function startPolling() {
   stopPolling();
-  _pollTimer = setInterval(async ()=>{
-    // Skip poll if a local write is in-flight — we'd read data the server hasn't received yet
-    if(_syncInFlight) return;
+  _pollTimer = setInterval(async () => {
+    if (_syncInFlight) return;
     await _backgroundSync();
   }, POLL_INTERVAL);
 }
 
-function stopPolling(){
-  if(_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
+function stopPolling() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
 
 function saveLocal() {
   try {
-    // Detect which bins actually changed vs the last saved snapshot
-    const prev = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null');
-    if (prev) {
-      if (JSON.stringify(BIN_SECTION_MAP.settings(DB))    !== JSON.stringify(BIN_SECTION_MAP.settings(prev)))    markDirty('settings');
-      if (JSON.stringify(BIN_SECTION_MAP.users(DB))       !== JSON.stringify(BIN_SECTION_MAP.users(prev)))       markDirty('users');
-      if (JSON.stringify(BIN_SECTION_MAP.students(DB))    !== JSON.stringify(BIN_SECTION_MAP.students(prev)))    markDirty('students');
-      if (JSON.stringify(BIN_SECTION_MAP.fees(DB))        !== JSON.stringify(BIN_SECTION_MAP.fees(prev)))        markDirty('fees');
-      if (JSON.stringify(BIN_SECTION_MAP.results(DB))     !== JSON.stringify(BIN_SECTION_MAP.results(prev)))     markDirty('results');
-      if (JSON.stringify(BIN_SECTION_MAP.submissions(DB)) !== JSON.stringify(BIN_SECTION_MAP.submissions(prev))) markDirty('submissions');
-      if (JSON.stringify(BIN_SECTION_MAP.savedReports(DB))!== JSON.stringify(BIN_SECTION_MAP.savedReports(prev)))markDirty('savedReports');
-    } else {
-      // No previous snapshot — treat all bins as dirty on first save
-      Object.keys(BIN_SECTION_MAP).forEach(b => markDirty(b));
-    }
     localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB));
     if (DB.users) cacheUsers(DB.users);
   } catch(e) {}
@@ -674,69 +549,16 @@ function scheduleRemoteSync() {
 }
 
 async function _doRemoteSync() {
-  if (!isConfigured()) return;
   if (_syncInFlight) return;
-  if (_dirtyBins.size === 0) return; // nothing to write
-
   _syncInFlight = true;
-  const binsToWrite = new Set(_dirtyBins); // snapshot which bins we're writing now
-  _dirtyBins.clear();
   showCloudSync(true);
-
-  const snapshot = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
-  const promises = [];
-  for (const k of binsToWrite) {
-    if (BINS[k] && BIN_SECTION_MAP[k]) {
-      promises.push(
-        binWrite(k, BIN_SECTION_MAP[k](snapshot))
-          .catch(e => { console.warn(`Bin write error (${k}):`, e); markDirty(k); }) // re-queue on failure
-      );
-    }
-  }
-
   try {
-    await Promise.allSettled(promises);
+    await dbWrite(DB);
     showCloudSync(false);
   } catch(e) {
     showCloudSync(false, true);
   }
-
   _syncInFlight = false;
-
-  // If more bins became dirty while we were writing, flush them now
-  if (_dirtyBins.size > 0) {
-    setTimeout(_doRemoteSync, 200);
-    return;
-  }
-
-  // Confirm-read: read back only the bins we just wrote to confirm the server accepted them
-  // Short delay lets JSONBin propagate the write
-  setTimeout(async () => {
-    if (_syncInFlight || _dirtyBins.size > 0) return;
-    try {
-      const reads = await Promise.allSettled(
-        [...binsToWrite].filter(k => BINS[k]).map(k => binRead(k).then(r => ({ k, r })))
-      );
-      let changed = false;
-      for (const s of reads) {
-        if (s.status !== 'fulfilled') continue;
-        const { k, r } = s.value;
-        if (!r) continue;
-        if (k === 'settings')     { DB.school=r.school; DB.term=r.term; DB.termFees=r.termFees||{}; DB.customSubs=r.customSubs||{}; DB.classGroups=r.classGroups||{}; changed=true; }
-        if (k === 'users'    && r.users?.length>0)      { DB.users=r.users; DB.nextUid=r.nextUid; changed=true; }
-        if (k === 'students' && r.students?.length>0)   { DB.students=r.students; DB.nextSid=r.nextSid; changed=true; }
-        if (k === 'fees'     && r.fees?.length>0)       { DB.fees=r.fees; DB.nextFid=r.nextFid; changed=true; }
-        if (k === 'results'  && r.results?.length>0)    { DB.results=r.results; DB.nextRid=r.nextRid; changed=true; }
-        if (k === 'submissions' && r.submissions?.length>0) { DB.submissions=r.submissions; changed=true; }
-        if (k === 'savedReports'&& r.savedReports?.length>0){ DB.savedReports=r.savedReports; changed=true; }
-      }
-      if (changed) {
-        cacheUsers(DB.users);
-        try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
-        if (!_userIsTyping()) await _refreshCurrentPage();
-      }
-    } catch(e) { /* silent */ }
-  }, 800);
 }
 
 function showCloudSync(syncing, error) {
@@ -748,45 +570,31 @@ function showCloudSync(syncing, error) {
     document.body.appendChild(el);
   }
   if (syncing) {
-    el.style.background = 'var(--gr)';
-    el.style.color = '#fff';
-    el.style.opacity = '1';
-    el.style.display = 'flex';
+    el.style.background = 'var(--gr)'; el.style.color = '#fff'; el.style.opacity = '1'; el.style.display = 'flex';
     el.innerHTML = '<div style="width:10px;height:10px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite"></div><span>Syncing…</span>';
   } else if (error) {
-    el.style.background = '#fff3cd';
-    el.style.color = '#856404';
-    el.style.opacity = '1';
-    el.style.display = 'flex';
+    el.style.background = '#fff3cd'; el.style.color = '#856404'; el.style.opacity = '1'; el.style.display = 'flex';
     el.innerHTML = '⚠ Sync retry…';
     setTimeout(() => { if(el) el.style.display='none'; }, 3500);
   } else {
-    el.style.background = '#e8f5e9';
-    el.style.color = '#2e7d32';
-    el.style.opacity = '1';
-    el.style.display = 'flex';
+    el.style.background = '#e8f5e9'; el.style.color = '#2e7d32'; el.style.opacity = '1'; el.style.display = 'flex';
     el.innerHTML = '✓ Saved';
     setTimeout(() => { if(el) el.style.opacity='0'; }, 1200);
     setTimeout(() => { if(el) el.style.display='none'; }, 1600);
   }
 }
 
-// save() — local-first, instant return, background remote sync
-function save() {
-  saveLocal();
-  scheduleRemoteSync();
-}
+function save() { saveLocal(); scheduleRemoteSync(); }
 
-// saveWithIndicator() — instant local save + flash "✓ Saved" + background remote sync
 function saveWithIndicator() {
-  if(DB && DB.users) cacheUsers(DB.users); // always keep cache in sync
+  if (DB && DB.users) cacheUsers(DB.users);
   saveLocal();
   showCloudSync(false);
   scheduleRemoteSync();
   return Promise.resolve();
 }
 
-function getDBSnapshot(){ try{ const r=localStorage.getItem('qsc_db_snapshot'); return r?JSON.parse(r):null; }catch(e){return null;} }
+function getDBSnapshot() { try { const r=localStorage.getItem('qsc_db_snapshot'); return r?JSON.parse(r):null; }catch(e){return null;} }
 
 /* ══════════════════════════════════════════════
    SESSION (survives refresh, cleared on logout)
@@ -895,389 +703,142 @@ function updLLogo(){
 function err(m){return`<div style="background:var(--rdl);color:var(--rd);border:1px solid #f5b8b8;border-radius:7px;padding:9px 12px;font-size:12px;margin-bottom:10px">${m}</div>`;}
 
 /* ══════════════════════════════════════════════
-   SETUP & BOOT
-   Strategy: after first-time admin setup, the app generates and downloads
-   a PRE-CONFIGURED copy of this HTML file with BIN_ID and API_KEY embedded.
-   Anyone who opens that file goes straight to login — zero setup needed.
-   localStorage is also used as fallback so refresh works without re-setup.
+   USER CACHE — fast login without network round-trip
 ══════════════════════════════════════════════ */
-
-function saveLocalCfg(binId, masterKey){
-  // kept for compatibility — real state stored in saveBinRegistry()
-  saveBinRegistry();
+function cacheUsers(users) {
+  try { localStorage.setItem('qsc_users_cache', JSON.stringify(users.map(u => ({id:u.id,username:u.username,password:u.password,role:u.role,name:u.name,cls:u.cls,subject:u.subject})))); } catch(e) {}
 }
-function loadLocalCfg(){
-  return loadBinRegistry() ? { b: BIN_ID, k: API_KEY } : null;
+function getCachedUsers() { try { const r=localStorage.getItem('qsc_users_cache'); return r?JSON.parse(r):null; } catch(e) { return null; } }
+
+/* ── Access Code: encodes master key + bin ID into one shareable string ── */
+function encodeAccessCode() {
+  const payload = { key: API_KEY, binId: BIN_ID };
+  try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e) { return ''; }
+}
+function decodeAccessCode(code) {
+  try {
+    const str = decodeURIComponent(escape(atob(code.trim())));
+    const obj = JSON.parse(str);
+    if (obj.key && obj.binId) return obj;
+    // Legacy multi-bin format — still valid since key matches
+    if (obj.key && obj.bins) return { key: obj.key, binId: BIN_ID };
+  } catch(e) {}
+  return null;
 }
 
-// Cache users in localStorage for fast login (username+password hash only — no sensitive data beyond what's already in DB)
-function cacheUsers(users){
-  try{ localStorage.setItem('qsc_users_cache', JSON.stringify(users.map(u=>({id:u.id,username:u.username,password:u.password,role:u.role,name:u.name,cls:u.cls,subject:u.subject})))); }catch(e){}
+/* ── Admin Login Code: connects + logs in as admin ── */
+function generateAdminLoginCode() {
+  const adminUser = DB && DB.users ? DB.users.find(u => u.role === 'admin') : null;
+  if (!adminUser) { toast('No admin user found in database', 'er'); return ''; }
+  const payload = { key: API_KEY, binId: BIN_ID, adminLogin: true, adminId: adminUser.id, username: adminUser.username, password: adminUser.password };
+  try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e) { return ''; }
 }
-function getCachedUsers(){ try{ const r=localStorage.getItem('qsc_users_cache'); return r?JSON.parse(r):null; }catch(e){return null;} }
-
-function downloadConfiguredFile(){
-  // Superseded by Access Code sharing — kept for backward compatibility
-  toast('Use the School Access Code in Settings to connect other devices. ✓','inf');
+function decodeAdminLoginCode(code) {
+  try {
+    const str = decodeURIComponent(escape(atob(code.trim())));
+    const obj = JSON.parse(str);
+    if (obj.adminLogin && obj.key) return obj;
+  } catch(e) {}
+  return null;
 }
 
-function suTab(tab){
-  const panels = { admin:'SU-admin-panel', admindev:'SU-admindev-panel', staff:'SU-staff-panel' };
-  const tabs   = { admin:'SU-tab-admin', admindev:'SU-tab-admindev', staff:'SU-tab-staff' };
-  const colors = { admin:'var(--gr)', admindev:'var(--pu)', staff:'var(--gr)' };
-  Object.keys(panels).forEach(t=>{
+/* ── Staff connect: paste access code → connect to school DB ── */
+async function doStaffConnect() {
+  const code = (document.getElementById('SU-code')||{}).value?.trim()||'';
+  const al   = document.getElementById('SU-alert2');
+  if (!code) { al.innerHTML = err('Paste the School Access Code given by your admin.'); return; }
+  const decoded = decodeAccessCode(code);
+  if (!decoded || !decoded.key) {
+    al.innerHTML = err('Invalid or outdated access code. Ask your admin to copy the code from <b>Settings → School Settings</b>.');
+    return;
+  }
+  const btn = document.querySelector('#SU-staff-panel .btn.bg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  load(true, 'Fetching school data…');
+  try {
+    const rec = await dbRead();
+    if (!rec || !rec.users || rec.users.length === 0) {
+      load(false);
+      if (btn) { btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
+      al.innerHTML = err('Connected but no school data was found. Make sure the admin has completed setup.');
+      return;
+    }
+    DB = normaliseDB(rec);
+    cacheUsers(DB.users);
+    try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+    load(false);
+    if (btn) { btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
+    updLLogo(); updSchoolName(); showPG('login');
+    toast(`Connected! ✓ Loaded ${DB.students.length} students. You can now log in.`);
+  } catch(e) {
+    load(false);
+    if (btn) { btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
+    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>Check your internet connection and try again.`);
+  }
+}
+
+/* ── Admin new device: paste admin login code → connect + auto-login ── */
+async function doAdminDeviceLogin() {
+  const code = (document.getElementById('SU-admincode')||{}).value?.trim()||'';
+  const al   = document.getElementById('SU-alert3');
+  if (!code) { al.innerHTML = err('Paste the Admin Login Code generated from Settings.'); return; }
+  const decoded = decodeAdminLoginCode(code);
+  if (!decoded) {
+    al.innerHTML = err('Invalid code. Make sure you are using the <b>Admin Login Code</b> from Settings → School Settings.');
+    return;
+  }
+  const btn = document.querySelector('#SU-admindev-panel .btn.bp');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  load(true, 'Fetching school data…');
+  try {
+    const rec = await dbRead();
+    if (!rec || !rec.users || rec.users.length === 0) {
+      load(false);
+      if (btn) { btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+      al.innerHTML = err('Connected but no school data was found. Make sure the admin has completed setup.');
+      return;
+    }
+    DB = normaliseDB(rec);
+    cacheUsers(DB.users);
+    try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
+    load(false);
+    if (btn) { btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+    updLLogo(); updSchoolName(); showPG('login');
+    toast(`Connected! ✓ Loaded ${DB.students.length} students. Please log in.`);
+  } catch(e) {
+    load(false);
+    if (btn) { btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
+    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>Check your internet connection and try again.`);
+  }
+}
+
+function suTab(tab) {
+  const panels = { admindev:'SU-admindev-panel', staff:'SU-staff-panel' };
+  const tabs   = { admindev:'SU-tab-admindev', staff:'SU-tab-staff' };
+  Object.keys(panels).forEach(t => {
     const panel = document.getElementById(panels[t]);
     const btn   = document.getElementById(tabs[t]);
-    if(panel) panel.style.display = t===tab ? 'block' : 'none';
-    if(btn){
-      btn.style.background = t===tab ? colors[t] : '#f5f7fa';
-      btn.style.color      = t===tab ? '#fff' : '#666';
-    }
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn) { btn.style.background = t === tab ? (t==='admindev'?'var(--pu)':'var(--gr)') : '#f5f7fa'; btn.style.color = t === tab ? '#fff' : '#666'; }
   });
 }
 
-async function doSetup(){
-  const key = (document.getElementById('SU-key')||{}).value?.trim()||'';
-  const al  = document.getElementById('SU-alert');
-  if(!key){ al.innerHTML = err('Please enter your Master API Key.'); return; }
-  if(!key.startsWith('$2')){ al.innerHTML = err('That does not look like a JSONBin Master Key. It must start with <b>$2a$</b> or <b>$2b$</b>.'); return; }
+function showSetupForReconnect() { suTab('staff'); showPG('setup'); }
+async function doReconnect() { await doStaffConnect(); }
+function switchToReconnect() { suTab('staff'); }
 
-  API_KEY = key;
-  BINS    = {};
-
-  const btn = document.querySelector('#SU-admin-panel .btn.bg');
-  if(btn){ btn.disabled=true; btn.textContent='Connecting…'; }
-  al.innerHTML = '';
-
-  const prog = document.getElementById('SU-progress');
-  const setStep = (msg, done=false, isErr=false) => {
-    if(prog) prog.innerHTML = `<div style="font-size:12px;padding:10px 13px;background:${isErr?'#fff0f0':done?'#f0fff4':'#f0f7ff'};border-radius:7px;border:1px solid ${isErr?'#f5b8b8':done?'#a5d6a7':'#90caf9'};color:${isErr?'var(--rd)':done?'#2e7d32':'#1565c0'}">${msg}</div>`;
-  };
-
-  setStep('🔑 Verifying Master Key…');
-  load(true, 'Setting up — please wait…');
-
+/* ══════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════ */
+async function boot() {
+  const safetyTimer = setTimeout(() => { load(false); showPG('login'); }, 14000);
   try {
-    // ── STEP 1: Verify the key works by testing against JSONBin ──
-    setStep('🔑 Verifying Master Key…');
-    const KNOWN_BIN = '69e18176856a682189416392'; // original single bin
-    try {
-      const testRes = await fetch(`${BIN_BASE}/${KNOWN_BIN}/latest`, { headers: { 'X-Master-Key': key } });
-      if(testRes.status === 401 || testRes.status === 403){
-        throw new Error('Master Key was rejected. Make sure you are using the <b>Master Key</b>, not an Access Key or Read Key.');
-      }
-      // 200 = bin exists with this key, 404 = key valid but bin deleted — both fine
-    } catch(fe){
-      if(fe.message.includes('Master Key')) throw fe;
-      // network error — proceed anyway, real errors surface later
-    }
-
-    // ── STEP 2: Look up existing QSC bins on this account ──
-    setStep('🔍 Looking for existing bins on your account…');
-    const existingBins = await fetchExistingBins(key);
-
-    if(existingBins && Object.keys(existingBins).length === Object.keys(BIN_NAMES).length){
-      BINS   = existingBins;
-      BIN_ID = BINS.settings;
-      setStep(`✅ Found all ${Object.keys(BIN_NAMES).length} existing bins — reconnecting…`, true);
-    } else {
-      const binOrder = Object.keys(BIN_NAMES);
-      const seedFor = {
-        settings:     { school: JSON.parse(JSON.stringify(EMPTY_DB.school)), term: JSON.parse(JSON.stringify(EMPTY_DB.term)), termFees:{}, customSubs:{}, classGroups:{} },
-        users:        { users: JSON.parse(JSON.stringify(EMPTY_DB.users)), nextUid: EMPTY_DB.nextUid },
-        students:     { students: JSON.parse(JSON.stringify(EMPTY_DB.students)), nextSid: EMPTY_DB.nextSid },
-        fees:         { fees: JSON.parse(JSON.stringify(EMPTY_DB.fees)), nextFid: EMPTY_DB.nextFid },
-        results:      { results:[], nextRid:1 },
-        submissions:  { submissions:[] },
-        savedReports: { savedReports:[] },
-      };
-      if(existingBins) Object.assign(BINS, existingBins);
-      let created = 0;
-      for(let i=0; i<binOrder.length; i++){
-        const k = binOrder[i];
-        if(BINS[k]) continue;
-        created++;
-        setStep(`📦 Creating bin ${created}: <b>${BIN_NAMES[k]}</b>…`);
-        BINS[k] = await binCreate(BIN_NAMES[k], seedFor[k]);
-      }
-      BIN_ID = BINS.settings;
-      setStep(created > 0 ? `✅ Created ${created} bin(s). All bins ready!` : '✅ All bins found!', true);
-    }
-
-    // ── STEP 2: Read real data from bins ──
-    setStep('📥 Loading data from database…');
-    let rec = null;
-    try {
-      rec = await dbRead();
-    } catch(e) {
-      // Bins were just created/found but read failed — non-fatal on first setup (bins may be empty)
-      console.warn('dbRead after setup failed:', e.message);
-    }
-
-    if(rec && rec.users && rec.users.length > 0){
-      DB = normaliseDB(rec);
-      setStep(`✅ Loaded existing data — ${rec.students?.length || 0} students found.`, true);
-    } else {
-      DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
-      if(rec) setStep('✅ Bins ready — no existing data found, starting fresh.', true);
-    }
-
-    // ── STEP 3: Save everything locally ──
-    cacheUsers(DB.users);
-    saveBinRegistry();
-    try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
-
-    load(false);
-    if(btn){ btn.disabled=false; btn.textContent='🚀 Create Bins & Set Up Database'; }
-    setStep('✅ Connected! Taking you to login…', true);
-
-    updLLogo(); updSchoolName();
-    setTimeout(()=>{ showPG('login'); }, 800);
-    toast('Database connected! ✓');
-
-    // Show access code for admin to share
-    setTimeout(()=>{
-      const code = encodeAccessCode();
-      alert(`✅ Setup complete!\n\nYour School Access Code — share with ALL staff and for every new device/browser:\n\n${code}\n\nPaste this on the Setup screen → "Staff / New Device" tab.\nYou can also copy it anytime from Settings → School Settings.`);
-    }, 1200);
-
-  } catch(e){
-    load(false);
-    if(btn){ btn.disabled=false; btn.textContent='🚀 Create Bins & Set Up Database'; }
-    setStep(`❌ Failed: ${e.message}`, false, true);
-    al.innerHTML = err(`<b>Connection failed:</b> ${e.message}<br><br>
-      <b>Check:</b><br>
-      • Paste the full <b>Master Key</b> (starts with <code>$2a$10$</code>)<br>
-      • Use the <b>Master Key</b>, not the Access/Read Key<br>
-      • Internet connection is working`);
-    BINS = {}; API_KEY = '';
-  }
-}
-
-/* ── Find existing QSC bins on this JSONBin account ── */
-async function fetchExistingBins(masterKey){
-  // Try multiple possible list endpoints — JSONBin API varies
-  const endpoints = [
-    'https://api.jsonbin.io/v3/b?limit=100',
-    'https://api.jsonbin.io/v3/b',
-    'https://api.jsonbin.io/v3/c',
-  ];
-  for(const url of endpoints){
-    try {
-      const res = await fetch(url, { headers: { 'X-Master-Key': masterKey } });
-      if(!res.ok) continue;
-      const j = await res.json();
-      const list = j.list || j.bins || j.records || (Array.isArray(j) ? j : []);
-      if(!list.length) continue;
-      const found = {};
-      for(const [k, name] of Object.entries(BIN_NAMES)){
-        const match = list.find(b => {
-          const bname = b.name || b.snippetMeta?.name || b.meta?.name || b.record?.name || '';
-          return bname === name;
-        });
-        if(match){
-          found[k] = match.id || match._id || match.snippetMeta?.id || match.meta?.id;
-        }
-      }
-      if(Object.keys(found).length > 0) return found;
-    } catch(e){ continue; }
-  }
-  return null;
-}
-
-async function doStaffConnect(){
-  const code = (document.getElementById('SU-code')||{}).value?.trim()||'';
-  const al   = document.getElementById('SU-alert2');
-  if(!code){ al.innerHTML = err('Paste the School Access Code given by your admin.'); return; }
-
-  const decoded = decodeAccessCode(code);
-  if(!decoded || !decoded.key || !decoded.bins){
-    al.innerHTML = err('Invalid or outdated access code. Ask your admin to copy the code from <b>Settings → School Settings</b> (it must be the new multi-bin code).');
-    return;
-  }
-
-  API_KEY = decoded.key;
-  BINS    = decoded.bins;
-  BIN_ID  = BINS.settings || '';
-
-  if(!API_KEY || !BIN_ID){
-    al.innerHTML = err('Access code is missing credentials. Please ask admin for a fresh copy.');
-    return;
-  }
-
-  // Verify the code has all required bin IDs
-  const requiredBins = ['settings','users','students','fees','results','submissions','savedReports'];
-  const missingBins  = requiredBins.filter(k => !BINS[k]);
-  if(missingBins.length > 0){
-    al.innerHTML = err(`Access code is incomplete — missing bins: <b>${missingBins.join(', ')}</b>.<br>Ask admin to copy a fresh code from <b>Settings → School Settings</b>.`);
-    API_KEY = ''; BINS = {}; BIN_ID = '';
-    return;
-  }
-
-  const btn = document.querySelector('#SU-staff-panel .btn.bg');
-  if(btn){ btn.disabled = true; btn.textContent = 'Connecting…'; }
-
-  load(true, 'Fetching school data…');
-  try {
-    const rec = await dbRead();
-    if(!rec || !rec.users || rec.users.length === 0){
-      load(false);
-      if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
-      al.innerHTML = err('Connected to bins but no school data was found. Make sure the admin has completed setup and data exists.');
-      API_KEY = ''; BINS = {}; BIN_ID = '';
-      return;
-    }
-    DB = normaliseDB(rec);
-    cacheUsers(DB.users);
-    saveBinRegistry();
-    try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
-    load(false);
-    if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
-    updLLogo(); updSchoolName(); showPG('login');
-    toast(`Connected! ✓ Loaded ${DB.students.length} students. You can now log in.`);
-  } catch(e){
-    load(false);
-    if(btn){ btn.disabled = false; btn.textContent = '🔗 Connect to School Database'; }
-    API_KEY = ''; BINS = {}; BIN_ID = '';
-    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>
-      <b>Possible causes:</b><br>
-      • Access code is from an old setup — ask admin to regenerate it from Settings<br>
-      • Internet connection issue — check your connection and try again<br>
-      • JSONBin rate limit — wait 30 seconds and retry`);
-  }
-}
-
-function switchToReconnect(){ suTab('staff'); }
-function switchToFirstTime(){ suTab('admin'); }
-function showSetupForReconnect(){ suTab('staff'); showPG('setup'); }
-async function doReconnect(){ await doStaffConnect(); }
-
-/* ── Access Code: encodes all bin IDs + master key into one shareable string ── */
-function encodeAccessCode(){
-  const payload = { key: API_KEY, bins: BINS };
-  try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e){ return ''; }
-}
-function decodeAccessCode(code){
-  try {
-    const str = decodeURIComponent(escape(atob(code.trim())));
-    const obj = JSON.parse(str);
-    // New format: { key, bins }
-    if(obj.key && obj.bins) return obj;
-    // Old format: { masterKey, binId, bins } — try to adapt
-    if(obj.masterKey){ return { key: obj.masterKey, bins: obj.bins || { settings: obj.binId } }; }
-  } catch(e){}
-  return null;
-}
-
-/* ── Admin Login Code: time-limited code that connects bins AND logs in as admin ── */
-function generateAdminLoginCode(){
-  // Find admin user
-  const adminUser = DB && DB.users ? DB.users.find(u => u.role === 'admin') : null;
-  if(!adminUser){ toast('No admin user found in database','er'); return ''; }
-  const payload = {
-    key:     API_KEY,
-    bins:    BINS,
-    adminLogin: true,
-    adminId: adminUser.id,
-    username: adminUser.username,
-    password: adminUser.password,
-  };
-  try { return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch(e){ return ''; }
-}
-
-function decodeAdminLoginCode(code){
-  try {
-    const str = decodeURIComponent(escape(atob(code.trim())));
-    const obj = JSON.parse(str);
-    if(obj.adminLogin && obj.key && obj.bins) return obj;
-  } catch(e){}
-  return null;
-}
-
-async function doAdminDeviceLogin(){
-  const code = (document.getElementById('SU-admincode')||{}).value?.trim()||'';
-  const al   = document.getElementById('SU-alert3');
-  if(!code){ al.innerHTML = err('Paste the Admin Login Code generated from Settings.'); return; }
-
-  const decoded = decodeAdminLoginCode(code);
-  if(!decoded){
-    al.innerHTML = err('Invalid code. Make sure you are using the <b>Admin Login Code</b> (generated from Settings → School Settings), not the staff access code.');
-    return;
-  }
-  API_KEY = decoded.key;
-  BINS    = decoded.bins;
-  BIN_ID  = BINS.settings || '';
-
-  // Verify all required bins are present in the code
-  const requiredBins = ['settings','users','students','fees','results','submissions','savedReports'];
-  const missingBins  = requiredBins.filter(k => !BINS[k]);
-  if(missingBins.length > 0){
-    al.innerHTML = err(`Admin Login Code is incomplete — missing bins: <b>${missingBins.join(', ')}</b>.<br>Generate a fresh code from Settings on your existing device.`);
-    API_KEY = ''; BINS = {}; BIN_ID = '';
-    return;
-  }
-
-  const btn = document.querySelector('#SU-admindev-panel .btn.bp');
-  if(btn){ btn.disabled = true; btn.textContent = 'Connecting…'; }
-
-  load(true, 'Fetching school data…');
-  try {
-    const rec = await dbRead();
-    if(!rec || !rec.users || rec.users.length === 0){
-      load(false);
-      if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
-      al.innerHTML = err('Connected but no school data was found. Make sure the admin has completed setup.');
-      API_KEY = ''; BINS = {}; BIN_ID = '';
-      return;
-    }
-    DB = normaliseDB(rec);
-    cacheUsers(DB.users);
-    saveBinRegistry();
-    try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
-
-    load(false);
-    if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
-    updLLogo(); updSchoolName();
-    showPG('login');
-    toast(`Connected! ✓ Loaded ${DB.students.length} students. Please log in.`);
-  } catch(e){
-    load(false);
-    if(btn){ btn.disabled = false; btn.textContent = '🛡️ Connect & Login as Admin'; }
-    API_KEY = ''; BINS = {}; BIN_ID = '';
-    al.innerHTML = err(`<b>Failed to fetch data from database:</b> ${e.message}<br><br>
-      <b>Possible causes:</b><br>
-      • Internet connection issue — check and try again<br>
-      • Admin Login Code is stale — generate a new one from Settings<br>
-      • JSONBin rate limit — wait 30 seconds and retry`);
-  }
-}
-async function boot(){
-  // Safety: never stay on loading screen forever
-  const safetyTimer = setTimeout(()=>{
-    load(false);
-    showPG(isConfigured() ? 'login' : 'setup');
-  }, 14000);
-
-  try {
-    // ── STEP 1: Try to load bin registry from localStorage ──
-    const configured = loadBinRegistry();
-
-    if (!configured) {
-      // Not set up yet on this device — go to setup page
-      clearTimeout(safetyTimer);
-      load(false);
-      showPG('setup');
-      return;
-    }
-
-    // ── STEP 2: Device is configured — try localStorage snapshot first (instant) ──
+    // Try localStorage snapshot first (instant)
     const snap = getDBSnapshot();
     const cachedUsers = getCachedUsers();
 
     if (snap && cachedUsers && cachedUsers.length > 0) {
       DB = normaliseDB(snap);
-
-      // Restore active session if exists
       const uid = getSessionUid();
       if (uid) {
         const u = cachedUsers.find(x => x.id === uid);
@@ -1286,12 +847,11 @@ async function boot(){
           clearTimeout(safetyTimer);
           load(false);
           showPG('app'); updAppUI(); buildNav(); go('dashboard');
-          _backgroundSync(); // refresh from remote silently
-          startPolling();    // keep syncing while logged in
+          _backgroundSync();
+          startPolling();
           return;
         }
       }
-
       clearTimeout(safetyTimer);
       load(false);
       updLLogo(); updSchoolName(); showPG('login');
@@ -1299,7 +859,7 @@ async function boot(){
       return;
     }
 
-    // ── STEP 3: Configured but no local snapshot — fetch from JSONBin ──
+    // No local snapshot — fetch from cloud database
     load(true, 'Connecting to database…');
     try {
       const rec = await dbRead();
@@ -1325,55 +885,39 @@ async function boot(){
     if (!DB) DB = normaliseDB(JSON.parse(JSON.stringify(EMPTY_DB)));
     const fallback = getCachedUsers();
     if (fallback) DB.users = fallback;
-    showPG(isConfigured() ? 'login' : 'setup');
+    showPG('login');
     toast('Offline mode — login works, changes sync when online.', 'inf');
   }
 }
 
-async function _backgroundSync(){
-  if (!isConfigured()) return;
-  // Don't poll while a local write is in-flight — server doesn't have our latest yet
+async function _backgroundSync() {
   if (_syncInFlight) return;
-  // Don't poll if we have local unsaved changes — we'd overwrite them with stale remote data
-  if (_dirtyBins.size > 0) return;
   try {
     const rec = await dbRead();
     if (!rec || !rec.users || rec.users.length === 0) return;
     const fresh = normaliseDB(rec);
     if (!DB) { DB = fresh; }
     else {
-      // For each bin, only update local DB if remote data is different from what we last wrote.
-      // This prevents device A's poll from overwriting its own local data with device B's
-      // version of a bin that device A hasn't changed.
       let changed = false;
       const localSnap = JSON.parse(localStorage.getItem('qsc_db_snapshot') || 'null') || DB;
-
-      const check = (getRemote, getLocal, apply) => {
-        const remStr = JSON.stringify(getRemote(fresh));
-        const locStr = JSON.stringify(getLocal(localSnap));
-        if (remStr !== locStr) { apply(); changed = true; }
+      const check = (getR, getL, apply) => {
+        if (JSON.stringify(getR(fresh)) !== JSON.stringify(getL(localSnap))) { apply(); changed = true; }
       };
-
-      check(d=>({school:d.school,term:d.term}), d=>({school:d.school,term:d.term}), ()=>{
-        DB.school=fresh.school; DB.term=fresh.term; DB.termFees=fresh.termFees;
-        DB.customSubs=fresh.customSubs; DB.classGroups=fresh.classGroups;
-      });
+      check(d=>({school:d.school,term:d.term}), d=>({school:d.school,term:d.term}), ()=>{ DB.school=fresh.school; DB.term=fresh.term; DB.termFees=fresh.termFees; DB.customSubs=fresh.customSubs; DB.classGroups=fresh.classGroups; });
       check(d=>d.users,    d=>d.users,    ()=>{ if(fresh.users?.length>0)    { DB.users=fresh.users; DB.nextUid=fresh.nextUid; } });
       check(d=>d.students, d=>d.students, ()=>{ if(fresh.students?.length>0) { DB.students=fresh.students; DB.nextSid=fresh.nextSid; } });
       check(d=>d.fees,     d=>d.fees,     ()=>{ if(fresh.fees?.length>0)     { DB.fees=fresh.fees; DB.nextFid=fresh.nextFid; } });
       check(d=>d.results,  d=>d.results,  ()=>{ if(fresh.results?.length>0)  { DB.results=fresh.results; DB.nextRid=fresh.nextRid; } });
-      check(d=>d.submissions,  d=>d.submissions,  ()=>{ if(fresh.submissions?.length>0)   DB.submissions=fresh.submissions; });
-      check(d=>d.savedReports, d=>d.savedReports, ()=>{ if(fresh.savedReports?.length>0)  DB.savedReports=fresh.savedReports; });
-
-      if (!changed) return; // nothing new from remote — skip re-render
+      check(d=>d.submissions,  d=>d.submissions,  ()=>{ if(fresh.submissions?.length>0)  DB.submissions=fresh.submissions; });
+      check(d=>d.savedReports, d=>d.savedReports, ()=>{ if(fresh.savedReports?.length>0) DB.savedReports=fresh.savedReports; });
+      if (!changed) return;
     }
     cacheUsers(DB.users);
-    // Guard: don't overwrite localStorage if a write just queued while we were reading
-    if (_dirtyBins.size === 0 && !_syncInFlight) {
+    if (!_syncInFlight) {
       try { localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); } catch(e) {}
       if (!_userIsTyping()) await _refreshCurrentPage();
     }
-  } catch(e) { /* silent — will retry on next poll */ }
+  } catch(e) { /* silent */ }
 }
 
 function normaliseDB(rec){
@@ -2852,22 +2396,22 @@ function pgSettings(){
     </div>
   </div>
   <div class="card" style="margin-top:16px">
-    <div class="ct">🗄️ Multi-Bin Database Status</div>
-    <div class="cs">Each data type is stored in its own JSONBin for reliability — no more disappearing data</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">
-      ${[['Settings','settings'],['Users','users'],['Students','students'],['Fees','fees'],['Results','results'],['Submissions','submissions'],['Saved Reports','savedReports']].map(([label,key])=>`
-      <div style="background:${(BINS&&BINS[key])?'var(--grl)':'var(--rdl)'};border-radius:var(--r);padding:8px 10px;font-size:11px">
-        <div style="font-weight:700;color:${(BINS&&BINS[key])?'var(--gr)':'var(--rd)'}">${label}</div>
-        <div style="color:var(--mu);font-size:10px;margin-top:2px">${(BINS&&BINS[key])?'✓ Connected':'✕ Not set'}</div>
-      </div>`).join('')}
+    <div class="ct">🗄️ Database Status</div>
+    <div class="cs">All school data is securely stored in the cloud — synced across all devices automatically</div>
+    <div style="background:var(--grl);border-radius:var(--r);padding:10px 12px;font-size:11px;margin:12px 0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">✅</span>
+      <div>
+        <div style="font-weight:700;color:var(--gr)">Connected to Cloud Database</div>
+        <div style="color:var(--mu);font-size:10px;margin-top:2px">Bin ID: ${BIN_ID} · Pre-configured</div>
+      </div>
     </div>
-    <div><label>School Access Code (share with staff — includes all bin IDs)</label>
+    <div><label>School Access Code (share with staff / new devices)</label>
       <div style="display:flex;gap:6px;margin-top:4px">
         <input id="SAC-display" value="${encodeAccessCode()}" readonly style="font-family:monospace;font-size:10px;flex:1;min-width:0;background:#f5f7fa">
         <button class="btn bg sm" onclick="copySAC()">📋 Copy</button>
       </div>
     </div>
-    <p style="font-size:11px;color:var(--mu);margin-top:8px">Staff paste this code once on their device → Setup screen → "Staff / New Device" tab. It automatically connects all 7 bins.</p>
+    <p style="font-size:11px;color:var(--mu);margin-top:8px">Staff paste this code once on their device → Setup screen → "Staff / New Device" tab.</p>
     <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
     <div>
       <div style="font-size:13px;font-weight:700;margin-bottom:2px;color:var(--pu)">🛡️ Admin Login Code</div>
@@ -2882,7 +2426,7 @@ function pgSettings(){
       <button class="btn bp sm" onclick="showAdminLoginCode()">🛡️ Generate Admin Login Code</button>
     </div>
     <hr style="margin:12px 0;border:none;border-top:1.5px solid #eef0f3">
-    <button class="btn bd sm" onclick="disconnectDevice()" style="font-size:11px">🔌 Disconnect this device (reset setup)</button>
+    <button class="btn bd sm" onclick="disconnectDevice()" style="font-size:11px">🔄 Reset device cache</button>
   </div>`;
 }
 
@@ -2954,10 +2498,10 @@ function copyALC(){
   });
 }
 function disconnectDevice(){
-  if(!confirm('⚠ Disconnect this device?\n\nThis clears the local database connection. You will need to paste the access code again to reconnect.\n\nYour data in JSONBin is NOT deleted.')) return;
+  if(!confirm('⚠ Disconnect this device?\n\nThis clears the local database connection. You will need to paste the access code again to reconnect.\n\nYour data in the cloud is NOT deleted.')) return;
   clearBinRegistry();
   try{ ['qsc_db_snapshot','qsc_users_cache','qsc_uid','qsc_cfg','qsc_bins','qsc_bins_v2'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
-  API_KEY=''; BINS={}; BIN_ID=''; DB=null; CU=null;
+  DB=null; CU=null; _master=null;
   showPG('setup');
   toast('Device disconnected. Paste the access code to reconnect.','inf');
 }
