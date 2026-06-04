@@ -893,6 +893,7 @@ async function boot() {
 async function _backgroundSync() {
   if (_syncInFlight) return;
   try {
+    _master = null; // always force a fresh fetch from remote
     const rec = await dbRead();
     if (!rec || !rec.users || rec.users.length === 0) return;
     const fresh = normaliseDB(rec);
@@ -964,60 +965,38 @@ async function doLogin(){
     startPolling(); // keep all devices in sync while logged in
   }
 
-  // STEP 1: Try cached users (instant, no network) — only accept a positive match
-  const cachedUsers=getCachedUsers();
-  if(cachedUsers&&cachedUsers.length>0){
-    const user=cachedUsers.find(x=>x.username===username&&x.password===password);
-    if(user){
-      resetBtn();
-      // Restore DB from snapshot before entering — critical on new devices where
-      // doStaffConnect / doAdminDeviceLogin saved the snapshot but DB may not be
-      // in memory if the page was refreshed between connect and login.
-      if(!DB || !DB.students || DB.students.length === 0){
-        const snap = getDBSnapshot();
-        if(snap) DB = normaliseDB(snap);
-      }
-      doEnterApp(user);
-      // Sync DB in background using guarded sync (won't wipe good data on partial reads)
-      _backgroundSync();
-      return;
-    }
-    // Cache miss — don't reject yet; credentials may have changed on another device.
-    // Fall through to live DB check.
-  }
-
-  // STEP 2: Try current in-memory DB
-  if(DB&&DB.users&&DB.users.length>0){
-    const user=DB.users.find(x=>x.username===username&&x.password===password);
-    if(user){resetBtn();doEnterApp(user);return;}
-  }
-
-  // STEP 3: Fetch fresh from all bins — this is the source of truth
+  // Always fetch fresh from cloud on login — this is the source of truth for cross-device sync
   try{
     const rec = await dbRead();
     if(rec && rec.users){
       DB = normaliseDB(rec);
-      cacheUsers(DB.users); // refresh cache with latest credentials
+      _master = null; // clear in-memory bin cache so next read is always fresh
+      cacheUsers(DB.users);
       try{ localStorage.setItem('qsc_db_snapshot', JSON.stringify(DB)); }catch(e){}
+    } else if(!DB){
+      const snap = getDBSnapshot();
+      if(snap) DB = normaliseDB(snap);
     }
-    const user = DB && DB.users ? DB.users.find(x=>x.username===username && x.password===password) : null;
-    if(!user){
-      al.innerHTML = err('Wrong username or password.');
-      resetBtn();
-      return;
-    }
-    resetBtn();
-    doEnterApp(user);
   }catch(e){
-    // Network failed — last resort: check all sources we have
-    const allUsers=[...(getCachedUsers()||[]),...(DB&&DB.users?DB.users:[])];
-    const seen=new Set();
-    const uniqueUsers=allUsers.filter(u=>seen.has(u.id)?false:seen.add(u.id));
-    const user=uniqueUsers.find(x=>x.username===username&&x.password===password);
-    if(user){resetBtn();doEnterApp(user);return;}
-    al.innerHTML=err('Could not connect to database. Check your internet and try again.');
-    resetBtn();
+    // Network failed — fall back to local snapshot
+    if(!DB || !DB.users){
+      const snap = getDBSnapshot();
+      if(snap) DB = normaliseDB(snap);
+    }
+    if(!DB || !DB.users || DB.users.length===0){
+      al.innerHTML=err('Could not connect to database. Check your internet and try again.');
+      resetBtn(); return;
+    }
+    toast('Offline mode — showing cached data.','inf');
   }
+
+  const user = DB && DB.users ? DB.users.find(x=>x.username===username&&x.password===password) : null;
+  if(!user){
+    al.innerHTML=err('Wrong username or password.');
+    resetBtn(); return;
+  }
+  resetBtn();
+  doEnterApp(user);
 }
 document.getElementById('L-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
