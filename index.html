@@ -11,13 +11,54 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);}
-  header{background:var(--ink);color:var(--paper);padding:18px 24px;border-bottom:4px solid var(--gold);}
+
+  /* ---- LOGIN ---- */
+  #loginScreen{
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;background:var(--paper);
+  }
+  .loginBox{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:36px 32px;width:100%;max-width:360px;box-shadow:0 4px 24px rgba(0,0,0,.07);
+  }
+  .loginBox .logo{
+    text-align:center;margin-bottom:20px;
+  }
+  .loginBox .logo span{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:52px;height:52px;background:var(--gold);border-radius:14px;
+    font-size:26px;
+  }
+  .loginBox h2{font-size:20px;margin:0 0 4px;text-align:center;}
+  .loginBox .sub{font-size:13px;color:var(--muted);text-align:center;margin:0 0 24px;}
+  .loginBox label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .loginBox input[type=text],.loginBox input[type=password]{
+    width:100%;border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-size:14px;font-family:inherit;
+    background:var(--paper);color:var(--ink);outline:none;margin-bottom:16px;
+  }
+  .loginBox input:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,180,0,.2);}
+  .loginBox .loginErr{
+    font-size:12.5px;color:var(--danger);background:#fbeae6;
+    border:1px solid #e3b8ab;border-radius:7px;padding:8px 12px;
+    margin-bottom:14px;display:none;
+  }
+  .loginBox .loginErr.show{display:block;}
+
+  /* ---- MAIN APP ---- */
+  #app{display:none;}
+  header{background:var(--ink);color:var(--paper);padding:18px 24px;border-bottom:4px solid var(--gold);display:flex;align-items:center;justify-content:space-between;}
   header h1{font-size:16px;margin:0;font-weight:700;}
   header p{font-size:11.5px;margin:4px 0 0;color:#d8cfa8;}
-
-  .banner{
-    max-width:640px;margin:16px auto 0;padding:0 18px;
+  .headerLeft{}
+  .logoutBtn{
+    font-family:inherit;font-size:12px;font-weight:700;padding:7px 14px;
+    border-radius:7px;border:1px solid rgba(255,255,255,.2);background:transparent;
+    color:var(--paper);cursor:pointer;white-space:nowrap;
   }
+  .logoutBtn:hover{background:rgba(255,255,255,.1);}
+
+  .banner{max-width:640px;margin:16px auto 0;padding:0 18px;}
   .warn{
     font-size:12.5px;background:#fdf3e0;border:1px solid #edd9a3;color:#7a5b0a;
     padding:10px 12px;border-radius:8px;
@@ -50,13 +91,68 @@
   .output.show{display:block;}
   video{width:100%;border-radius:8px;margin-top:10px;display:none;background:#000;}
   video.show{display:block;}
+
+  /* ---- SETTINGS MODAL ---- */
+  .overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+    z-index:100;align-items:center;justify-content:center;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);border-radius:14px;padding:28px 24px;
+    width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.18);
+  }
+  .modal h3{font-size:16px;margin:0 0 18px;font-weight:700;}
+  .modal .section{margin-bottom:18px;}
+  .modal .section label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px;}
+  .modal .row2{display:flex;align-items:center;justify-content:space-between;}
+  .modal .row2 span{font-size:13px;}
+  .closeBtn{
+    float:right;font-family:inherit;font-size:13px;font-weight:700;
+    padding:6px 14px;border-radius:7px;border:1px solid var(--line);
+    background:transparent;cursor:pointer;color:var(--ink);
+  }
+  .toggle{
+    position:relative;display:inline-block;width:44px;height:24px;
+  }
+  .toggle input{opacity:0;width:0;height:0;}
+  .slider{
+    position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s;
+  }
+  .slider:before{
+    content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;
+    background:#fff;border-radius:50%;transition:.2s;
+  }
+  input:checked+.slider{background:var(--gold);}
+  input:checked+.slider:before{transform:translateX(20px);}
 </style>
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="loginBox">
+    <div class="logo"><span>🔒</span></div>
+    <h2>Device Permissions</h2>
+    <p class="sub">Sign in to access the testing suite.</p>
+    <div class="loginErr" id="loginErr">Incorrect username or password.</div>
+    <label for="usernameInput">Username</label>
+    <input type="text" id="usernameInput" autocomplete="username" placeholder="Enter username">
+    <label for="passwordInput">Password</label>
+    <input type="password" id="passwordInput" autocomplete="current-password" placeholder="Enter password">
+    <button class="btn" style="width:100%" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
 <header>
-  <h1>Device Permissions</h1>
-  <p>Standard browser permission prompts — works in any modern browser, no native app required.</p>
+  <div class="headerLeft">
+    <h1>Device Permissions</h1>
+    <p>Standard browser permission prompts — works in any modern browser, no native app required.</p>
+  </div>
+  <button class="logoutBtn" onclick="doLogout()">Sign out</button>
 </header>
 
 <div class="banner">
@@ -86,6 +182,7 @@
       <button class="btn" onclick="location.href='mailto:'">Email</button>
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
+      <button class="btn" onclick="location.href='App-Prefs:'">Settings</button>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
@@ -172,161 +269,222 @@
   </div>
 
 </div>
+</div><!-- /#app -->
+
+<!-- SETTINGS MODAL (opened from Quick Launch → Settings button) -->
+<div class="overlay" id="settingsOverlay" onclick="closeSettingsOnBg(event)">
+  <div class="modal">
+    <button class="closeBtn" onclick="closeSettings()">Close</button>
+    <h3>Settings</h3>
+    <div class="section">
+      <label>Theme</label>
+      <div class="row2">
+        <span>Dark mode</span>
+        <label class="toggle">
+          <input type="checkbox" id="darkToggle" onchange="toggleDark(this)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="section">
+      <label>Account</label>
+      <div class="row2">
+        <span id="settingsUsername">AKATI</span>
+        <button class="btn" style="padding:6px 14px;font-size:12px;" onclick="doLogout()">Sign out</button>
+      </div>
+    </div>
+    <div class="section">
+      <label>About</label>
+      <p style="font-size:13px;margin:0;color:var(--muted);">Device Permissions v1.0.0 — Browser permission tester.</p>
+    </div>
+  </div>
+</div>
 
 <script>
-if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-  document.getElementById('secureWarning').style.display = 'block';
+/* ---- AUTH ---- */
+function doLogin(){
+  const u = document.getElementById('usernameInput').value.trim();
+  const p = document.getElementById('passwordInput').value;
+  if(u === 'AKATI' && p === '123Akatihadi@'){
+    localStorage.setItem('dp_authed','true');
+    showApp();
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+  }
+}
+document.getElementById('passwordInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('usernameInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout(){
+  localStorage.removeItem('dp_authed');
+  showLogin();
+}
+function showApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  if(location.protocol!=='https:' && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
+    document.getElementById('secureWarning').style.display='block';
+  }
+}
+function showLogin(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('usernameInput').value='';
+  document.getElementById('passwordInput').value='';
 }
 
-function setStatus(id, text, kind){
-  const el = document.getElementById(id);
-  el.textContent = text;
-  el.className = 'status ' + kind;
+// On load
+if(localStorage.getItem('dp_authed')==='true') showApp(); else showLogin();
+
+/* ---- SETTINGS MODAL ---- */
+function openSettings(){ document.getElementById('settingsOverlay').classList.add('show'); }
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('show'); }
+function closeSettingsOnBg(e){ if(e.target===e.currentTarget) closeSettings(); }
+function toggleDark(cb){
+  document.documentElement.style.setProperty('--paper', cb.checked ? '#1a1a16' : '#faf8f3');
+  document.documentElement.style.setProperty('--panel', cb.checked ? '#27261f' : '#ffffff');
+  document.documentElement.style.setProperty('--ink',   cb.checked ? '#f0ead4' : '#141311');
+  document.documentElement.style.setProperty('--line',  cb.checked ? '#3a3830' : '#e4dfd2');
+  document.documentElement.style.setProperty('--muted', cb.checked ? '#a09880' : '#6b6558');
+  localStorage.setItem('dp_theme', cb.checked ? 'dark' : 'light');
 }
-function setOutput(id, text){
-  const el = document.getElementById(id);
-  el.textContent = text;
+// Restore theme
+if(localStorage.getItem('dp_theme')==='dark'){
+  const cb = document.getElementById('darkToggle');
+  cb.checked = true;
+  toggleDark(cb);
+}
+
+/* ---- PERMISSIONS ---- */
+function setStatus(id,text,kind){
+  const el=document.getElementById(id);
+  el.textContent=text;
+  el.className='status '+kind;
+}
+function setOutput(id,text){
+  const el=document.getElementById(id);
+  el.textContent=text;
   el.classList.add('show');
 }
 
-/* ---------------- Share to another app ---------------- */
 async function shareToApp(){
-  if (!navigator.share) { setStatus('shareStatus','Not supported','denied'); return; }
+  if(!navigator.share){setStatus('shareStatus','Not supported','denied');return;}
   try{
-    await navigator.share({
-      title: 'Dream Applications',
-      text: 'Shared from the Device Permissions page.',
-      url: location.href
-    });
+    await navigator.share({title:'Dream Applications',text:'Shared from the Device Permissions page.',url:location.href});
     setStatus('shareStatus','Shared','granted');
   }catch(e){
-    // User cancelling the share sheet also lands here — not a real error
-    if (e.name === 'AbortError') setStatus('shareStatus','Cancelled','idle');
-    else setStatus('shareStatus', e.message, 'denied');
+    if(e.name==='AbortError') setStatus('shareStatus','Cancelled','idle');
+    else setStatus('shareStatus',e.message,'denied');
   }
 }
 
-/* ---------------- Location ---------------- */
 function requestLocation(){
-  if (!navigator.geolocation) { setStatus('locStatus','Not supported','denied'); return; }
+  if(!navigator.geolocation){setStatus('locStatus','Not supported','denied');return;}
   setStatus('locStatus','Requesting…','idle');
   navigator.geolocation.getCurrentPosition(
-    pos => {
+    pos=>{
       setStatus('locStatus','Granted','granted');
-      setOutput('locOutput', `Lat ${pos.coords.latitude.toFixed(5)}, Lng ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`);
+      setOutput('locOutput',`Lat ${pos.coords.latitude.toFixed(5)}, Lng ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`);
     },
-    err => setStatus('locStatus', err.message, 'denied')
+    err=>setStatus('locStatus',err.message,'denied')
   );
 }
 
-/* ---------------- Camera / mic ---------------- */
 async function requestCamera(){
   setStatus('camStatus','Requesting…','idle');
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-    const video = document.getElementById('camPreview');
-    video.srcObject = stream;
+    const stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    const video=document.getElementById('camPreview');
+    video.srcObject=stream;
     video.classList.add('show');
     setStatus('camStatus','Granted','granted');
-  }catch(e){
-    setStatus('camStatus', e.message, 'denied');
-  }
+  }catch(e){setStatus('camStatus',e.message,'denied');}
 }
 
-/* ---------------- Notifications ---------------- */
 async function requestNotifications(){
-  if (!('Notification' in window)) { setStatus('notifyStatus','Not supported','denied'); return; }
-  const perm = await Notification.requestPermission();
-  if (perm === 'granted') {
+  if(!('Notification' in window)){setStatus('notifyStatus','Not supported','denied');return;}
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){
     setStatus('notifyStatus','Granted','granted');
-    document.getElementById('testNotifyBtn').disabled = false;
+    document.getElementById('testNotifyBtn').disabled=false;
   } else {
-    setStatus('notifyStatus', perm, 'denied');
+    setStatus('notifyStatus',perm,'denied');
   }
 }
 function sendTestNotification(){
-  new Notification('Dream Applications', { body: 'This is a test notification.' });
+  new Notification('Dream Applications',{body:'This is a test notification.'});
 }
 
-/* ---------------- Motion / orientation ---------------- */
 function requestMotion(){
-  const startListening = () => {
+  const startListening=()=>{
     setStatus('motionStatus','Granted','granted');
-    window.addEventListener('devicemotion', e => {
-      const a = e.accelerationIncludingGravity || {};
-      setOutput('motionOutput',
-        `x: ${(a.x||0).toFixed(2)}  y: ${(a.y||0).toFixed(2)}  z: ${(a.z||0).toFixed(2)}`);
+    window.addEventListener('devicemotion',e=>{
+      const a=e.accelerationIncludingGravity||{};
+      setOutput('motionOutput',`x: ${(a.x||0).toFixed(2)}  y: ${(a.y||0).toFixed(2)}  z: ${(a.z||0).toFixed(2)}`);
     });
   };
-
-  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-    // iOS 13+ requires an explicit permission prompt triggered by a tap
-    DeviceMotionEvent.requestPermission().then(state => {
-      if (state === 'granted') startListening();
-      else setStatus('motionStatus', state, 'denied');
-    }).catch(e => setStatus('motionStatus', e.message, 'denied'));
-  } else if ('DeviceMotionEvent' in window) {
-    // Android Chrome: no explicit prompt, access is implicit
+  if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){
+    DeviceMotionEvent.requestPermission().then(state=>{
+      if(state==='granted') startListening();
+      else setStatus('motionStatus',state,'denied');
+    }).catch(e=>setStatus('motionStatus',e.message,'denied'));
+  } else if('DeviceMotionEvent' in window){
     startListening();
   } else {
     setStatus('motionStatus','Not supported','denied');
   }
 }
 
-/* ---------------- Clipboard ---------------- */
 async function writeClipboard(){
   try{
     await navigator.clipboard.writeText('Dream Applications — Your Dream, Our Priority');
     setStatus('clipStatus','Copied','granted');
-  }catch(e){ setStatus('clipStatus', e.message, 'denied'); }
+  }catch(e){setStatus('clipStatus',e.message,'denied');}
 }
 async function readClipboard(){
   try{
-    const text = await navigator.clipboard.readText();
+    const text=await navigator.clipboard.readText();
     setStatus('clipStatus','Granted','granted');
-    setOutput('clipOutput', text || '(clipboard is empty)');
-  }catch(e){ setStatus('clipStatus', e.message, 'denied'); }
+    setOutput('clipOutput',text||'(clipboard is empty)');
+  }catch(e){setStatus('clipStatus',e.message,'denied');}
 }
 
-/* ---------------- Vibration ---------------- */
 function vibrateDevice(){
-  if (!navigator.vibrate) { setStatus('vibrateStatus','Not supported','denied'); return; }
-  navigator.vibrate([100, 60, 100]);
+  if(!navigator.vibrate){setStatus('vibrateStatus','Not supported','denied');return;}
+  navigator.vibrate([100,60,100]);
   setStatus('vibrateStatus','Vibrated','granted');
 }
 
-/* ---------------- Bluetooth ---------------- */
 async function requestBluetooth(){
-  if (!navigator.bluetooth) { setStatus('btStatus','Not supported','denied'); return; }
+  if(!navigator.bluetooth){setStatus('btStatus','Not supported','denied');return;}
   try{
-    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+    const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true});
     setStatus('btStatus','Paired','granted');
-    setOutput('btOutput', `Connected to: ${device.name || '(unnamed device)'}`);
-  }catch(e){ setStatus('btStatus', e.message, 'denied'); }
+    setOutput('btOutput',`Connected to: ${device.name||'(unnamed device)'}`);
+  }catch(e){setStatus('btStatus',e.message,'denied');}
 }
 
-/* ---------------- Wake Lock ---------------- */
-let wakeLock = null;
+let wakeLock=null;
 async function toggleWakeLock(){
-  const btn = document.getElementById('wakeLockBtn');
-  if (!('wakeLock' in navigator)) { setStatus('wakeStatus','Not supported','denied'); return; }
+  const btn=document.getElementById('wakeLockBtn');
+  if(!('wakeLock' in navigator)){setStatus('wakeStatus','Not supported','denied');return;}
   try{
-    if (!wakeLock) {
-      wakeLock = await navigator.wakeLock.request('screen');
+    if(!wakeLock){
+      wakeLock=await navigator.wakeLock.request('screen');
       setStatus('wakeStatus','On','granted');
-      btn.textContent = 'Stop keeping screen on';
-      wakeLock.addEventListener('release', () => {
+      btn.textContent='Stop keeping screen on';
+      wakeLock.addEventListener('release',()=>{
         setStatus('wakeStatus','Off','idle');
-        btn.textContent = 'Keep screen on';
-        wakeLock = null;
+        btn.textContent='Keep screen on';
+        wakeLock=null;
       });
     } else {
       await wakeLock.release();
-      wakeLock = null;
+      wakeLock=null;
     }
-  }catch(e){ setStatus('wakeStatus', e.message, 'denied'); }
+  }catch(e){setStatus('wakeStatus',e.message,'denied');}
 }
 </script>
-
-</body>
+<script src="https://replit-cdn.com/replit-pill/replit-pill.global.js" data-repl-id="9454a3c5-58ba-440d-abf5-fdf37289eb4c"></script></body>
 </html>
