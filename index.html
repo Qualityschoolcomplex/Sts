@@ -3,40 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Open Settings</title>
+<title>Download Settings Launcher</title>
 <style>
   :root{
     --ink:#141311; --paper:#faf8f3; --gold:#e8b400; --gold-deep:#b8880a; --muted:#6b6558;
   }
   *{box-sizing:border-box;}
-  html, body{
-    margin:0; min-height:100vh; height:100%;
+  body{
+    margin:0; min-height:100vh;
     display:flex; align-items:center; justify-content:center;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     background:var(--paper); color:var(--ink);
-    cursor:pointer;
-    -webkit-tap-highlight-color:transparent;
-    user-select:none;
   }
-  body:active{background:#f3ecd7;}
-  .card{ text-align:center; padding:40px 32px; max-width:340px; }
+  .card{ text-align:center; padding:40px 32px; max-width:380px; }
   .icon{
     width:64px;height:64px; margin:0 auto 20px; border-radius:16px;
     background:var(--ink); display:flex;align-items:center;justify-content:center;
   }
   .icon svg{width:32px;height:32px;}
   h1{font-size:17px;margin:0 0 6px;}
-  p.sub{font-size:13px;color:var(--muted);margin:0 0 26px;}
-  button{
+  p.sub{font-size:13px;color:var(--muted);margin:0 0 22px;line-height:1.5;}
+  a.btn{
+    display:block;
     font-family:inherit; font-size:14.5px; font-weight:700; padding:13px 28px;
     border-radius:10px; border:none; background:var(--gold); color:var(--ink);
-    cursor:pointer; width:100%;
+    cursor:pointer; width:100%; text-decoration:none;
   }
-  button:active{background:var(--gold-deep);}
-  .note{ margin-top:16px; font-size:11.5px; color:var(--muted); min-height:16px; }
+  a.btn:active{background:var(--gold-deep);}
+  .meta{
+    margin-top:18px; font-size:11px; color:var(--muted);
+    background:#fff; border:1px solid #e4dfd2; border-radius:8px;
+    padding:10px 12px; text-align:left; word-break:break-all;
+  }
+  .warn{
+    margin-top:14px; font-size:12px; text-align:left;
+    background:#fdf3e0; border:1px solid #edd9a3; color:#7a5b0a;
+    padding:10px 12px; border-radius:8px; line-height:1.5;
+  }
 </style>
 </head>
-<body onclick="openDeviceSettings()">
+<body>
 
 <div class="card">
   <div class="icon">
@@ -45,84 +51,19 @@
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
     </svg>
   </div>
-  <h1>Device Settings</h1>
-  <p class="sub">Tap anywhere on screen to open Settings on this device.</p>
-  <button onclick="openDeviceSettings(); event.stopPropagation();">Open Settings App</button>
-  <div class="note" id="note"></div>
+  <h1>Settings Launcher</h1>
+  <p class="sub">A tiny Windows app that opens Settings the instant you run it — no installation, no admin rights needed.</p>
+
+  <a class="btn" href="OpenSettings.exe" download="OpenSettings.exe">Download OpenSettings.exe</a>
+
+  <div class="warn">
+    <strong>First run only:</strong> since this isn't a code-signed, widely-downloaded app, Windows SmartScreen or Chrome's download check may show a warning. Click <strong>"More info" → "Run anyway"</strong> (SmartScreen) or keep the file when Chrome flags it as uncommon. This is standard for any small unsigned tool, not a sign of a problem.
+  </div>
+
+  <div class="meta">
+    SHA-256: 0ccd7df17f70e00eb80d3a8c7cbbe0dfc480224e4eeed8f3c39e5b0d15b95438
+  </div>
 </div>
-
-<script>
-/*
-  Works the same way on a phone or tablet — "tablet" isn't a separate
-  platform here, it's still just Android or Windows underneath, so the
-  same detection/bridge logic below covers both.
-
-  Order of attempts, most reliable first:
-
-  1. Native bridge (window.AndroidDeviceBridge.openSettingsApp) — only
-     exists if this page is running inside a packaged WebView app that
-     has registered it (see DeviceBridge.kt from earlier). This is the
-     ONLY approach that is 100% reliable, because it calls
-     startActivity(Intent(Settings.ACTION_SETTINGS)) directly in Kotlin —
-     no browser, no URI scheme, no restrictions.
-
-  2. intent:// URI (Android, in a plain browser) — best-effort only.
-     Chrome requires a real tap (this is why there's no auto-fire on
-     load) AND requires the target activity to declare the BROWSABLE
-     category. Android's Settings app does NOT declare BROWSABLE on
-     ACTION_SETTINGS, so in practice this step will usually do nothing
-     in a plain browser tab — it's included for completeness and for
-     devices/ROMs where it may work, but don't rely on it.
-
-  3. ms-settings: URI (Windows) — works in Edge/WebView2, opens the
-     Windows Settings app directly.
-
-  4. iOS — no reliable public way to deep link into Settings from a web
-     page; Apple removed that years ago. Shown as an honest message.
-*/
-
-function setNote(msg){
-  document.getElementById('note').textContent = msg;
-}
-
-function openDeviceSettings(){
-  const ua = navigator.userAgent || '';
-  const isAndroid = /android/i.test(ua);
-  const isWindows = /windows/i.test(ua);
-  const isIOS = /iphone|ipad|ipod/i.test(ua);
-
-  if (isAndroid) {
-    // Step 1: native bridge, if this page is running inside your packaged app
-    if (window.AndroidDeviceBridge && typeof window.AndroidDeviceBridge.openSettingsApp === 'function') {
-      window.AndroidDeviceBridge.openSettingsApp();
-      return;
-    }
-
-    // Step 2: best-effort intent link — see the note above on why this
-    // usually won't fire in a plain browser tab
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-      setNote('Open this over https:// for the fallback link to have any chance of working.');
-      return;
-    }
-    window.location.href = 'intent:#Intent;action=android.settings.SETTINGS;end';
-    setNote('If nothing happened, your browser blocked it — this only reliably works from inside a packaged app with the native bridge wired in.');
-    return;
-  }
-
-  if (isWindows) {
-    window.location.href = 'ms-settings:';
-    setNote('If nothing happened, this only works inside Edge or a WebView2-based app.');
-    return;
-  }
-
-  if (isIOS) {
-    setNote("iOS doesn't allow web pages to open Settings directly — there's no workaround for this on iPhone/iPad.");
-    return;
-  }
-
-  setNote("Couldn't detect a settings shortcut for this device.");
-}
-</script>
 
 </body>
 </html>
