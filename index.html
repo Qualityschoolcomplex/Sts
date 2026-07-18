@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>App Permissions</title>
+<title>Device Permissions</title>
 <style>
   :root{
     --ink:#141311; --paper:#faf8f3; --gold:#e8b400; --gold-deep:#b8880a;
-    --line:#e4dfd2; --panel:#ffffff; --muted:#6b6558;
+    --line:#e4dfd2; --panel:#ffffff; --muted:#6b6558; --danger:#a3341f; --ok:#2f6b3e;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);}
@@ -15,157 +15,316 @@
   header h1{font-size:16px;margin:0;font-weight:700;}
   header p{font-size:11.5px;margin:4px 0 0;color:#d8cfa8;}
 
-  .shell{max-width:520px;margin:0 auto;padding:18px 18px 60px;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:16px;}
-  .card h2{font-size:14.5px;margin:0 0 4px;}
-  .card .sub{font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.5;}
-
-  input{
-    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
-    font-size:13.5px; font-family:inherit; background:var(--paper); color:var(--ink);
-    margin-bottom:12px;
+  .banner{
+    max-width:640px;margin:16px auto 0;padding:0 18px;
   }
-  input:focus{outline:2px solid var(--gold); outline-offset:1px; border-color:var(--gold-deep);}
-
-  button{
-    font-family:inherit; font-size:13.5px; font-weight:700; padding:12px 20px;
-    border-radius:8px; border:none; background:var(--gold); color:var(--ink);
-    cursor:pointer; width:100%;
+  .warn{
+    font-size:12.5px;background:#fdf3e0;border:1px solid #edd9a3;color:#7a5b0a;
+    padding:10px 12px;border-radius:8px;
   }
-  button:active{background:var(--gold-deep);}
+  .warn.bad{background:#fbeae6;border-color:#e3b8ab;color:var(--danger);}
 
-  .note{margin-top:12px;font-size:11.5px;color:var(--muted);min-height:16px;line-height:1.5;}
-  .limit{
-    font-size:12px; background:#fdf3e0; border:1px solid #edd9a3; color:#7a5b0a;
-    padding:10px 12px; border-radius:8px; margin-bottom:16px; line-height:1.5;
+  .shell{max-width:640px;margin:0 auto;padding:14px 18px 60px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:14px;}
+  .card h2{font-size:14px;margin:0 0 3px;}
+  .card .sub{font-size:11.5px;color:var(--muted);margin:0 0 12px;}
+  .card .support{font-size:10.5px;color:var(--muted);margin-bottom:12px;}
+
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  button.btn{
+    font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;
+    border-radius:8px;border:none;background:var(--gold);color:var(--ink);cursor:pointer;
   }
+  button.btn:active{background:var(--gold-deep);}
+  button.btn:disabled{opacity:.5;cursor:default;}
+
+  .status{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:700;}
+  .status.granted{background:#e4f2e6;color:var(--ok);}
+  .status.denied{background:#fbeae6;color:var(--danger);}
+  .status.idle{background:#f0ead4;color:var(--muted);}
+
+  .output{
+    margin-top:12px;font-size:12.5px;background:var(--paper);border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;color:var(--muted);word-break:break-word;display:none;
+  }
+  .output.show{display:block;}
+  video{width:100%;border-radius:8px;margin-top:10px;display:none;background:#000;}
+  video.show{display:block;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>App Permissions</h1>
-  <p>Opens the device's own permission screens — browsing what's there is up to the user.</p>
+  <h1>Device Permissions</h1>
+  <p>Standard browser permission prompts — works in any modern browser, no native app required.</p>
 </header>
+
+<div class="banner">
+  <div class="warn" id="secureWarning" style="display:none;">
+    ⚠️ This page must be opened over <strong>https://</strong> (or localhost) for any of these to work.
+    Browsers block permission prompts entirely on local <code>file://</code> pages.
+  </div>
+</div>
 
 <div class="shell">
 
-  <div class="limit">
-    A regular installed app — even a native one, not just a web page — cannot read what permissions other apps hold. That data is only exposed to the OS's own Settings app. These buttons open those built-in screens so the user can look themselves.
+  <div class="card">
+    <h2>Share to another app</h2>
+    <p class="sub">Opens the device's native share sheet — the user picks any installed app that accepts shares (WhatsApp, Gmail, etc.). This is the only way a web page can hand off to an arbitrary installed app; there's no way to list installed apps directly.</p>
+    <div class="row">
+      <button class="btn" onclick="shareToApp()">Share…</button>
+      <span class="status idle" id="shareStatus">Not tried</span>
+    </div>
   </div>
 
   <div class="card">
-    <h2>Privacy Dashboard / Permission Manager</h2>
-    <p class="sub">Browse every app grouped by permission type (camera, location, microphone, etc.) — the device's own built-in view.</p>
-    <button onclick="openPrivacyDashboard()">Open Permission Manager</button>
-    <div class="note" id="note-general"></div>
+    <h2>Quick launch</h2>
+    <p class="sub">Opens a specific known app directly via standard link schemes. These work in any browser without a permission prompt.</p>
+    <div class="row">
+      <button class="btn" onclick="location.href='tel:'">Phone</button>
+      <button class="btn" onclick="location.href='sms:'">Messages</button>
+      <button class="btn" onclick="location.href='mailto:'">Email</button>
+      <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
+      <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
+    </div>
+    <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
 
   <div class="card">
-    <h2>A specific app's permissions</h2>
-    <p class="sub">
-      <strong>Android:</strong> enter the app's package name, e.g. <code>com.whatsapp</code> or <code>com.dreamapplications.shopdesk</code>.<br>
-      <strong>Windows:</strong> this field isn't used — desktop (Win32) apps don't have a per-app permissions page the way mobile/UWP apps do, so the button below just opens the general Privacy hub instead.
-    </p>
-    <input type="text" id="packageName" placeholder="e.g. com.whatsapp">
-    <button onclick="openAppPermissions()">Open This App's Permissions</button>
-    <div class="note" id="note-specific"></div>
+    <h2>Location</h2>
+    <p class="sub">One-time GPS/network location fix.</p>
+    <div class="row">
+      <button class="btn" onclick="requestLocation()">Request location</button>
+      <span class="status idle" id="locStatus">Not requested</span>
+    </div>
+    <div class="output" id="locOutput"></div>
+  </div>
+
+  <div class="card">
+    <h2>Camera &amp; microphone</h2>
+    <p class="sub">Live preview once access is granted.</p>
+    <div class="row">
+      <button class="btn" onclick="requestCamera()">Request camera + mic</button>
+      <span class="status idle" id="camStatus">Not requested</span>
+    </div>
+    <video id="camPreview" autoplay muted playsinline></video>
+  </div>
+
+  <div class="card">
+    <h2>Notifications</h2>
+    <p class="sub">Lets this page show system notifications.</p>
+    <div class="row">
+      <button class="btn" onclick="requestNotifications()">Request notifications</button>
+      <button class="btn" id="testNotifyBtn" onclick="sendTestNotification()" disabled>Send test</button>
+      <span class="status idle" id="notifyStatus">Not requested</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Motion &amp; orientation</h2>
+    <p class="sub">Live accelerometer/gyroscope readout.</p>
+    <p class="support">On iOS Safari this needs an explicit tap to prompt; on Android Chrome it's usually granted automatically.</p>
+    <div class="row">
+      <button class="btn" onclick="requestMotion()">Request motion access</button>
+      <span class="status idle" id="motionStatus">Not requested</span>
+    </div>
+    <div class="output" id="motionOutput"></div>
+  </div>
+
+  <div class="card">
+    <h2>Clipboard</h2>
+    <p class="sub">Read from or write to the system clipboard.</p>
+    <div class="row">
+      <button class="btn" onclick="writeClipboard()">Copy sample text</button>
+      <button class="btn" onclick="readClipboard()">Read clipboard</button>
+      <span class="status idle" id="clipStatus">Not requested</span>
+    </div>
+    <div class="output" id="clipOutput"></div>
+  </div>
+
+  <div class="card">
+    <h2>Vibration</h2>
+    <p class="sub">No permission prompt — just needs a tap. Android only; iOS Safari doesn't support it.</p>
+    <div class="row">
+      <button class="btn" onclick="vibrateDevice()">Vibrate</button>
+      <span class="status idle" id="vibrateStatus">Not tried</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Bluetooth devices</h2>
+    <p class="sub">Pair with a nearby Bluetooth Low Energy device.</p>
+    <p class="support">Chrome on Android/desktop only — not supported in Safari or Firefox.</p>
+    <div class="row">
+      <button class="btn" onclick="requestBluetooth()">Scan for devices</button>
+      <span class="status idle" id="btStatus">Not requested</span>
+    </div>
+    <div class="output" id="btOutput"></div>
+  </div>
+
+  <div class="card">
+    <h2>Keep screen awake</h2>
+    <p class="sub">Prevents the screen from locking while this page is open.</p>
+    <div class="row">
+      <button class="btn" onclick="toggleWakeLock()" id="wakeLockBtn">Keep screen on</button>
+      <span class="status idle" id="wakeStatus">Off</span>
+    </div>
   </div>
 
 </div>
 
 <script>
-/*
-  Same bridge-first, honest-fallback pattern as the earlier Settings and
-  Apps-settings pages:
-
-  1. Native bridge — only present inside a packaged WebView app that has
-     registered it. The only fully reliable route.
-  2. intent:// URI (Android, plain browser) — best-effort. Same BROWSABLE
-     restriction as always likely blocks this in Chrome.
-  3. ms-settings: (Windows) — genuinely works, no restrictions.
-  4. iOS — no workaround exists; shown as an honest message.
-*/
-
-function setNote(id, msg){
-  document.getElementById(id).textContent = msg;
+if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+  document.getElementById('secureWarning').style.display = 'block';
 }
 
-function platformInfo(){
-  const ua = navigator.userAgent || '';
-  return {
-    isAndroid: /android/i.test(ua),
-    isWindows: /windows/i.test(ua),
-    isIOS: /iphone|ipad|ipod/i.test(ua)
+function setStatus(id, text, kind){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'status ' + kind;
+}
+function setOutput(id, text){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.classList.add('show');
+}
+
+/* ---------------- Share to another app ---------------- */
+async function shareToApp(){
+  if (!navigator.share) { setStatus('shareStatus','Not supported','denied'); return; }
+  try{
+    await navigator.share({
+      title: 'Dream Applications',
+      text: 'Shared from the Device Permissions page.',
+      url: location.href
+    });
+    setStatus('shareStatus','Shared','granted');
+  }catch(e){
+    // User cancelling the share sheet also lands here — not a real error
+    if (e.name === 'AbortError') setStatus('shareStatus','Cancelled','idle');
+    else setStatus('shareStatus', e.message, 'denied');
+  }
+}
+
+/* ---------------- Location ---------------- */
+function requestLocation(){
+  if (!navigator.geolocation) { setStatus('locStatus','Not supported','denied'); return; }
+  setStatus('locStatus','Requesting…','idle');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      setStatus('locStatus','Granted','granted');
+      setOutput('locOutput', `Lat ${pos.coords.latitude.toFixed(5)}, Lng ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`);
+    },
+    err => setStatus('locStatus', err.message, 'denied')
+  );
+}
+
+/* ---------------- Camera / mic ---------------- */
+async function requestCamera(){
+  setStatus('camStatus','Requesting…','idle');
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    const video = document.getElementById('camPreview');
+    video.srcObject = stream;
+    video.classList.add('show');
+    setStatus('camStatus','Granted','granted');
+  }catch(e){
+    setStatus('camStatus', e.message, 'denied');
+  }
+}
+
+/* ---------------- Notifications ---------------- */
+async function requestNotifications(){
+  if (!('Notification' in window)) { setStatus('notifyStatus','Not supported','denied'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    setStatus('notifyStatus','Granted','granted');
+    document.getElementById('testNotifyBtn').disabled = false;
+  } else {
+    setStatus('notifyStatus', perm, 'denied');
+  }
+}
+function sendTestNotification(){
+  new Notification('Dream Applications', { body: 'This is a test notification.' });
+}
+
+/* ---------------- Motion / orientation ---------------- */
+function requestMotion(){
+  const startListening = () => {
+    setStatus('motionStatus','Granted','granted');
+    window.addEventListener('devicemotion', e => {
+      const a = e.accelerationIncludingGravity || {};
+      setOutput('motionOutput',
+        `x: ${(a.x||0).toFixed(2)}  y: ${(a.y||0).toFixed(2)}  z: ${(a.z||0).toFixed(2)}`);
+    });
   };
+
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    // iOS 13+ requires an explicit permission prompt triggered by a tap
+    DeviceMotionEvent.requestPermission().then(state => {
+      if (state === 'granted') startListening();
+      else setStatus('motionStatus', state, 'denied');
+    }).catch(e => setStatus('motionStatus', e.message, 'denied'));
+  } else if ('DeviceMotionEvent' in window) {
+    // Android Chrome: no explicit prompt, access is implicit
+    startListening();
+  } else {
+    setStatus('motionStatus','Not supported','denied');
+  }
 }
 
-function openPrivacyDashboard(){
-  const { isAndroid, isWindows, isIOS } = platformInfo();
-
-  if (isAndroid) {
-    if (window.AndroidDeviceBridge && typeof window.AndroidDeviceBridge.openPrivacyDashboard === 'function') {
-      window.AndroidDeviceBridge.openPrivacyDashboard();
-      return;
-    }
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-      setNote('note-general', 'Open this over https:// for the fallback link to have any chance of working.');
-      return;
-    }
-    window.location.href = 'intent:#Intent;action=android.settings.PRIVACY_SETTINGS;end';
-    setNote('note-general', 'If nothing happened, your browser blocked it — this reliably works only from inside a packaged app with the native bridge wired in.');
-    return;
-  }
-
-  if (isWindows) {
-    window.location.href = 'ms-settings:privacy';
-    setNote('note-general', 'If nothing happened, this only works inside Edge or a WebView2-based app.');
-    return;
-  }
-
-  if (isIOS) {
-    setNote('note-general', "iOS doesn't allow web pages to open Settings directly — there's no workaround for this on iPhone/iPad.");
-    return;
-  }
-
-  setNote('note-general', "Couldn't detect a privacy settings shortcut for this device.");
+/* ---------------- Clipboard ---------------- */
+async function writeClipboard(){
+  try{
+    await navigator.clipboard.writeText('Dream Applications — Your Dream, Our Priority');
+    setStatus('clipStatus','Copied','granted');
+  }catch(e){ setStatus('clipStatus', e.message, 'denied'); }
+}
+async function readClipboard(){
+  try{
+    const text = await navigator.clipboard.readText();
+    setStatus('clipStatus','Granted','granted');
+    setOutput('clipOutput', text || '(clipboard is empty)');
+  }catch(e){ setStatus('clipStatus', e.message, 'denied'); }
 }
 
-function openAppPermissions(){
-  const { isAndroid, isWindows, isIOS } = platformInfo();
-  const pkg = document.getElementById('packageName').value.trim();
+/* ---------------- Vibration ---------------- */
+function vibrateDevice(){
+  if (!navigator.vibrate) { setStatus('vibrateStatus','Not supported','denied'); return; }
+  navigator.vibrate([100, 60, 100]);
+  setStatus('vibrateStatus','Vibrated','granted');
+}
 
-  if (isAndroid) {
-    if (!pkg) {
-      setNote('note-specific', 'Enter a package name first, e.g. com.whatsapp.');
-      return;
+/* ---------------- Bluetooth ---------------- */
+async function requestBluetooth(){
+  if (!navigator.bluetooth) { setStatus('btStatus','Not supported','denied'); return; }
+  try{
+    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+    setStatus('btStatus','Paired','granted');
+    setOutput('btOutput', `Connected to: ${device.name || '(unnamed device)'}`);
+  }catch(e){ setStatus('btStatus', e.message, 'denied'); }
+}
+
+/* ---------------- Wake Lock ---------------- */
+let wakeLock = null;
+async function toggleWakeLock(){
+  const btn = document.getElementById('wakeLockBtn');
+  if (!('wakeLock' in navigator)) { setStatus('wakeStatus','Not supported','denied'); return; }
+  try{
+    if (!wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      setStatus('wakeStatus','On','granted');
+      btn.textContent = 'Stop keeping screen on';
+      wakeLock.addEventListener('release', () => {
+        setStatus('wakeStatus','Off','idle');
+        btn.textContent = 'Keep screen on';
+        wakeLock = null;
+      });
+    } else {
+      await wakeLock.release();
+      wakeLock = null;
     }
-    if (window.AndroidDeviceBridge && typeof window.AndroidDeviceBridge.openAppPermissions === 'function') {
-      window.AndroidDeviceBridge.openAppPermissions(pkg);
-      return;
-    }
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-      setNote('note-specific', 'Open this over https:// for the fallback link to have any chance of working.');
-      return;
-    }
-    // Opens that app's details page (Permissions is one tap away from here)
-    window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:' + encodeURIComponent(pkg) + ';end';
-    setNote('note-specific', 'If nothing happened, your browser blocked it — this reliably works only from inside a packaged app with the native bridge wired in. Note this opens the app\'s details page; tap "Permissions" there.');
-    return;
-  }
-
-  if (isWindows) {
-    window.location.href = 'ms-settings:privacy';
-    setNote('note-specific', 'Desktop apps on Windows don\'t have individual permission pages, so this opens the general Privacy hub instead.');
-    return;
-  }
-
-  if (isIOS) {
-    setNote('note-specific', "iOS doesn't allow web pages to open Settings directly — there's no workaround for this on iPhone/iPad.");
-    return;
-  }
-
-  setNote('note-specific', "Couldn't detect a settings shortcut for this device.");
+  }catch(e){ setStatus('wakeStatus', e.message, 'denied'); }
 }
 </script>
 
