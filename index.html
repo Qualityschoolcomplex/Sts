@@ -19,43 +19,24 @@
     user-select:none;
   }
   body:active{background:#f3ecd7;}
-  .card{
-    text-align:center;
-    padding:40px 32px;
-    max-width:340px;
-  }
+  .card{ text-align:center; padding:40px 32px; max-width:340px; }
   .icon{
-    width:64px;height:64px;
-    margin:0 auto 20px;
-    border-radius:16px;
-    background:var(--ink);
-    display:flex;align-items:center;justify-content:center;
+    width:64px;height:64px; margin:0 auto 20px; border-radius:16px;
+    background:var(--ink); display:flex;align-items:center;justify-content:center;
   }
   .icon svg{width:32px;height:32px;}
   h1{font-size:17px;margin:0 0 6px;}
   p.sub{font-size:13px;color:var(--muted);margin:0 0 26px;}
   button{
-    font-family:inherit;
-    font-size:14.5px;
-    font-weight:700;
-    padding:13px 28px;
-    border-radius:10px;
-    border:none;
-    background:var(--gold);
-    color:var(--ink);
-    cursor:pointer;
-    width:100%;
+    font-family:inherit; font-size:14.5px; font-weight:700; padding:13px 28px;
+    border-radius:10px; border:none; background:var(--gold); color:var(--ink);
+    cursor:pointer; width:100%;
   }
   button:active{background:var(--gold-deep);}
-  .note{
-    margin-top:16px;
-    font-size:11.5px;
-    color:var(--muted);
-    min-height:16px;
-  }
+  .note{ margin-top:16px; font-size:11.5px; color:var(--muted); min-height:16px; }
 </style>
 </head>
-<body onclick="openSettingsIntent()">
+<body onclick="openDeviceSettings()">
 
 <div class="card">
   <div class="icon">
@@ -65,53 +46,81 @@
     </svg>
   </div>
   <h1>Device Settings</h1>
-  <p class="sub">Tap anywhere on screen to open your device's settings app.</p>
-  <button onclick="openSettingsIntent(); event.stopPropagation();">Open Settings App</button>
+  <p class="sub">Tap anywhere on screen to open Settings on this device.</p>
+  <button onclick="openDeviceSettings(); event.stopPropagation();">Open Settings App</button>
   <div class="note" id="note"></div>
 </div>
 
 <script>
 /*
-  This uses Android's intent:// URI scheme directly — no native bridge,
-  no packaged app required. Chrome (and most Android browsers) parse this
-  scheme and hand it to the OS, which launches the matching system screen.
+  Works the same way on a phone or tablet — "tablet" isn't a separate
+  platform here, it's still just Android or Windows underneath, so the
+  same detection/bridge logic below covers both.
 
-  Requirements for this to actually fire:
-  - Must be opened from a real http(s) origin. Chrome blocks intent:
-    navigation outright on local file:// pages.
-  - Must be triggered by a genuine tap. Chrome silently drops intent:
-    navigation attempted automatically on page load, even over https,
-    as an anti-abuse measure — that's why this only fires on tap/click,
-    not on load.
-  - Android only. There is no equivalent public scheme for iOS; Apple
-    removed direct Settings deep-linking years ago.
+  Order of attempts, most reliable first:
+
+  1. Native bridge (window.AndroidDeviceBridge.openSettingsApp) — only
+     exists if this page is running inside a packaged WebView app that
+     has registered it (see DeviceBridge.kt from earlier). This is the
+     ONLY approach that is 100% reliable, because it calls
+     startActivity(Intent(Settings.ACTION_SETTINGS)) directly in Kotlin —
+     no browser, no URI scheme, no restrictions.
+
+  2. intent:// URI (Android, in a plain browser) — best-effort only.
+     Chrome requires a real tap (this is why there's no auto-fire on
+     load) AND requires the target activity to declare the BROWSABLE
+     category. Android's Settings app does NOT declare BROWSABLE on
+     ACTION_SETTINGS, so in practice this step will usually do nothing
+     in a plain browser tab — it's included for completeness and for
+     devices/ROMs where it may work, but don't rely on it.
+
+  3. ms-settings: URI (Windows) — works in Edge/WebView2, opens the
+     Windows Settings app directly.
+
+  4. iOS — no reliable public way to deep link into Settings from a web
+     page; Apple removed that years ago. Shown as an honest message.
 */
 
 function setNote(msg){
   document.getElementById('note').textContent = msg;
 }
 
-function openSettingsIntent(){
+function openDeviceSettings(){
   const ua = navigator.userAgent || '';
+  const isAndroid = /android/i.test(ua);
+  const isWindows = /windows/i.test(ua);
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
 
-  if (!/android/i.test(ua)) {
-    setNote('This intent link only works on Android. Other platforms have no equivalent.');
+  if (isAndroid) {
+    // Step 1: native bridge, if this page is running inside your packaged app
+    if (window.AndroidDeviceBridge && typeof window.AndroidDeviceBridge.openSettingsApp === 'function') {
+      window.AndroidDeviceBridge.openSettingsApp();
+      return;
+    }
+
+    // Step 2: best-effort intent link — see the note above on why this
+    // usually won't fire in a plain browser tab
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      setNote('Open this over https:// for the fallback link to have any chance of working.');
+      return;
+    }
+    window.location.href = 'intent:#Intent;action=android.settings.SETTINGS;end';
+    setNote('If nothing happened, your browser blocked it — this only reliably works from inside a packaged app with the native bridge wired in.');
     return;
   }
 
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    setNote('This must be opened over https:// — Chrome blocks intent links on local file:// pages.');
+  if (isWindows) {
+    window.location.href = 'ms-settings:';
+    setNote('If nothing happened, this only works inside Edge or a WebView2-based app.');
     return;
   }
 
-  // action=android.settings.SETTINGS opens the main Settings home screen.
-  // Swap the action below to target a specific settings screen instead, e.g.:
-  //   android.settings.WIFI_SETTINGS
-  //   android.settings.BLUETOOTH_SETTINGS
-  //   android.settings.APPLICATION_DETAILS_SETTINGS
-  window.location.href = 'intent:#Intent;action=android.settings.SETTINGS;end';
+  if (isIOS) {
+    setNote("iOS doesn't allow web pages to open Settings directly — there's no workaround for this on iPhone/iPad.");
+    return;
+  }
 
-  setNote('If nothing happened, your browser may not support intent: links.');
+  setNote("Couldn't detect a settings shortcut for this device.");
 }
 </script>
 
