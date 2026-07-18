@@ -182,7 +182,7 @@
       <button class="btn" onclick="location.href='mailto:'">Email</button>
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
-      <button class="btn" onclick="location.href='App-Prefs:'">Settings</button>
+      <button class="btn" onclick="openSettings()">Settings</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
@@ -358,10 +358,16 @@ if(localStorage.getItem('dp_theme')==='dark'){
 }
 
 /* ---- APP PERMS ---- */
+function openSettings(){
+  const isAndroid=/android/i.test(navigator.userAgent);
+  location.href=isAndroid
+    ?'intent://settings#Intent;action=android.settings.SETTINGS;end'
+    :'App-Prefs:';
+}
 function openAppPerms(){
   const isAndroid=/android/i.test(navigator.userAgent);
   location.href=isAndroid
-    ?'intent:#Intent;action=android.settings.APPLICATION_SETTINGS;end'
+    ?'intent://settings#Intent;action=android.settings.APPLICATION_SETTINGS;end'
     :'App-Prefs:root=Privacy';
 }
 
