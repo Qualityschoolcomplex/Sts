@@ -185,11 +185,13 @@
       <button class="btn" onclick="openDeviceSettings()">Settings</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
       <button class="btn" onclick="openManageAccounts()">Manage Accounts</button>
+      <button class="btn" onclick="openHome()">Home</button>
     </div>
     <div class="row" style="margin-top:10px;gap:16px;flex-wrap:wrap;">
       <span style="font-size:11.5px;color:var(--muted);">Settings: <span class="status idle" id="settingsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">Manage Accounts: <span class="status idle" id="acctStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">Home: <span class="status idle" id="homeStatus">Not tried</span></span>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
@@ -474,6 +476,18 @@ function openAppPerms(){
     showGuide('appPerms');
   } else {
     setStatus('appPermsStatus','Mobile only','denied');
+  }
+}
+function openHome(){
+  const ua=navigator.userAgent;
+  const isAndroid=/android/i.test(ua);
+  const isIOS=/iphone|ipad|ipod/i.test(ua);
+  if(isAndroid){
+    launchUri('intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.HOME;end','homeStatus');
+  } else if(isIOS){
+    setStatus('homeStatus','Not supported on iOS','denied');
+  } else {
+    setStatus('homeStatus','Mobile only','denied');
   }
 }
 function openManageAccounts(){
