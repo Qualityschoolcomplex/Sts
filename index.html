@@ -55,7 +55,7 @@
   }
 </style>
 </head>
-<body onclick="openSettings()">
+<body onclick="openSettingsIntent()">
 
 <div class="card">
   <div class="icon">
@@ -66,67 +66,53 @@
   </div>
   <h1>Device Settings</h1>
   <p class="sub">Tap anywhere on screen to open your device's settings app.</p>
-  <button onclick="openSettings(); event.stopPropagation();">Open Settings App</button>
+  <button onclick="openSettingsIntent(); event.stopPropagation();">Open Settings App</button>
   <div class="note" id="note"></div>
 </div>
 
 <script>
-function detectPlatform(){
-  const ua = navigator.userAgent || '';
-  if (/android/i.test(ua)) return 'android';
-  if (/windows/i.test(ua)) return 'windows';
-  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
-  if (/mac/i.test(ua)) return 'mac';
-  return 'unknown';
-}
+/*
+  This uses Android's intent:// URI scheme directly — no native bridge,
+  no packaged app required. Chrome (and most Android browsers) parse this
+  scheme and hand it to the OS, which launches the matching system screen.
+
+  Requirements for this to actually fire:
+  - Must be opened from a real http(s) origin. Chrome blocks intent:
+    navigation outright on local file:// pages.
+  - Must be triggered by a genuine tap. Chrome silently drops intent:
+    navigation attempted automatically on page load, even over https,
+    as an anti-abuse measure — that's why this only fires on tap/click,
+    not on load.
+  - Android only. There is no equivalent public scheme for iOS; Apple
+    removed direct Settings deep-linking years ago.
+*/
 
 function setNote(msg){
   document.getElementById('note').textContent = msg;
 }
 
-function openSettings(){
-  const platform = detectPlatform();
+function openSettingsIntent(){
+  const ua = navigator.userAgent || '';
 
-  if (platform === 'android') {
-    // Preferred path: a native JS interface registered by the packaged app
-    // (see android/DeviceBridge.kt). This works from local file:// assets
-    // with zero browser restrictions, unlike the intent: URI below.
-    if (window.AndroidDeviceBridge && window.AndroidDeviceBridge.openSettingsApp) {
-      window.AndroidDeviceBridge.openSettingsApp();
-      return;
-    }
-
-    // Fallback: works in Chrome, but ONLY when this page is loaded from a
-    // real http(s) origin — Chrome blocks intent: navigation from file://
-    // pages for security reasons, which silently does nothing.
-    window.location.href = 'intent:#Intent;action=android.settings.SETTINGS;end';
-    setNote("If nothing happened: Chrome blocks this when the page is opened as a local file. Host it over https, or open it inside your packaged app.");
+  if (!/android/i.test(ua)) {
+    setNote('This intent link only works on Android. Other platforms have no equivalent.');
     return;
   }
 
-  if (platform === 'windows') {
-    // ms-settings: is a built-in URI scheme that opens the Windows Settings app.
-    window.location.href = 'ms-settings:';
-    setNote('If nothing happened, this only works inside Edge or a WebView2 app.');
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    setNote('This must be opened over https:// — Chrome blocks intent links on local file:// pages.');
     return;
   }
 
-  if (platform === 'ios') {
-    // Apple removed the public prefs: URL scheme years ago; there is no
-    // reliable, App-Store-safe way to deep link into iOS Settings from a
-    // web page or a normal app anymore.
-    setNote("iOS doesn't allow web pages to open the Settings app directly. You'll need to open it manually.");
-    return;
-  }
+  // action=android.settings.SETTINGS opens the main Settings home screen.
+  // Swap the action below to target a specific settings screen instead, e.g.:
+  //   android.settings.WIFI_SETTINGS
+  //   android.settings.BLUETOOTH_SETTINGS
+  //   android.settings.APPLICATION_DETAILS_SETTINGS
+  window.location.href = 'intent:#Intent;action=android.settings.SETTINGS;end';
 
-  setNote("Couldn't detect a settings app shortcut for this device.");
+  setNote('If nothing happened, your browser may not support intent: links.');
 }
-
-// No auto-fire on load. Chrome requires a genuine user gesture (a real tap)
-// before it will honor an intent:/ms-settings: navigation — an automatic
-// call on page load gets silently dropped as an anti-abuse measure, even
-// over https. Tapping anywhere on the screen (see the onclick on <body>
-// and the button below) is what reliably fires it instead.
 </script>
 
 </body>
