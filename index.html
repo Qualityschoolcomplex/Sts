@@ -182,8 +182,12 @@
       <button class="btn" onclick="location.href='mailto:'">Email</button>
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
-      <button class="btn" onclick="openSettings()">Settings</button>
+      <button class="btn" onclick="openDeviceSettings()">Settings</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
+    </div>
+    <div class="row" style="margin-top:10px;gap:16px;">
+      <span style="font-size:11.5px;color:var(--muted);">Settings: <span class="status idle" id="settingsStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
@@ -357,18 +361,45 @@ if(localStorage.getItem('dp_theme')==='dark'){
   toggleDark(cb);
 }
 
-/* ---- APP PERMS ---- */
-function openSettings(){
+/* ---- DEVICE SETTINGS LAUNCH ---- */
+function launchUri(uri, statusId){
+  const a=document.createElement('a');
+  a.href=uri;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  if(statusId) setStatus(statusId,'Trying…','idle');
+  const onVisible=()=>{
+    if(statusId) setStatus(statusId,'Not supported','denied');
+    document.removeEventListener('visibilitychange',handler);
+  };
+  const handler=()=>{
+    if(document.hidden){
+      if(statusId) setStatus(statusId,'Opened','granted');
+      document.removeEventListener('visibilitychange',handler);
+      clearTimeout(timer);
+    }
+  };
+  document.addEventListener('visibilitychange',handler);
+  const timer=setTimeout(onVisible,1500);
+}
+function openDeviceSettings(){
   const isAndroid=/android/i.test(navigator.userAgent);
-  location.href=isAndroid
-    ?'intent://settings#Intent;action=android.settings.SETTINGS;end'
-    :'App-Prefs:';
+  launchUri(
+    isAndroid
+      ?'intent://settings#Intent;action=android.settings.SETTINGS;package=com.android.settings;end'
+      :'App-Prefs:',
+    'settingsStatus'
+  );
 }
 function openAppPerms(){
   const isAndroid=/android/i.test(navigator.userAgent);
-  location.href=isAndroid
-    ?'intent://settings#Intent;action=android.settings.APPLICATION_SETTINGS;end'
-    :'App-Prefs:root=Privacy';
+  launchUri(
+    isAndroid
+      ?'intent://settings#Intent;action=android.settings.APPLICATION_SETTINGS;package=com.android.settings;end'
+      :'App-Prefs:root=Privacy',
+    'appPermsStatus'
+  );
 }
 
 /* ---- PERMISSIONS ---- */
