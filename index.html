@@ -184,10 +184,12 @@
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
       <button class="btn" onclick="openDeviceSettings()">Settings</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
+      <button class="btn" onclick="openManageAccounts()">Manage Accounts</button>
     </div>
-    <div class="row" style="margin-top:10px;gap:16px;">
+    <div class="row" style="margin-top:10px;gap:16px;flex-wrap:wrap;">
       <span style="font-size:11.5px;color:var(--muted);">Settings: <span class="status idle" id="settingsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">Manage Accounts: <span class="status idle" id="acctStatus">Not tried</span></span>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
@@ -331,21 +333,39 @@
     </div>
 
     <div id="guideAppPerms" style="display:none;">
-      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">A permission request was just triggered. Use that to reach App Permissions:</p>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">Android doesn't allow browsers to open App Permissions directly. Go there manually:</p>
       <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Address bar shortcut (quickest)</p>
+        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Direct path</p>
         <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Look for the <strong>lock 🔒</strong> or <strong>blocked ⊘</strong> icon in your address bar</li>
-          <li>Tap it → tap <strong>Permissions</strong></li>
-          <li>Tap <strong>Go to site settings</strong> → this opens Android's full app permission settings for your browser</li>
+          <li>Open <strong>Settings</strong></li>
+          <li>Tap <strong>Apps</strong></li>
+          <li>Find and tap your browser (<span id="guideAppPermsBrowser">Chrome</span>)</li>
+          <li>Tap <strong>Permissions</strong></li>
         </ol>
       </div>
       <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Or go directly</p>
+        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Shortcut</p>
         <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Settings → Apps</li>
-          <li>Find your browser (Chrome / Samsung / etc.)</li>
-          <li>Tap <strong>Permissions</strong></li>
+          <li>Long-press your browser icon on the home screen</li>
+          <li>Tap <strong>App info</strong> → <strong>Permissions</strong></li>
+        </ol>
+      </div>
+    </div>
+
+    <div id="guideAccounts" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">Android doesn't allow browsers to open Accounts settings directly. Go there manually:</p>
+      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Android 8+</p>
+        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
+          <li>Open <strong>Settings</strong></li>
+          <li>Tap <strong>Accounts</strong> (or <strong>Users &amp; accounts</strong> / <strong>Passwords &amp; accounts</strong>)</li>
+        </ol>
+      </div>
+      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;">
+        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Samsung devices</p>
+        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
+          <li>Open <strong>Settings</strong></li>
+          <li>Tap <strong>Accounts and backup</strong> → <strong>Manage accounts</strong></li>
         </ol>
       </div>
     </div>
@@ -443,28 +463,48 @@ function openDeviceSettings(){
     setStatus('settingsStatus','Mobile only','denied');
   }
 }
-async function openAppPerms(){
+function openAppPerms(){
   const ua=navigator.userAgent;
   const isIOS=/iphone|ipad|ipod/i.test(ua);
   const isAndroid=/android/i.test(ua);
   if(isIOS){
     launchUri('App-Prefs:root=Privacy','appPermsStatus');
   } else if(isAndroid){
-    setStatus('appPermsStatus','Surfacing…','idle');
-    // Trigger a camera request so Chrome shows the blocked icon in the
-    // address bar — tapping it leads directly to Android app permissions
-    try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(_){}
-    setStatus('appPermsStatus','See guide ↓','idle');
+    setStatus('appPermsStatus','See guide \u2193','idle');
     showGuide('appPerms');
   } else {
     setStatus('appPermsStatus','Mobile only','denied');
   }
 }
+function openManageAccounts(){
+  const ua=navigator.userAgent;
+  const isIOS=/iphone|ipad|ipod/i.test(ua);
+  const isAndroid=/android/i.test(ua);
+  if(isIOS){
+    launchUri('App-Prefs:root=ACCOUNT','acctStatus');
+  } else if(isAndroid){
+    setStatus('acctStatus','See guide \u2193','idle');
+    showGuide('accounts');
+  } else {
+    setStatus('acctStatus','Mobile only','denied');
+  }
+}
+function getBrowserName(){
+  const ua=navigator.userAgent;
+  if(/SamsungBrowser/i.test(ua)) return 'Samsung Internet';
+  if(/OPR|Opera/i.test(ua)) return 'Opera';
+  if(/Edg\//i.test(ua)) return 'Edge';
+  if(/Firefox/i.test(ua)) return 'Firefox';
+  return 'Chrome';
+}
 function showGuide(type){
-  document.getElementById('guideTitle').textContent =
-    type==='settings' ? 'Open Android Settings' : 'Open App Permissions';
-  document.getElementById('guideSettings').style.display = type==='settings'?'block':'none';
-  document.getElementById('guideAppPerms').style.display = type==='appPerms'?'block':'none';
+  const titles={settings:'Open Android Settings',appPerms:'Open App Permissions',accounts:'Manage Accounts'};
+  document.getElementById('guideTitle').textContent = titles[type]||'Guide';
+  document.getElementById('guideSettings').style.display  = type==='settings'?'block':'none';
+  document.getElementById('guideAppPerms').style.display  = type==='appPerms'?'block':'none';
+  document.getElementById('guideAccounts').style.display  = type==='accounts'?'block':'none';
+  const browserEl=document.getElementById('guideAppPermsBrowser');
+  if(browserEl) browserEl.textContent=getBrowserName();
   document.getElementById('guideOverlay').classList.add('show');
 }
 function closeGuide(){ document.getElementById('guideOverlay').classList.remove('show'); }
