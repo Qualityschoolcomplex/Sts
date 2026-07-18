@@ -65,7 +65,7 @@
     </svg>
   </div>
   <h1>Device Settings</h1>
-  <p class="sub">Opening your device's settings app automatically…</p>
+  <p class="sub">Tap anywhere on screen to open your device's settings app.</p>
   <button onclick="openSettings(); event.stopPropagation();">Open Settings App</button>
   <div class="note" id="note"></div>
 </div>
@@ -122,10 +122,11 @@ function openSettings(){
   setNote("Couldn't detect a settings app shortcut for this device.");
 }
 
-// Auto-fire on load — no tap required. Kept as a real function call (not
-// inline) so the same logic still runs if the browser blocks the automatic
-// attempt and the user has to tap manually as a fallback.
-window.addEventListener('DOMContentLoaded', openSettings);
+// No auto-fire on load. Chrome requires a genuine user gesture (a real tap)
+// before it will honor an intent:/ms-settings: navigation — an automatic
+// call on page load gets silently dropped as an anti-abuse measure, even
+// over https. Tapping anywhere on the screen (see the onclick on <body>
+// and the button below) is what reliably fires it instead.
 </script>
 
 </body>
