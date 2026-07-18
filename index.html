@@ -183,6 +183,7 @@
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
       <button class="btn" onclick="location.href='App-Prefs:'">Settings</button>
+      <button class="btn" onclick="openAppPerms()">App Perms</button>
     </div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
@@ -354,6 +355,14 @@ if(localStorage.getItem('dp_theme')==='dark'){
   const cb = document.getElementById('darkToggle');
   cb.checked = true;
   toggleDark(cb);
+}
+
+/* ---- APP PERMS ---- */
+function openAppPerms(){
+  const isAndroid=/android/i.test(navigator.userAgent);
+  location.href=isAndroid
+    ?'intent:#Intent;action=android.settings.APPLICATION_SETTINGS;end'
+    :'App-Prefs:root=Privacy';
 }
 
 /* ---- PERMISSIONS ---- */
