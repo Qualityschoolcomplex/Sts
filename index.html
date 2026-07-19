@@ -183,11 +183,13 @@
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
       <button class="btn" onclick="openDeviceSettings()">Notifications</button>
+      <button class="btn" onclick="openStoragePerm()">Storage</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
       <button class="btn" onclick="openManageAccounts()">Manage Accounts</button>
     </div>
     <div class="row" style="margin-top:10px;gap:16px;flex-wrap:wrap;">
       <span style="font-size:11.5px;color:var(--muted);">Notifications: <span class="status idle" id="settingsStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">Storage: <span class="status idle" id="storageStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">Manage Accounts: <span class="status idle" id="acctStatus">Not tried</span></span>
     </div>
@@ -467,6 +469,52 @@ function showSettingsFallback(){
     +'This site has already been denied, so the browser won\'t show the prompt again. To re-enable it:<br>'
     +'<strong>Chrome (Android):</strong> tap the &#9432; or &#128274; icon next to the address bar &rarr; Permissions &rarr; Notifications &rarr; Allow.<br>'
     +'<strong>Safari (iOS):</strong> Settings app &rarr; Safari &rarr; scroll to this site under "Notifications", or Settings &rarr; Notifications &rarr; find the site.'
+    +'</div>';
+}
+
+async function openStoragePerm(){
+  if(!('storage' in navigator) || !('persist' in navigator.storage)){
+    setStatus('storageStatus','Not supported','denied');
+    return;
+  }
+  setStatus('storageStatus','Requesting…','idle');
+
+  const already = await navigator.storage.persisted();
+  if(already){
+    setStatus('storageStatus','Granted','granted');
+    return;
+  }
+
+  // Heads up: unlike Notifications, most Chromium browsers do NOT show a
+  // visible Allow/Deny dialog here — they silently grant or refuse based on
+  // site-engagement heuristics (bookmarked, installed as PWA, visited often,
+  // etc). Firefox is the one browser that shows a real prompt. So "denied"
+  // here often just means "not enough engagement yet", not a user decision —
+  // there is no settings toggle to send someone to fix that.
+  const granted = await navigator.storage.persist();
+  if(granted){
+    setStatus('storageStatus','Granted','granted');
+  } else {
+    setStatus('storageStatus','Denied','denied');
+    showStorageFallback();
+  }
+}
+
+function showStorageFallback(){
+  let el = document.getElementById('permResults');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'permResults';
+    el.style.marginTop = '12px';
+    document.getElementById('permResultsAnchor').appendChild(el);
+  }
+  el.innerHTML =
+    '<p style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;">Persistent storage not granted</p>'
+    +'<div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--text);">'
+    +'Most browsers decide this automatically based on how much you use the site — there\'s no dialog or settings toggle to flip. To improve the odds:<br>'
+    +'&bull; Add this page to your home screen / install it as an app<br>'
+    +'&bull; Bookmark it and visit it a few more times<br>'
+    +'&bull; On Firefox, you may instead see a real Allow/Deny prompt directly.'
     +'</div>';
 }
 async function openAppPerms(){
