@@ -126,6 +126,7 @@
   input:checked+.slider{background:var(--gold);}
   input:checked+.slider:before{transform:translateX(20px);}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -184,11 +185,14 @@
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
       <button class="btn" onclick="openDeviceSettings()">Settings</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
+      <button class="btn" onclick="openManageAccounts()">Manage Accounts</button>
     </div>
-    <div class="row" style="margin-top:10px;gap:16px;">
+    <div class="row" style="margin-top:10px;gap:16px;flex-wrap:wrap;">
       <span style="font-size:11.5px;color:var(--muted);">Settings: <span class="status idle" id="settingsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">Manage Accounts: <span class="status idle" id="acctStatus">Not tried</span></span>
     </div>
+    <div id="permResultsAnchor"></div>
     <input type="file" id="cameraCapture" accept="image/*" capture="environment" style="display:none">
   </div>
 
@@ -305,50 +309,15 @@
   </div>
 </div>
 
-<!-- ANDROID GUIDE MODAL -->
-<div class="overlay" id="guideOverlay" onclick="if(event.target===this)closeGuide()">
-  <div class="modal" style="max-width:360px;">
-    <button class="closeBtn" onclick="closeGuide()">Close</button>
-    <h3 id="guideTitle">Guide</h3>
-
-    <div id="guideSettings">
-      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">Android blocks direct Settings access from browsers. Here are two ways to get there:</p>
-      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Option A — Fastest</p>
-        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Swipe down your notification bar</li>
-          <li>Tap the gear icon ⚙️</li>
-        </ol>
-      </div>
-      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Option B — Via browser icon</p>
-        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Go to your home screen</li>
-          <li>Long-press your browser icon</li>
-          <li>Tap <strong>App info</strong></li>
-        </ol>
-      </div>
+<!-- QR CODE MODAL -->
+<div class="overlay" id="qrOverlay" onclick="if(event.target===this)closeQR()">
+  <div class="modal" style="max-width:300px;text-align:center;">
+    <button class="closeBtn" onclick="closeQR()">Close</button>
+    <h3 id="qrTitle" style="margin-bottom:16px;">Scan to Open</h3>
+    <div style="background:#fff;padding:12px;border-radius:12px;display:inline-block;">
+      <canvas id="qrCanvas"></canvas>
     </div>
-
-    <div id="guideAppPerms" style="display:none;">
-      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">A permission request was just triggered. Use that to reach App Permissions:</p>
-      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Address bar shortcut (quickest)</p>
-        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Look for the <strong>lock 🔒</strong> or <strong>blocked ⊘</strong> icon in your address bar</li>
-          <li>Tap it → tap <strong>Permissions</strong></li>
-          <li>Tap <strong>Go to site settings</strong> → this opens Android's full app permission settings for your browser</li>
-        </ol>
-      </div>
-      <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;">
-        <p style="font-size:12px;font-weight:700;margin:0 0 8px;">Or go directly</p>
-        <ol style="font-size:12.5px;color:var(--muted);margin:0;padding-left:18px;line-height:1.8;">
-          <li>Settings → Apps</li>
-          <li>Find your browser (Chrome / Samsung / etc.)</li>
-          <li>Tap <strong>Permissions</strong></li>
-        </ol>
-      </div>
-    </div>
+    <p id="qrHint" style="font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.6;"></p>
   </div>
 </div>
 
@@ -408,66 +377,83 @@ if(localStorage.getItem('dp_theme')==='dark'){
   toggleDark(cb);
 }
 
-/* ---- DEVICE SETTINGS LAUNCH ---- */
-function launchUri(uri, statusId){
-  const a=document.createElement('a');
-  a.href=uri;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  if(statusId) setStatus(statusId,'Trying…','idle');
-  const onVisible=()=>{
-    if(statusId) setStatus(statusId,'Not supported','denied');
-    document.removeEventListener('visibilitychange',handler);
-  };
-  const handler=()=>{
-    if(document.hidden){
-      if(statusId) setStatus(statusId,'Opened','granted');
-      document.removeEventListener('visibilitychange',handler);
-      clearTimeout(timer);
-    }
-  };
-  document.addEventListener('visibilitychange',handler);
-  const timer=setTimeout(onVisible,1500);
+/* ---- QUICK LAUNCH: SETTINGS / APP PERMS / ACCOUNTS ---- */
+function showQR(title, uri, hint){
+  document.getElementById('qrTitle').textContent = title;
+  document.getElementById('qrHint').textContent  = hint;
+  const canvas = document.getElementById('qrCanvas');
+  QRCode.toCanvas(canvas, uri, {width:200, margin:1}, function(err){
+    if(err) console.error(err);
+  });
+  document.getElementById('qrOverlay').classList.add('show');
 }
+function closeQR(){ document.getElementById('qrOverlay').classList.remove('show'); }
+
 function openDeviceSettings(){
-  const ua=navigator.userAgent;
-  const isIOS=/iphone|ipad|ipod/i.test(ua);
-  const isAndroid=/android/i.test(ua);
-  if(isIOS){
-    launchUri('App-Prefs:','settingsStatus');
-  } else if(isAndroid){
-    setStatus('settingsStatus','See guide ↓','idle');
-    showGuide('settings');
+  const ua = navigator.userAgent;
+  if(/iphone|ipad|ipod/i.test(ua)){
+    location.href = 'App-Prefs:';
+    setStatus('settingsStatus','Opened','granted');
+  } else if(/android/i.test(ua)){
+    showQR(
+      'Open Android Settings',
+      'intent://settings#Intent;action=android.settings.SETTINGS;package=com.android.settings;end',
+      'Scan with your camera app — do NOT use Chrome to scan'
+    );
+    setStatus('settingsStatus','Scan QR','idle');
   } else {
-    setStatus('settingsStatus','Mobile only','denied');
+    openSettings();
+    setStatus('settingsStatus','Opened','granted');
   }
 }
 async function openAppPerms(){
-  const ua=navigator.userAgent;
-  const isIOS=/iphone|ipad|ipod/i.test(ua);
-  const isAndroid=/android/i.test(ua);
-  if(isIOS){
-    launchUri('App-Prefs:root=Privacy','appPermsStatus');
-  } else if(isAndroid){
-    setStatus('appPermsStatus','Surfacing…','idle');
-    // Trigger a camera request so Chrome shows the blocked icon in the
-    // address bar — tapping it leads directly to Android app permissions
-    try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(_){}
-    setStatus('appPermsStatus','See guide ↓','idle');
-    showGuide('appPerms');
-  } else {
-    setStatus('appPermsStatus','Mobile only','denied');
+  const ua = navigator.userAgent;
+  if(/android/i.test(ua)){
+    showQR(
+      'Open App Permissions',
+      'intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.android.chrome;package=com.android.settings;end',
+      'Scan with your camera app — do NOT use Chrome to scan'
+    );
+    setStatus('appPermsStatus','Scan QR','idle');
+    return;
   }
+  setStatus('appPermsStatus','Checking...','idle');
+  const checks=[
+    {label:'Camera',        name:'camera'},
+    {label:'Microphone',    name:'microphone'},
+    {label:'Location',      name:'geolocation'},
+    {label:'Notifications', name:'notifications'},
+    {label:'Clipboard R',   name:'clipboard-read'},
+    {label:'Clipboard W',   name:'clipboard-write'},
+    {label:'Wake Lock',     name:'screen-wake-lock'},
+    {label:'Storage',       name:'persistent-storage'},
+  ];
+  const results=await Promise.all(checks.map(async({label,name})=>{
+    try{ const s=await navigator.permissions.query({name}); return {label,state:s.state}; }
+    catch(_){ return {label,state:'n/a'}; }
+  }));
+  setStatus('appPermsStatus','Done','granted');
+  const color=s=>s==='granted'?'var(--gold)':s==='denied'?'#c0392b':'var(--muted)';
+  let el=document.getElementById('permResults');
+  if(!el){
+    el=document.createElement('div');
+    el.id='permResults';
+    el.style.marginTop='12px';
+    document.getElementById('permResultsAnchor').appendChild(el);
+  }
+  el.innerHTML='<p style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;">Browser Permission States</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+    +results.map(function(r){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;">'
+        +'<span style="color:var(--muted);">'+r.label+'</span>'
+        +'<span style="font-weight:700;color:'+color(r.state)+'">'+r.state+'</span>'
+        +'</div>';
+    }).join('')+'</div>';
 }
-function showGuide(type){
-  document.getElementById('guideTitle').textContent =
-    type==='settings' ? 'Open Android Settings' : 'Open App Permissions';
-  document.getElementById('guideSettings').style.display = type==='settings'?'block':'none';
-  document.getElementById('guideAppPerms').style.display = type==='appPerms'?'block':'none';
-  document.getElementById('guideOverlay').classList.add('show');
+function openManageAccounts(){
+  window.open('https://myaccount.google.com','_blank');
+  setStatus('acctStatus','Opened','granted');
 }
-function closeGuide(){ document.getElementById('guideOverlay').classList.remove('show'); }
 
 /* ---- PERMISSIONS ---- */
 function setStatus(id,text,kind){
