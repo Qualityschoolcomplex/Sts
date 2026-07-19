@@ -182,12 +182,12 @@
       <button class="btn" onclick="location.href='mailto:'">Email</button>
       <button class="btn" onclick="location.href='geo:0,0?q=Accra'">Maps</button>
       <button class="btn" onclick="document.getElementById('cameraCapture').click()">Camera</button>
-      <button class="btn" onclick="openDeviceSettings()">Settings</button>
+      <button class="btn" onclick="openDeviceSettings()">Notifications</button>
       <button class="btn" onclick="openAppPerms()">App Perms</button>
       <button class="btn" onclick="openManageAccounts()">Manage Accounts</button>
     </div>
     <div class="row" style="margin-top:10px;gap:16px;flex-wrap:wrap;">
-      <span style="font-size:11.5px;color:var(--muted);">Settings: <span class="status idle" id="settingsStatus">Not tried</span></span>
+      <span style="font-size:11.5px;color:var(--muted);">Notifications: <span class="status idle" id="settingsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">App Perms: <span class="status idle" id="appPermsStatus">Not tried</span></span>
       <span style="font-size:11.5px;color:var(--muted);">Manage Accounts: <span class="status idle" id="acctStatus">Not tried</span></span>
     </div>
@@ -416,23 +416,58 @@ function showQR(title, uri, hint){
 }
 function closeQR(){ document.getElementById('qrOverlay').classList.remove('show'); }
 
-function openDeviceSettings(){
-  const ua = navigator.userAgent;
-  if(/iphone|ipad|ipod/i.test(ua)){
-    location.href = 'App-Prefs:';
-    setStatus('settingsStatus','Opened','granted');
-  } else if(/android/i.test(ua)){
-    const selfUrl = location.origin + location.pathname + '?goto=settings';
-    showQR(
-      'Open Android Settings',
-      selfUrl,
-      'Scan with your phone\'s Camera app. It will open this page briefly in Chrome, which then hands off to Settings.'
-    );
-    setStatus('settingsStatus','Scan QR','idle');
-  } else {
-    openSettings();
-    setStatus('settingsStatus','Opened','granted');
+async function openDeviceSettings(){
+  if(!('Notification' in window)){
+    setStatus('settingsStatus','Not supported','denied');
+    return;
   }
+  setStatus('settingsStatus','Requesting…','idle');
+
+  // If the browser already remembers a decision, it will NOT show the native
+  // Allow/Deny dialog again on repeat calls — it just silently resolves.
+  // So we check first, and only attempt the real prompt while it's still
+  // in the "not yet decided" state.
+  let state = 'prompt';
+  try{
+    const s = await navigator.permissions.query({name:'notifications'});
+    state = s.state;
+  }catch(_){ /* some browsers don't support querying this name — fall through and just try */ }
+
+  if(state === 'denied'){
+    setStatus('settingsStatus','Blocked','denied');
+    showSettingsFallback();
+    return;
+  }
+
+  const perm = await Notification.requestPermission(); // <-- this is the real native OS/browser Allow-Deny dialog
+  if(perm === 'granted'){
+    setStatus('settingsStatus','Granted','granted');
+    const testBtn = document.getElementById('testNotifyBtn');
+    if(testBtn) testBtn.disabled = false;
+  } else {
+    setStatus('settingsStatus','Blocked','denied');
+    showSettingsFallback();
+  }
+}
+
+function showSettingsFallback(){
+  // Once a permission is permanently blocked, no webpage can force the OS to
+  // reopen it or re-show the dialog — that door is closed by design on every
+  // platform. The only honest option is to tell the user exactly where to go.
+  let el = document.getElementById('permResults');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'permResults';
+    el.style.marginTop = '12px';
+    document.getElementById('permResultsAnchor').appendChild(el);
+  }
+  el.innerHTML =
+    '<p style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;">Notifications are blocked</p>'
+    +'<div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--text);">'
+    +'This site has already been denied, so the browser won\'t show the prompt again. To re-enable it:<br>'
+    +'<strong>Chrome (Android):</strong> tap the &#9432; or &#128274; icon next to the address bar &rarr; Permissions &rarr; Notifications &rarr; Allow.<br>'
+    +'<strong>Safari (iOS):</strong> Settings app &rarr; Safari &rarr; scroll to this site under "Notifications", or Settings &rarr; Notifications &rarr; find the site.'
+    +'</div>';
 }
 async function openAppPerms(){
   const ua = navigator.userAgent;
