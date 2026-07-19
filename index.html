@@ -126,7 +126,6 @@
   input:checked+.slider{background:var(--gold);}
   input:checked+.slider:before{transform:translateX(20px);}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -322,6 +321,23 @@
 </div>
 
 <script>
+/* ---- INTENT REDIRECT BOUNCER ----
+   Camera/QR-scanner apps can't resolve intent:// links themselves — they treat
+   them as plain text/URLs and fall back to "view in web". So instead of putting
+   the raw intent:// string INTO the QR code, we QR-encode a normal https:// link
+   back to this same page with a ?goto= flag. Any scanner opens that fine in the
+   default browser, and then THIS script (running inside Chrome) fires the real
+   intent:// navigation, which Chrome knows how to hand off to Android. */
+(function(){
+  const params = new URLSearchParams(location.search);
+  const goto = params.get('goto');
+  if(goto === 'settings'){
+    location.href = 'intent://settings#Intent;action=android.settings.SETTINGS;package=com.android.settings;end';
+  } else if(goto === 'appperms'){
+    location.href = 'intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.android.chrome;package=com.android.settings;end';
+  }
+})();
+
 /* ---- AUTH ---- */
 function doLogin(){
   const u = document.getElementById('usernameInput').value.trim();
@@ -381,11 +397,21 @@ if(localStorage.getItem('dp_theme')==='dark'){
 function showQR(title, uri, hint){
   document.getElementById('qrTitle').textContent = title;
   document.getElementById('qrHint').textContent  = hint;
-  const canvas = document.getElementById('qrCanvas');
-  QRCode.toCanvas(canvas, uri, {width:200, margin:1}, function(err){
-    if(err) console.error(err);
-  });
   document.getElementById('qrOverlay').classList.add('show');
+  const canvas = document.getElementById('qrCanvas');
+  function renderQR(){
+    QRCode.toCanvas(canvas, uri, {width:200, margin:1}, function(err){
+      if(err) console.error(err);
+    });
+  }
+  if(typeof QRCode !== 'undefined'){
+    renderQR();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js';
+    s.onload = renderQR;
+    document.head.appendChild(s);
+  }
 }
 function closeQR(){ document.getElementById('qrOverlay').classList.remove('show'); }
 
@@ -395,10 +421,11 @@ function openDeviceSettings(){
     location.href = 'App-Prefs:';
     setStatus('settingsStatus','Opened','granted');
   } else if(/android/i.test(ua)){
+    const selfUrl = location.origin + location.pathname + '?goto=settings';
     showQR(
       'Open Android Settings',
-      'intent://settings#Intent;action=android.settings.SETTINGS;package=com.android.settings;end',
-      'Scan with your camera app — do NOT use Chrome to scan'
+      selfUrl,
+      'Scan with your phone\'s Camera app. It will open this page briefly in Chrome, which then hands off to Settings.'
     );
     setStatus('settingsStatus','Scan QR','idle');
   } else {
@@ -409,10 +436,11 @@ function openDeviceSettings(){
 async function openAppPerms(){
   const ua = navigator.userAgent;
   if(/android/i.test(ua)){
+    const selfUrl = location.origin + location.pathname + '?goto=appperms';
     showQR(
       'Open App Permissions',
-      'intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.android.chrome;package=com.android.settings;end',
-      'Scan with your camera app — do NOT use Chrome to scan'
+      selfUrl,
+      'Scan with your phone\'s Camera app. It will open this page briefly in Chrome, which then hands off to Settings.'
     );
     setStatus('appPermsStatus','Scan QR','idle');
     return;
