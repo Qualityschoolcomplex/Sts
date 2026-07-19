@@ -331,10 +331,11 @@
 (function(){
   const params = new URLSearchParams(location.search);
   const goto = params.get('goto');
+  const fallback = encodeURIComponent(location.origin + location.pathname);
   if(goto === 'settings'){
-    location.href = 'intent://settings#Intent;action=android.settings.SETTINGS;package=com.android.settings;end';
+    location.href = 'intent://settings#Intent;action=android.settings.SETTINGS;S.browser_fallback_url=' + fallback + ';end';
   } else if(goto === 'appperms'){
-    location.href = 'intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.android.chrome;package=com.android.settings;end';
+    location.href = 'intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
   }
 })();
 
